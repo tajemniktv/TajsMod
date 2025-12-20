@@ -35,8 +35,8 @@ var is_ready := false
 var is_animating := false
 var current_tab := 0
 
-# Configuration (persisted to file)
-var mod_config := {
+# Default configuration values (single source of truth)
+const DEFAULT_CONFIG := {
     # General tab
     "enable_features": true,
     "auto_claim_achievements": false,
@@ -51,6 +51,9 @@ var mod_config := {
     "show_debug_info": false,
     "verbose_logging": false
 }
+
+# Configuration (persisted to file)
+var mod_config := DEFAULT_CONFIG.duplicate()
 
 
 # ==============================================================================
@@ -169,7 +172,7 @@ func setup_mod_button(main: Node) -> void:
     settings_button.icon = load("res://textures/icons/puzzle.png")
     settings_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     settings_button.expand_icon = true
-    settings_button.tooltip_text = "TajsModded Settings"
+    settings_button.tooltip_text = "Taj's Mod Settings"
     
     # Add at the beginning of the list
     extras_container.add_child(settings_button)
@@ -225,13 +228,21 @@ func _create_settings_panel(hud: Node) -> void:
     # Content panel with tabs
     _create_content_panel(main_vbox)
     
-    # Version label
+    # Version label with background
+    var version_panel := PanelContainer.new()
+    version_panel.name = "VersionPanel"
+    version_panel.theme_type_variation = "MenuPanelTitle" # Semi-transparent blur effect
+    version_panel.custom_minimum_size = Vector2(0, 40)
+    main_vbox.add_child(version_panel)
+    
     var version_label := Label.new()
     version_label.text = "Taj's Mod v" + mod_version
     version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    version_label.add_theme_color_override("font_color", Color(0.627, 0.776, 0.812, 0.7))
-    version_label.add_theme_font_size_override("font_size", 16)
-    main_vbox.add_child(version_label)
+    version_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    version_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    version_label.add_theme_color_override("font_color", Color(0.627, 0.776, 0.812, 0.8))
+    version_label.add_theme_font_size_override("font_size", 20)
+    version_panel.add_child(version_label)
     
     # Add panel to our container
     mod_menu_container.add_child(settings_panel)
@@ -572,18 +583,7 @@ func _update_slider_label(config_key: String, value: float, suffix: String) -> v
 
 
 func _on_reset_settings_pressed() -> void:
-    mod_config = {
-        "enable_features": true,
-        "auto_claim_achievements": false,
-        "enhanced_stats": false,
-        "animation_speed": 1.0,
-        "custom_particles": false,
-        "extra_glow": false,
-        "compact_numbers": false,
-        "ui_opacity": 100.0,
-        "show_debug_info": false,
-        "verbose_logging": false
-    }
+    mod_config = DEFAULT_CONFIG.duplicate()
     save_config()
     apply_config_to_ui()
     ModLoaderLog.info("Settings reset to defaults", LOG_NAME)
