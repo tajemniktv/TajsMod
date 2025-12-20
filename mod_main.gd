@@ -14,7 +14,6 @@ extends Node
 const MOD_DIR := "TajemnikTV-TajsModded"
 const LOG_NAME := "TajemnikTV-TajsModded:Main"
 const CONFIG_PATH := "user://TajsModded_config.json"
-const MOD_VERSION := "0.0.1"
 
 
 # ==============================================================================
@@ -23,6 +22,7 @@ const MOD_VERSION := "0.0.1"
 
 # Paths
 var mod_dir_path := ""
+var mod_version := "?.?.?" # Loaded from manifest.json
 
 # UI References
 var settings_button: Button = null
@@ -60,6 +60,7 @@ var mod_config := {
 func _init() -> void:
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
+    _load_mod_version()
     load_config()
 
 
@@ -107,6 +108,24 @@ func _check_existing_main() -> void:
         if is_instance_valid(main_node) and !is_ready:
             setup_mod_button(main_node)
             is_ready = true
+
+
+func _load_mod_version() -> void:
+    # Load version from manifest.json
+    var manifest_path := mod_dir_path.path_join("manifest.json")
+    if FileAccess.file_exists(manifest_path):
+        var file := FileAccess.open(manifest_path, FileAccess.READ)
+        if file:
+            var json_string := file.get_as_text()
+            file.close()
+            var json := JSON.new()
+            if json.parse(json_string) == OK:
+                var data = json.get_data()
+                if data is Dictionary and data.has("version_number"):
+                    mod_version = data["version_number"]
+                    ModLoaderLog.info("Mod version: " + mod_version, LOG_NAME)
+                    return
+    ModLoaderLog.warning("Could not load version from manifest.json", LOG_NAME)
 
 
 func _on_node_added(node: Node) -> void:
@@ -195,7 +214,7 @@ func _create_settings_panel(hud: Node) -> void:
     
     # Version label
     var version_label := Label.new()
-    version_label.text = "Taj's Mod v" + MOD_VERSION
+    version_label.text = "Taj's Mod v" + mod_version
     version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
     version_label.add_theme_color_override("font_color", Color(0.627, 0.776, 0.812, 0.7))
     version_label.add_theme_font_size_override("font_size", 16)

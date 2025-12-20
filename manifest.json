@@ -1,20 +1,22 @@
 {
-    "dependencies": [],
+    "name": "TajsModded",
+    "namespace": "TajemnikTV",
+    "version_number": "0.0.1",
+    "website_url": "https://github.com/tajemniktv/TajsView/",
     "description": "Test version of modding capabilities in Upload Labs.",
+    "dependencies": [],
     "extra": {
         "godot": {
             "authors": [
-				"TajemnikTV"
+                "TajemnikTV"
             ],
             "compatible_game_version": [
-				"2.0.10"
+                "2.0.17"
             ],
             "compatible_mod_loader_version": [
-				"7.0.0"
+                "7.0.0"
             ],
-            "config_schema": {
-
-            },
+            "config_schema": {},
             "description_rich": "",
             "image": null,
             "incompatibilities": [],
@@ -22,9 +24,5 @@
             "optional_dependencies": [],
             "tags": []
         }
-    },
-    "name": "TajsModded",
-    "namespace": "TajemnikTV",
-    "version_number": "0.0.1",
-    "website_url": "https://github.com/exampleauthor/examplemod"
+    }
 }
