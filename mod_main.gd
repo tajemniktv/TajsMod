@@ -1,22 +1,41 @@
+# ==============================================================================
+# Taj's Mod - Upload Labs
+# Author: TajemnikTV
+# Version: 0.0.1
+# Description: Settings panel mod with customizable options for Upload Labs game
+# ==============================================================================
 extends Node
 
-# TajsModded Mod - Upload Labs
-# Autor: TajemnikTV
+
+# ==============================================================================
+# CONSTANTS
+# ==============================================================================
 
 const MOD_DIR := "TajemnikTV-TajsModded"
 const LOG_NAME := "TajemnikTV-TajsModded:Main"
 const CONFIG_PATH := "user://TajsModded_config.json"
+const MOD_VERSION := "0.0.1"
 
+
+# ==============================================================================
+# VARIABLES
+# ==============================================================================
+
+# Paths
 var mod_dir_path := ""
+
+# UI References
 var settings_button: Button = null
 var settings_panel: PanelContainer = null
 var tab_container: TabContainer = null
 var tab_buttons: Array[Button] = []
+
+# State
 var is_ready := false
 var is_animating := false
 var current_tab := 0
 
-# Konfiguracja moda (zapisywana do pliku)
+# Configuration (persisted to file)
 var mod_config := {
     # General tab
     "enable_features": true,
@@ -34,6 +53,10 @@ var mod_config := {
 }
 
 
+# ==============================================================================
+# LIFECYCLE FUNCTIONS
+# ==============================================================================
+
 func _init() -> void:
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
@@ -43,12 +66,34 @@ func _init() -> void:
 func _ready() -> void:
     ModLoaderLog.info("TajsModded ready!", LOG_NAME)
     
-    # Czekamy na załadowanie się gry - nasłuchujemy gdy Main zostanie dodany
+    # Listen for Main node being added
     get_tree().node_added.connect(_on_node_added)
     
-    # Sprawdź czy Main już istnieje (mod może się załadować po głównej scenie)
+    # Check if Main already exists (mod may load after main scene)
     call_deferred("_check_existing_main")
 
+
+func _input(event: InputEvent) -> void:
+    # Close panel when user clicks outside of it
+    if !settings_panel or !settings_panel.visible or is_animating:
+        return
+    
+    if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+        var mouse_pos := get_viewport().get_mouse_position()
+        var panel_rect := settings_panel.get_global_rect()
+        
+        # Don't close if clicking on the settings button
+        var button_rect := Rect2()
+        if settings_button:
+            button_rect = settings_button.get_global_rect()
+        
+        if !panel_rect.has_point(mouse_pos) and !button_rect.has_point(mouse_pos):
+            toggle_settings_panel(false)
+
+
+# ==============================================================================
+# INITIALIZATION HELPERS
+# ==============================================================================
 
 func _check_existing_main() -> void:
     if is_ready:
@@ -57,7 +102,7 @@ func _check_existing_main() -> void:
     var main_node := get_tree().root.get_node_or_null("Main")
     if main_node:
         ModLoaderLog.info("Main node found on startup, setting up...", LOG_NAME)
-        # Poczekaj chwilę na pełne załadowanie HUD
+        # Wait for HUD to fully load
         await get_tree().create_timer(0.5).timeout
         if is_instance_valid(main_node) and !is_ready:
             setup_mod_button(main_node)
@@ -68,18 +113,22 @@ func _on_node_added(node: Node) -> void:
     if is_ready:
         return
     
-    # Szukamy HUD, który jest częścią Main
+    # Looking for Main node under root
     if node.name == "Main" and node.get_parent().name == "root":
         ModLoaderLog.info("Main node detected via node_added signal!", LOG_NAME)
-        # Poczekaj chwilę na pełne załadowanie HUD
+        # Wait for HUD to fully load
         await get_tree().create_timer(0.5).timeout
         if is_instance_valid(node) and !is_ready:
             setup_mod_button(node)
             is_ready = true
 
 
+# ==============================================================================
+# UI SETUP
+# ==============================================================================
+
 func setup_mod_button(main: Node) -> void:
-    # Znajdź HUD i kontener z przyciskami extras (prawy górny róg)
+    # Find HUD and extras button container (top right corner)
     var hud := main.get_node_or_null("HUD")
     if !hud:
         ModLoaderLog.warning("HUD not found!", LOG_NAME)
@@ -90,7 +139,7 @@ func setup_mod_button(main: Node) -> void:
         ModLoaderLog.warning("ExtrasButtons container not found!", LOG_NAME)
         return
     
-    # Stwórz przycisk ustawień moda (styl zgodny z istniejącymi przyciskami)
+    # Create mod settings button (matching game's button style)
     settings_button = Button.new()
     settings_button.name = "TajsModdedSettings"
     settings_button.custom_minimum_size = Vector2(80, 80)
@@ -98,52 +147,75 @@ func setup_mod_button(main: Node) -> void:
     settings_button.focus_mode = Control.FOCUS_NONE
     settings_button.theme_type_variation = "ButtonMenu"
     settings_button.toggle_mode = true
-    settings_button.icon = load("res://textures/icons/puzzle.png")  # Puzzle = mody/extensions
+    settings_button.icon = load("res://textures/icons/puzzle.png")
     settings_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     settings_button.expand_icon = true
     settings_button.tooltip_text = "TajsModded Mod Settings"
     
-    # Dodaj na początek listy (przed innymi przyciskami)
+    # Add at the beginning of the list
     extras_container.add_child(settings_button)
     extras_container.move_child(settings_button, 0)
     
-    # Podłącz sygnał
+    # Connect signal
     settings_button.pressed.connect(_on_settings_button_pressed)
     
-    # Stwórz panel ustawień (początkowo ukryty)
-    create_settings_panel(hud)
+    # Create settings panel (initially hidden)
+    _create_settings_panel(hud)
     
     ModLoaderLog.info("Mod button added to UI!", LOG_NAME)
 
 
-func create_settings_panel(hud: Node) -> void:
-    # Panel główny - pełna szerokość jak Settings w grze
+func _create_settings_panel(hud: Node) -> void:
+    # Main panel with shadow
     settings_panel = PanelContainer.new()
     settings_panel.name = "TajsModdedSettingsPanel"
     settings_panel.visible = false
     settings_panel.theme_type_variation = "ShadowPanelContainer"
     
-    # Szerokość ~745px przy 1366px (proporcjonalna, skaluje się z rozdzielczością)
+    # Width proportional to screen (matches game's Settings)
     settings_panel.anchor_left = 0.23
     settings_panel.anchor_right = 1.0
     settings_panel.anchor_bottom = 1.0
-    settings_panel.offset_right = -120  # Miejsce na przyciski ExtrasButtons
+    settings_panel.offset_right = -120 # Space for ExtrasButtons
     
-    # Początkowa pozycja dla animacji
+    # Initial position for animation
     settings_panel.modulate.a = 0
     
-    # Kontener główny (VBox)
+    # Main container
     var main_vbox := VBoxContainer.new()
     main_vbox.name = "MainVBox"
     main_vbox.add_theme_constant_override("separation", 0)
     settings_panel.add_child(main_vbox)
     
-    # ===== NAGŁÓWEK (TitlePanel) =====
+    # Title panel
+    _create_title_panel(main_vbox)
+    
+    # Content panel with tabs
+    _create_content_panel(main_vbox)
+    
+    # Version label
+    var version_label := Label.new()
+    version_label.text = "Taj's Mod v" + MOD_VERSION
+    version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    version_label.add_theme_color_override("font_color", Color(0.627, 0.776, 0.812, 0.7))
+    version_label.add_theme_font_size_override("font_size", 16)
+    main_vbox.add_child(version_label)
+    
+    # Add panel to HUD overlay
+    var overlay := hud.get_node_or_null("Main/MainContainer/Overlay")
+    if overlay:
+        overlay.add_child(settings_panel)
+    
+    _connect_auto_close_signals()
+    apply_config_to_ui()
+
+
+func _create_title_panel(parent: VBoxContainer) -> void:
     var title_panel := Panel.new()
     title_panel.name = "TitlePanel"
     title_panel.custom_minimum_size = Vector2(0, 80)
     title_panel.theme_type_variation = "OverlayPanelTitle"
-    main_vbox.add_child(title_panel)
+    parent.add_child(title_panel)
     
     var title_container := HBoxContainer.new()
     title_container.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -167,19 +239,20 @@ func create_settings_panel(hud: Node) -> void:
     title_label.text = "Taj's Mod"
     title_label.add_theme_font_size_override("font_size", 40)
     title_container.add_child(title_label)
-    
-    # ===== CONTENT PANEL =====
+
+
+func _create_content_panel(parent: VBoxContainer) -> void:
     var content_panel := PanelContainer.new()
     content_panel.name = "ContentPanel"
     content_panel.theme_type_variation = "MenuPanel"
     content_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-    main_vbox.add_child(content_panel)
+    parent.add_child(content_panel)
     
     var content_vbox := VBoxContainer.new()
     content_vbox.add_theme_constant_override("separation", 10)
     content_panel.add_child(content_vbox)
     
-    # ===== TAB CONTAINER =====
+    # Tab container (tabs hidden, controlled by buttons)
     tab_container = TabContainer.new()
     tab_container.name = "TabContainer"
     tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -187,24 +260,21 @@ func create_settings_panel(hud: Node) -> void:
     tab_container.tabs_visible = false
     content_vbox.add_child(tab_container)
     
-    # --- TAB 1: General ---
-    var general_tab := _create_general_tab()
-    tab_container.add_child(general_tab)
+    # Create tabs
+    tab_container.add_child(_create_general_tab())
+    tab_container.add_child(_create_visuals_tab())
+    tab_container.add_child(_create_debug_tab())
     
-    # --- TAB 2: Visuals ---
-    var visuals_tab := _create_visuals_tab()
-    tab_container.add_child(visuals_tab)
-    
-    # --- TAB 3: Debug ---
-    var debug_tab := _create_debug_tab()
-    tab_container.add_child(debug_tab)
-    
-    # ===== TAB BUTTONS PANEL =====
+    # Tab buttons panel
+    _create_tab_buttons(content_vbox)
+
+
+func _create_tab_buttons(parent: VBoxContainer) -> void:
     var buttons_panel := Panel.new()
     buttons_panel.name = "TabButtonsPanel"
     buttons_panel.custom_minimum_size = Vector2(0, 110)
     buttons_panel.theme_type_variation = "MenuPanelTitle"
-    content_vbox.add_child(buttons_panel)
+    parent.add_child(buttons_panel)
     
     var buttons_container := HBoxContainer.new()
     buttons_container.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -215,15 +285,17 @@ func create_settings_panel(hud: Node) -> void:
     buttons_container.add_theme_constant_override("separation", 10)
     buttons_panel.add_child(buttons_container)
     
-    # Tab buttons
     tab_buttons.clear()
-    var tab_icons := ["res://textures/icons/cog.png", "res://textures/icons/eye_ball.png", "res://textures/icons/bug.png"]
-    var tab_names := ["General", "Visuals", "Debug"]
+    var tab_data := [
+        {"name": "General", "icon": "res://textures/icons/cog.png"},
+        {"name": "Visuals", "icon": "res://textures/icons/eye_ball.png"},
+        {"name": "Debug", "icon": "res://textures/icons/bug.png"}
+    ]
     
-    for i in range(3):
+    for i in range(tab_data.size()):
         var btn := Button.new()
-        btn.name = tab_names[i] + "Tab"
-        btn.text = tab_names[i]
+        btn.name = tab_data[i]["name"] + "Tab"
+        btn.text = tab_data[i]["name"]
         btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
         btn.focus_mode = Control.FOCUS_NONE
@@ -232,31 +304,20 @@ func create_settings_panel(hud: Node) -> void:
         btn.add_theme_font_size_override("font_size", 28)
         btn.toggle_mode = true
         btn.button_pressed = (i == 0)
-        btn.icon = load(tab_icons[i])
+        btn.icon = load(tab_data[i]["icon"])
         btn.pressed.connect(_on_tab_button_pressed.bind(i))
         buttons_container.add_child(btn)
         tab_buttons.append(btn)
-    
-    # ===== VERSION LABEL =====
-    var version_label := Label.new()
-    version_label.text = "Taj's Mod v0.0.1"
-    version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    version_label.add_theme_color_override("font_color", Color(0.627, 0.776, 0.812, 0.7))
-    version_label.add_theme_font_size_override("font_size", 16)
-    main_vbox.add_child(version_label)
-    
-    # Dodaj panel do HUD
-    var overlay := hud.get_node_or_null("Main/MainContainer/Overlay")
-    if overlay:
-        overlay.add_child(settings_panel)
-    
-    _connect_auto_close_signals()
-    apply_config_to_ui()
 
 
-func _create_general_tab() -> ScrollContainer:
+# ==============================================================================
+# TAB CREATION
+# ==============================================================================
+
+func _create_tab_scroll_container(tab_name: String) -> Array:
+    # Creates the standard scroll container structure for a tab. Returns [scroll, vbox].
     var scroll := ScrollContainer.new()
-    scroll.name = "General"
+    scroll.name = tab_name
     scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
     
     var margin := MarginContainer.new()
@@ -272,72 +333,44 @@ func _create_general_tab() -> ScrollContainer:
     vbox.add_theme_constant_override("separation", 10)
     margin.add_child(vbox)
     
-    # Enable Features
+    return [scroll, vbox]
+
+
+func _create_general_tab() -> ScrollContainer:
+    var result := _create_tab_scroll_container("General")
+    var scroll: ScrollContainer = result[0]
+    var vbox: VBoxContainer = result[1]
+    
     _add_toggle_setting(vbox, "Enable Mod Features", "enable_features")
-    # Auto-claim Achievements
     _add_toggle_setting(vbox, "Auto-claim Achievements", "auto_claim_achievements")
-    # Enhanced Stats
     _add_toggle_setting(vbox, "Enhanced Stats Display", "enhanced_stats")
-    # Animation Speed Slider
     _add_slider_setting(vbox, "Animation Speed", "animation_speed", 0.5, 2.0, 0.1, "x")
     
     return scroll
 
 
 func _create_visuals_tab() -> ScrollContainer:
-    var scroll := ScrollContainer.new()
-    scroll.name = "Visuals"
-    scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+    var result := _create_tab_scroll_container("Visuals")
+    var scroll: ScrollContainer = result[0]
+    var vbox: VBoxContainer = result[1]
     
-    var margin := MarginContainer.new()
-    margin.name = "MarginContainer"
-    margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    margin.add_theme_constant_override("margin_left", 20)
-    margin.add_theme_constant_override("margin_right", 20)
-    margin.add_theme_constant_override("margin_top", 10)
-    scroll.add_child(margin)
-    
-    var vbox := VBoxContainer.new()
-    vbox.name = "VBoxContainer"
-    vbox.add_theme_constant_override("separation", 10)
-    margin.add_child(vbox)
-    
-    # Custom Particles
     _add_toggle_setting(vbox, "Custom Particle Effects", "custom_particles")
-    # Extra Glow
     _add_toggle_setting(vbox, "Extra Glow Effects", "extra_glow")
-    # Compact Numbers
     _add_toggle_setting(vbox, "Compact Number Display", "compact_numbers")
-    # UI Opacity Slider
     _add_slider_setting(vbox, "UI Opacity", "ui_opacity", 50, 100, 5, "%")
     
     return scroll
 
 
 func _create_debug_tab() -> ScrollContainer:
-    var scroll := ScrollContainer.new()
-    scroll.name = "Debug"
-    scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+    var result := _create_tab_scroll_container("Debug")
+    var scroll: ScrollContainer = result[0]
+    var vbox: VBoxContainer = result[1]
     
-    var margin := MarginContainer.new()
-    margin.name = "MarginContainer"
-    margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    margin.add_theme_constant_override("margin_left", 20)
-    margin.add_theme_constant_override("margin_right", 20)
-    margin.add_theme_constant_override("margin_top", 10)
-    scroll.add_child(margin)
-    
-    var vbox := VBoxContainer.new()
-    vbox.name = "VBoxContainer"
-    vbox.add_theme_constant_override("separation", 10)
-    margin.add_child(vbox)
-    
-    # Show Debug Info
     _add_toggle_setting(vbox, "Show Debug Info", "show_debug_info")
-    # Verbose Logging
     _add_toggle_setting(vbox, "Verbose Logging", "verbose_logging")
     
-    # Reset Button
+    # Reset button
     var reset_btn := Button.new()
     reset_btn.name = "ResetButton"
     reset_btn.text = "Reset All Settings"
@@ -349,6 +382,10 @@ func _create_debug_tab() -> ScrollContainer:
     
     return scroll
 
+
+# ==============================================================================
+# UI HELPER FUNCTIONS
+# ==============================================================================
 
 func _add_toggle_setting(parent: VBoxContainer, label_text: String, config_key: String) -> void:
     var row := HBoxContainer.new()
@@ -390,7 +427,7 @@ func _add_slider_setting(parent: VBoxContainer, label_text: String, config_key: 
     
     var value_label := Label.new()
     value_label.name = config_key + "_value"
-    value_label.text = str(mod_config[config_key]) + suffix
+    value_label.text = _format_slider_value(mod_config[config_key], suffix)
     value_label.add_theme_font_size_override("font_size", 32)
     header.add_child(value_label)
     
@@ -405,21 +442,31 @@ func _add_slider_setting(parent: VBoxContainer, label_text: String, config_key: 
     container.add_child(slider)
 
 
+func _format_slider_value(value: float, suffix: String) -> String:
+    if suffix == "x":
+        return str(snapped(value, 0.1)) + suffix
+    else:
+        return str(int(value)) + suffix
+
+
+# ==============================================================================
+# PANEL ANIMATION
+# ==============================================================================
+
 func toggle_settings_panel(show: bool) -> void:
     if !settings_panel or is_animating:
         return
     
-    # Zamknij inne menu gry gdy otwieramy nasz panel
+    # Close other game menus when opening our panel
     if show and Signals:
         Signals.set_menu.emit(0, 0)
     
     is_animating = true
     
     if show:
-        # Animacja otwierania (fade in)
         settings_panel.visible = true
         settings_panel.modulate.a = 0
-        settings_panel.offset_left = 100  # Start przesunięty w prawo
+        settings_panel.offset_left = 100
         
         var tween := create_tween()
         tween.set_parallel()
@@ -430,7 +477,6 @@ func toggle_settings_panel(show: bool) -> void:
         
         Sound.play("menu_open")
     else:
-        # Animacja zamykania (fade out)
         var tween := create_tween()
         tween.set_parallel()
         tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -447,18 +493,19 @@ func toggle_settings_panel(show: bool) -> void:
         settings_button.button_pressed = show
 
 
+# ==============================================================================
+# EVENT HANDLERS
+# ==============================================================================
+
 func _on_settings_button_pressed() -> void:
     toggle_settings_panel(!settings_panel.visible if settings_panel else false)
     Sound.play("click_toggle")
 
 
-# ===== HANDLERS DLA OPCJI =====
-
 func _on_tab_button_pressed(tab_index: int) -> void:
     if tab_container:
         tab_container.current_tab = tab_index
         current_tab = tab_index
-        # Update button states
         for i in range(tab_buttons.size()):
             tab_buttons[i].button_pressed = (i == tab_index)
         Sound.play("click_toggle")
@@ -475,7 +522,6 @@ func _on_setting_slider_changed(config_key: String, value: float, suffix: String
     mod_config[config_key] = value
     save_config()
     ModLoaderLog.info(config_key + ": " + str(value), LOG_NAME)
-    # Update the value label
     _update_slider_label(config_key, value, suffix)
     # TODO: Implement actual feature logic based on config_key
 
@@ -483,22 +529,18 @@ func _on_setting_slider_changed(config_key: String, value: float, suffix: String
 func _update_slider_label(config_key: String, value: float, suffix: String) -> void:
     if !tab_container:
         return
-    # Find the value label in the appropriate tab
+    
     for tab in tab_container.get_children():
         var container = tab.get_node_or_null("MarginContainer/VBoxContainer/" + config_key + "_container")
         if !container:
             continue
         var value_label = container.get_node_or_null(config_key + "_header/" + config_key + "_value")
         if value_label:
-            if suffix == "x":
-                value_label.text = str(snapped(value, 0.1)) + suffix
-            else:
-                value_label.text = str(int(value)) + suffix
+            value_label.text = _format_slider_value(value, suffix)
             break
 
 
 func _on_reset_settings_pressed() -> void:
-    # Reset to defaults
     mod_config = {
         "enable_features": true,
         "auto_claim_achievements": false,
@@ -517,7 +559,9 @@ func _on_reset_settings_pressed() -> void:
     Sound.play("click")
 
 
-# ===== SAVE/LOAD CONFIG =====
+# ==============================================================================
+# CONFIG PERSISTENCE
+# ==============================================================================
 
 func save_config() -> void:
     var file := FileAccess.open(CONFIG_PATH, FileAccess.WRITE)
@@ -552,7 +596,6 @@ func apply_config_to_ui() -> void:
     if !tab_container:
         return
     
-    # Apply config values to all toggle and slider elements across tabs
     for tab in tab_container.get_children():
         var margin := tab.get_node_or_null("MarginContainer")
         if !margin:
@@ -575,24 +618,23 @@ func apply_config_to_ui() -> void:
             elif child_name.ends_with("_container"):
                 var config_key := child_name.replace("_container", "")
                 var slider := child.get_node_or_null(config_key + "_slider")
-                var value_label := child.get_node_or_null("HBoxContainer/" + config_key + "_value")
+                var value_label := child.get_node_or_null(config_key + "_header/" + config_key + "_value")
                 if slider and mod_config.has(config_key):
                     slider.value = mod_config[config_key]
                 if value_label and mod_config.has(config_key):
                     var suffix := "x" if config_key == "animation_speed" else "%"
-                    if suffix == "x":
-                        value_label.text = str(snapped(mod_config[config_key], 0.1)) + suffix
-                    else:
-                        value_label.text = str(int(mod_config[config_key])) + suffix
+                    value_label.text = _format_slider_value(mod_config[config_key], suffix)
 
+
+# ==============================================================================
+# AUTO-CLOSE HANDLERS
+# ==============================================================================
 
 func _connect_auto_close_signals() -> void:
-    # Zamknij panel gdy użytkownik otworzy inne menu lub kliknie gdzie indziej
     if Signals:
-        # Zamknij gdy zmieni się menu
         Signals.menu_set.connect(_on_menu_changed)
     
-    # Zamknij gdy przyciski ExtrasButtons zostaną kliknięte (z wyjątkiem naszego)
+    # Connect to other ExtrasButtons to close when they're clicked
     var extras_container := get_tree().root.get_node_or_null("Main/HUD/Main/MainContainer/Overlay/ExtrasButtons/Container")
     if extras_container:
         for child in extras_container.get_children():
@@ -601,12 +643,12 @@ func _connect_auto_close_signals() -> void:
 
 
 func _on_menu_changed(menu: int, _tab: int) -> void:
-    # Zamknij panel gdy otwarte zostanie jakiekolwiek menu
+    # Close panel when any other menu opens
     if menu != 0 and settings_panel and settings_panel.visible:
         toggle_settings_panel(false)
 
 
 func _on_other_button_pressed() -> void:
-    # Zamknij panel gdy kliknięto inny przycisk w ExtrasButtons
+    # Close panel when another ExtrasButton is clicked
     if settings_panel and settings_panel.visible:
         toggle_settings_panel(false)
