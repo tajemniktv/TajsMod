@@ -1,8 +1,7 @@
 # ==============================================================================
 # Taj's Mod - Upload Labs
 # Author: TajemnikTV
-# Version: 0.0.1
-# Description: Settings panel mod with customizable options for Upload Labs game
+# Description: TBD
 # ==============================================================================
 extends Node
 
