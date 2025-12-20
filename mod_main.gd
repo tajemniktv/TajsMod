@@ -169,7 +169,7 @@ func setup_mod_button(main: Node) -> void:
     settings_button.icon = load("res://textures/icons/puzzle.png")
     settings_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     settings_button.expand_icon = true
-    settings_button.tooltip_text = "TajsModded Mod Settings"
+    settings_button.tooltip_text = "TajsModded Settings"
     
     # Add at the beginning of the list
     extras_container.add_child(settings_button)
@@ -185,24 +185,37 @@ func setup_mod_button(main: Node) -> void:
 
 
 func _create_settings_panel(hud: Node) -> void:
-    # Main panel with shadow
+    # Create our own container (like Menus but independent, not animated by game)
+    var mod_menu_container := Control.new()
+    mod_menu_container.name = "TajsModdedMenus"
+    mod_menu_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    # Same positioning as Menus container
+    mod_menu_container.anchor_left = 1.0
+    mod_menu_container.anchor_right = 1.0
+    mod_menu_container.anchor_bottom = 1.0
+    mod_menu_container.offset_left = -1180
+    mod_menu_container.offset_right = -100
+    
+    # Add to Overlay (before Menus to be behind it)
+    var overlay := hud.get_node_or_null("Main/MainContainer/Overlay")
+    if overlay:
+        overlay.add_child(mod_menu_container)
+    
+    # Main panel - like game's Settings panel
     settings_panel = PanelContainer.new()
     settings_panel.name = "TajsModdedSettingsPanel"
     settings_panel.visible = false
     settings_panel.theme_type_variation = "ShadowPanelContainer"
     
-    # Width proportional to screen (matches game's Settings)
-    settings_panel.anchor_left = 0.23
+    # Fill the container (like Settings in Menus)
     settings_panel.anchor_right = 1.0
     settings_panel.anchor_bottom = 1.0
-    settings_panel.offset_right = -120 # Space for ExtrasButtons
-    
-    # Initial position for animation
-    settings_panel.modulate.a = 0
+    settings_panel.offset_right = -20.0
     
     # Main container
     var main_vbox := VBoxContainer.new()
     main_vbox.name = "MainVBox"
+    main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
     main_vbox.add_theme_constant_override("separation", 0)
     settings_panel.add_child(main_vbox)
     
@@ -220,10 +233,8 @@ func _create_settings_panel(hud: Node) -> void:
     version_label.add_theme_font_size_override("font_size", 16)
     main_vbox.add_child(version_label)
     
-    # Add panel to HUD overlay
-    var overlay := hud.get_node_or_null("Main/MainContainer/Overlay")
-    if overlay:
-        overlay.add_child(settings_panel)
+    # Add panel to our container
+    mod_menu_container.add_child(settings_panel)
     
     _connect_auto_close_signals()
     apply_config_to_ui()
@@ -485,22 +496,23 @@ func toggle_settings_panel(show: bool) -> void:
     if show:
         settings_panel.visible = true
         settings_panel.modulate.a = 0
-        settings_panel.offset_left = 100
+        # Start off-screen (like game's menus.gd)
+        settings_panel.position.x = settings_panel.get_parent().size.x + 15
         
         var tween := create_tween()
         tween.set_parallel()
         tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-        tween.tween_property(settings_panel, "modulate:a", 1.0, 0.2)
-        tween.tween_property(settings_panel, "offset_left", 0, 0.25)
+        tween.tween_property(settings_panel, "modulate:a", 1.0, 0.25)
+        tween.tween_property(settings_panel, "position:x", 0, 0.25)
         tween.chain().tween_callback(func(): is_animating = false)
         
         Sound.play("menu_open")
     else:
         var tween := create_tween()
         tween.set_parallel()
-        tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-        tween.tween_property(settings_panel, "modulate:a", 0.0, 0.15)
-        tween.tween_property(settings_panel, "offset_left", 100, 0.2)
+        tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT) # Same easing as game
+        tween.tween_property(settings_panel, "modulate:a", 0.0, 0.25)
+        tween.tween_property(settings_panel, "position:x", settings_panel.get_parent().size.x + 15, 0.25)
         tween.chain().tween_callback(func():
             settings_panel.visible = false
             is_animating = false
