@@ -30,7 +30,6 @@ var tab_container: TabContainer = null
 var tab_buttons: Array[Button] = []
 
 # State
-var is_ready := false
 var is_animating := false
 var current_tab := 0
 
@@ -41,6 +40,7 @@ const DEFAULT_CONFIG := {
     "auto_claim_achievements": false,
     "enhanced_stats": false,
     "animation_speed": 1.0,
+    "node_limit": 400, # -1 = unlimited
     # Visuals tab
     "custom_particles": false,
     "extra_glow": false,
@@ -99,17 +99,17 @@ func _input(event: InputEvent) -> void:
 # ==============================================================================
 
 func _check_existing_main() -> void:
-    if is_ready:
-        return
-    
     var main_node := get_tree().root.get_node_or_null("Main")
     if main_node:
-        ModLoaderLog.info("Main node found on startup, setting up...", LOG_NAME)
+        ModLoaderLog.info("Main node found during init check", LOG_NAME)
         # Wait for HUD to fully load
         await get_tree().create_timer(0.5).timeout
-        if is_instance_valid(main_node) and !is_ready:
-            setup_mod_button(main_node)
-            is_ready = true
+        if is_instance_valid(main_node):
+            var hud := main_node.get_node_or_null("HUD")
+            if hud:
+                var extras := hud.get_node_or_null("Main/MainContainer/Overlay/ExtrasButtons/Container")
+                if extras and !extras.has_node("TajsModdedSettings"):
+                     setup_mod_button(main_node)
 
 
 func _load_mod_version() -> void:
@@ -131,17 +131,18 @@ func _load_mod_version() -> void:
 
 
 func _on_node_added(node: Node) -> void:
-    if is_ready:
-        return
-    
     # Looking for Main node under root
     if node.name == "Main" and node.get_parent().name == "root":
         ModLoaderLog.info("Main node detected via node_added signal!", LOG_NAME)
         # Wait for HUD to fully load
         await get_tree().create_timer(0.5).timeout
-        if is_instance_valid(node) and !is_ready:
-            setup_mod_button(node)
-            is_ready = true
+        if is_instance_valid(node):
+            # Check if button already exists in this new Main instance
+            var hud := node.get_node_or_null("HUD")
+            if hud:
+                var extras := hud.get_node_or_null("Main/MainContainer/Overlay/ExtrasButtons/Container")
+                if extras and !extras.has_node("TajsModdedSettings"):
+                     setup_mod_button(node)
 
 
 # ==============================================================================
@@ -182,6 +183,9 @@ func setup_mod_button(main: Node) -> void:
     
     # Create settings panel (initially hidden)
     _create_settings_panel(hud)
+    
+    # Apply node limit from config
+    _apply_node_limit(mod_config["node_limit"])
     
     ModLoaderLog.info("Mod button added to UI!", LOG_NAME)
 
@@ -304,6 +308,7 @@ func _create_content_panel(parent: VBoxContainer) -> void:
     tab_container.add_child(_create_general_tab())
     tab_container.add_child(_create_visuals_tab())
     tab_container.add_child(_create_debug_tab())
+    tab_container.add_child(_create_cheats_tab())
     
     # Tab buttons panel
     _create_tab_buttons(content_vbox)
@@ -329,7 +334,8 @@ func _create_tab_buttons(parent: VBoxContainer) -> void:
     var tab_data := [
         {"name": "General", "icon": "res://textures/icons/cog.png"},
         {"name": "Visuals", "icon": "res://textures/icons/eye_ball.png"},
-        {"name": "Debug", "icon": "res://textures/icons/bug.png"}
+        {"name": "Debug", "icon": "res://textures/icons/bug.png"},
+        {"name": "Cheats", "icon": "res://textures/icons/money.png"}
     ]
     
     for i in range(tab_data.size()):
@@ -385,6 +391,7 @@ func _create_general_tab() -> ScrollContainer:
     _add_toggle_setting(vbox, "Auto-claim Achievements", "auto_claim_achievements")
     _add_toggle_setting(vbox, "Enhanced Stats Display", "enhanced_stats")
     _add_slider_setting(vbox, "Animation Speed", "animation_speed", 0.5, 2.0, 0.1, "x")
+    _add_node_limit_slider(vbox)
     
     return scroll
 
@@ -419,6 +426,27 @@ func _create_debug_tab() -> ScrollContainer:
     reset_btn.focus_mode = Control.FOCUS_NONE
     reset_btn.pressed.connect(_on_reset_settings_pressed)
     vbox.add_child(reset_btn)
+    
+    return scroll
+
+
+func _create_cheats_tab() -> ScrollContainer:
+    var result := _create_tab_scroll_container("Cheats")
+    var scroll: ScrollContainer = result[0]
+    var vbox: VBoxContainer = result[1]
+    
+    # Warning label
+    var warning := Label.new()
+    warning.text = "⚠️ Using cheats may affect game balance!"
+    warning.add_theme_font_size_override("font_size", 20)
+    warning.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
+    warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    vbox.add_child(warning)
+    
+    # Currency buttons
+    _add_cheat_button_pair(vbox, "Money", "money", "res://textures/icons/money.png")
+    _add_cheat_button_pair(vbox, "Tokens", "token", "res://textures/icons/token.png")
+    _add_cheat_button_pair(vbox, "Research", "research", "res://textures/icons/research.png")
     
     return scroll
 
@@ -487,6 +515,141 @@ func _format_slider_value(value: float, suffix: String) -> String:
         return str(snapped(value, 0.1)) + suffix
     else:
         return str(int(value)) + suffix
+
+
+func _add_node_limit_slider(parent: VBoxContainer) -> void:
+    var container := VBoxContainer.new()
+    container.name = "node_limit_container"
+    container.add_theme_constant_override("separation", 5)
+    parent.add_child(container)
+    
+    var header := HBoxContainer.new()
+    header.name = "node_limit_header"
+    container.add_child(header)
+    
+    var label := Label.new()
+    label.text = "Node Limit"
+    label.add_theme_font_size_override("font_size", 32)
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    header.add_child(label)
+    
+    var value_label := Label.new()
+    value_label.name = "node_limit_value"
+    value_label.add_theme_font_size_override("font_size", 32)
+    # Display ∞ for -1, otherwise the number
+    var current_val = mod_config["node_limit"]
+    value_label.text = "∞" if current_val == -1 else str(int(current_val))
+    header.add_child(value_label)
+    
+    var slider := HSlider.new()
+    slider.name = "node_limit_slider"
+    slider.min_value = 100
+    slider.max_value = 1100 # 1100 represents -1 (unlimited)
+    slider.step = 100
+    # Convert -1 to slider value
+    slider.value = 1100 if current_val == -1 else current_val
+    slider.focus_mode = Control.FOCUS_NONE
+    slider.value_changed.connect(_on_node_limit_changed)
+    container.add_child(slider)
+
+
+func _on_node_limit_changed(value: float) -> void:
+    # 1100 = unlimited (-1)
+    var actual_value: int = -1 if value >= 1100 else int(value)
+    mod_config["node_limit"] = actual_value
+    save_config()
+    _apply_node_limit(actual_value)
+    _update_node_limit_label(actual_value)
+
+
+func _apply_node_limit(limit: int) -> void:
+    if is_instance_valid(Globals):
+        Globals.max_window_count = limit
+        ModLoaderLog.info("Node limit set to: " + ("unlimited" if limit == -1 else str(limit)), LOG_NAME)
+
+
+func _update_node_limit_label(value: int) -> void:
+    if !tab_container:
+        return
+    var general_tab = tab_container.get_node_or_null("General")
+    if !general_tab:
+        return
+    var value_label = general_tab.get_node_or_null("MarginContainer/VBoxContainer/node_limit_container/node_limit_header/node_limit_value")
+    if value_label:
+        value_label.text = "∞" if value == -1 else str(value)
+
+
+func _add_cheat_button_pair(parent: VBoxContainer, label_text: String, currency_key: String, icon_path: String) -> void:
+    var row := HBoxContainer.new()
+    row.name = currency_key + "_row"
+    row.custom_minimum_size = Vector2(0, 64)
+    row.add_theme_constant_override("separation", 10)
+    parent.add_child(row)
+    
+    # Icon
+    var icon := TextureRect.new()
+    icon.custom_minimum_size = Vector2(40, 40)
+    icon.texture = load(icon_path)
+    icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    icon.self_modulate = Color(0.567, 0.69465, 0.9, 1)
+    row.add_child(icon)
+    
+    # Label
+    var label := Label.new()
+    label.text = label_text
+    label.add_theme_font_size_override("font_size", 28)
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    row.add_child(label)
+    
+    # Remove button
+    var remove_btn := Button.new()
+    remove_btn.name = currency_key + "_remove"
+    remove_btn.text = "-10%"
+    remove_btn.custom_minimum_size = Vector2(100, 50)
+    remove_btn.theme_type_variation = "TabButton"
+    remove_btn.focus_mode = Control.FOCUS_NONE
+    remove_btn.pressed.connect(func(): _modify_currency(currency_key, -0.1))
+    row.add_child(remove_btn)
+    
+    # Add button
+    var add_btn := Button.new()
+    add_btn.name = currency_key + "_add"
+    add_btn.text = "+10%"
+    add_btn.custom_minimum_size = Vector2(100, 50)
+    add_btn.theme_type_variation = "TabButton"
+    add_btn.focus_mode = Control.FOCUS_NONE
+    add_btn.pressed.connect(func(): _modify_currency(currency_key, 0.1))
+    row.add_child(add_btn)
+
+
+func _modify_currency(currency_key: String, percent: float) -> void:
+    if !is_instance_valid(Globals):
+        return
+    
+    # Check for Shift key for 100% instead of 10%
+    if Input.is_key_pressed(KEY_SHIFT):
+        percent = 1.0 if percent > 0 else -1.0
+    
+    if Globals.currencies.has(currency_key):
+        var current_val = Globals.currencies[currency_key]
+        var amount_to_change = current_val * percent
+        
+        # Minimum change for low values
+        if percent > 0 and current_val < 1000:
+            amount_to_change = max(amount_to_change, 100.0 if currency_key == "money" else 10.0)
+        
+        Globals.currencies[currency_key] += amount_to_change
+        
+        # Prevent negative
+        if Globals.currencies[currency_key] < 0:
+            Globals.currencies[currency_key] = 0
+        
+        var action = "Added" if percent > 0 else "Removed"
+        var pct = "100%" if abs(percent) >= 1.0 else "10%"
+        ModLoaderLog.info(action + " " + pct + " " + currency_key, LOG_NAME)
+        
+        Sound.play("click")
 
 
 # ==============================================================================
