@@ -1,5 +1,6 @@
 extends "res://scenes/schematic_container.gd"
 
+
 func update_all() -> void:
     # MOD MATCH: Use Globals.custom_node_limit check
     # Original: requirement_met = (Globals.max_window_count + required) <= Utils.MAX_WINDOW

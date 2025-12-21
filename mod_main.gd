@@ -64,7 +64,9 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/globals.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/windows_menu.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/schematic_container.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/popup_schematic.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_group.gd")
+    # ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd") # Manual patch used instead
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
     _load_mod_version()
@@ -105,8 +107,106 @@ func _ready() -> void:
     
     # Check if Main already exists (mod may load after main scene)
     call_deferred("_check_existing_main")
+    
+    # Sanitize schematics to prevent crashes
+    _sanitize_schematics()
 
 
+func _sanitize_schematics() -> void:
+    if !is_instance_valid(Data) or !Data.schematics:
+        return
+
+    var fixed_count = 0
+    for schem_name in Data.schematics:
+        var schem_data = Data.schematics[schem_name]
+        if schem_data.has("windows") and schem_data["windows"] is Dictionary:
+            var windows = schem_data["windows"]
+            var keys_to_remove = []
+            
+            for key in windows:
+                var win_entry = windows[key]
+                if win_entry is Dictionary:
+                    if !win_entry.has("window"):
+                        # Attempt to fix from key (e.g. "Bin0" -> "bin")
+                        # This is a heuristic. Usually keys are Type+Index.
+                        var inferred_window = _infer_window_type(key)
+                        if inferred_window != "" and Data.windows.has(inferred_window):
+                            win_entry["window"] = inferred_window
+                            ModLoaderLog.info("Fixed missing 'window' key for " + key + " in schematic " + schem_name, LOG_NAME)
+                            fixed_count += 1
+                        else:
+                            # Cannot fix, mark for removal to prevent crash
+                            keys_to_remove.append(key)
+                            ModLoaderLog.warning("Removing corrupt window entry " + key + " in schematic " + schem_name, LOG_NAME)
+            
+            for k in keys_to_remove:
+                windows.erase(k)
+
+    if fixed_count > 0:
+         ModLoaderLog.info("Sanitized schematics: Fixed " + str(fixed_count) + " entries.", LOG_NAME)
+
+
+func _infer_window_type(key: String) -> String:
+    # Key usually looks like "Miner0", "Bin0", "Processor2"
+    # We strip the trailing digits.
+    var regex = RegEx.new()
+    regex.compile("^([a-zA-Z_]+)\\d*$")
+    var result = regex.search(key)
+    if result:
+        var prefix = result.get_string(1).to_lower()
+        if Data.windows.has(prefix):
+             return prefix
+        if Data.windows.has(prefix.to_lower()): # already lowered above
+             return prefix.to_lower()
+             
+    return ""
+
+func _process(delta: float) -> void:
+    # Continuously try to patch desktop until successful
+    if !_desktop_patched and is_instance_valid(Globals.desktop):
+        _patch_desktop_script()
+
+    # Update Node Info Label if visible
+    if settings_panel and settings_panel.visible:
+        _update_node_info()
+        
+    # Check for Boot screen
+    var boot = get_tree().root.get_node_or_null("Boot")
+    if is_instance_valid(boot):
+        _patch_boot_screen(boot)
+
+
+func _patch_desktop_script() -> void:
+    # Check if already patched to avoid loop
+    if Globals.desktop.get_script().resource_path == "res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd":
+        _desktop_patched = true
+        return
+
+    ModLoaderLog.info("Attempting to safely patch Desktop script...", LOG_NAME)
+    
+    # 1. SAVE STATE
+    var old_resources = Globals.desktop.resources
+    var old_connections = Globals.desktop.connections
+    var old_win_selections = Globals.desktop.window_selections
+    var old_grab_selections = Globals.desktop.grabber_selections
+    
+    # 2. LOAD & APPLY NEW SCRIPT
+    var new_script = load("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd")
+    if new_script:
+        Globals.desktop.set_script(new_script)
+        
+        # 3. RESTORE STATE
+        # The variables might be null after script swap, restore them immediately
+        Globals.desktop.resources = old_resources
+        Globals.desktop.connections = old_connections
+        Globals.desktop.window_selections = old_win_selections
+        Globals.desktop.grabber_selections = old_grab_selections
+        
+        ModLoaderLog.info("Desktop script patched successfully with state preservation!", LOG_NAME)
+        _desktop_patched = true
+    else:
+        ModLoaderLog.error("Failed to load desktop patch script", LOG_NAME)
+        _desktop_patched = true
 func _input(event: InputEvent) -> void:
     # Close panel when user clicks outside of it
     if !settings_panel or !settings_panel.visible or is_animating:
@@ -141,20 +241,6 @@ func _check_existing_main() -> void:
                 var extras := hud.get_node_or_null("Main/MainContainer/Overlay/ExtrasButtons/Container")
                 if extras and !extras.has_node("TajsModdedSettings"):
                     setup_mod_button(main_node)
-func _process(delta: float) -> void:
-    # Continuously try to patch desktop until successful
-    # Continuously try to patch desktop until successful
-    if !_desktop_patched and is_instance_valid(Globals.desktop):
-        _patch_desktop_script()
-        
-    # Update Node Info Label if visible
-    if settings_panel and settings_panel.visible:
-        _update_node_info()
-        
-    # Check for Boot screen
-    var boot = get_tree().root.get_node_or_null("Boot")
-    if is_instance_valid(boot):
-        _patch_boot_screen(boot)
 
 
 func _patch_boot_screen(boot_node: Node) -> void:
@@ -218,24 +304,6 @@ func _update_node_info() -> void:
             label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3)) # Red if full
         else:
              label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-
-
-func _patch_desktop_script() -> void:
-    # Check if already patched
-    if Globals.desktop.get_script().resource_path == "res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd":
-        _desktop_patched = true
-        return
-
-    ModLoaderLog.info("Attempting to patch Desktop script...", LOG_NAME)
-    var new_script = load("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd")
-    if new_script:
-        Globals.desktop.set_script(new_script)
-        ModLoaderLog.info("Desktop script patched successfully!", LOG_NAME)
-        _desktop_patched = true
-    else:
-        ModLoaderLog.error("Failed to load desktop patch patch script", LOG_NAME)
-        # Don't try again if file missing
-        _desktop_patched = true
 
 
 func _load_mod_version() -> void:
