@@ -24,6 +24,7 @@ const CONFIG_PATH := "user://TajsModded_config.json"
 # Paths
 var mod_dir_path := ""
 var mod_version := "?.?.?" # Loaded from manifest.json
+var _desktop_patched := false
 
 # UI References
 var settings_button: Button = null
@@ -114,9 +115,13 @@ func _check_existing_main() -> void:
                     setup_mod_button(main_node)
 func _process(delta: float) -> void:
     # Continuously try to patch desktop until successful
-    # This is a bit brute-force but guarantees it catches the node when it spawns, stays until I find another way
-    if is_instance_valid(Globals.desktop):
+    # Continuously try to patch desktop until successful
+    if !_desktop_patched and is_instance_valid(Globals.desktop):
         _patch_desktop_script()
+        
+    # Update Node Info Label if visible
+    if settings_panel and settings_panel.visible:
+        _update_node_info()
         
     # Check for Boot screen
     var boot = get_tree().root.get_node_or_null("Boot")
@@ -161,10 +166,36 @@ func _patch_boot_screen(boot_node: Node) -> void:
                 logo_rect.add_child(new_icon)
 
 
+func _update_node_info() -> void:
+    if !settings_panel or !settings_panel.visible:
+        return
+
+    # Find the label if we don't have a direct reference or if we want to be safe
+    if !tab_container: return
+    var general_tab = tab_container.get_node_or_null("General")
+    if !general_tab: return
+    
+    # Path: MarginContainer/VBoxContainer/node_info_container/NodeInfoLabel
+    var label = general_tab.get_node_or_null("MarginContainer/VBoxContainer/node_info_container/NodeInfoLabel")
+    
+    if label and is_instance_valid(Globals):
+        var current = Globals.max_window_count
+        var limit = Globals.custom_node_limit if "custom_node_limit" in Globals else -1
+        
+        var limit_str = "∞" if limit == -1 else str(limit)
+        label.text = "Nodes: %d / %s" % [current, limit_str]
+        
+        # Color coding
+        if limit != -1 and current >= limit:
+            label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3)) # Red if full
+        else:
+             label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+
+
 func _patch_desktop_script() -> void:
     # Check if already patched
     if Globals.desktop.get_script().resource_path == "res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd":
-        set_process(false) # Stop checking once patched
+        _desktop_patched = true
         return
 
     ModLoaderLog.info("Attempting to patch Desktop script...", LOG_NAME)
@@ -172,9 +203,11 @@ func _patch_desktop_script() -> void:
     if new_script:
         Globals.desktop.set_script(new_script)
         ModLoaderLog.info("Desktop script patched successfully!", LOG_NAME)
-        set_process(false) # Stop checking
+        _desktop_patched = true
     else:
-        ModLoaderLog.error("Failed to load desktop patch script", LOG_NAME)
+        ModLoaderLog.error("Failed to load desktop patch patch script", LOG_NAME)
+        # Don't try again if file missing
+        _desktop_patched = true
 
 
 func _load_mod_version() -> void:
@@ -459,7 +492,9 @@ func _create_general_tab() -> ScrollContainer:
     var scroll: ScrollContainer = result[0]
     var vbox: VBoxContainer = result[1]
     
+    
     _add_toggle_setting(vbox, "Enable Mod Features", "enable_features")
+    _add_node_info_label(vbox)
     _add_node_limit_slider(vbox)
     
     _add_screenshot_quality_selector(vbox)
@@ -612,6 +647,26 @@ func _add_slider_setting(parent: VBoxContainer, label_text: String, config_key: 
     container.add_child(slider)
 
 
+func _add_node_info_label(parent: VBoxContainer) -> void:
+    var container := HBoxContainer.new()
+    container.name = "node_info_container"
+    container.custom_minimum_size = Vector2(0, 40)
+    parent.add_child(container)
+    
+    var label := Label.new()
+    label.name = "NodeInfoLabel"
+    label.text = "Nodes: ... / ..."
+    label.add_theme_font_size_override("font_size", 24)
+    label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+    container.add_child(label)
+    
+    # Store reference (but we need to find it again later if we don't make it a class var... 
+    # Actually, let's just use find_child in _process to stay stateless or add a class var.
+    # The user asked for it "under or above Node Limit". I put it above.)
+
+
 func _add_screenshot_quality_selector(parent: VBoxContainer) -> void:
     var container := VBoxContainer.new()
     container.name = "screenshot_quality_container"
@@ -716,6 +771,7 @@ func _on_node_limit_changed(value: float) -> void:
 
 
 func _apply_node_limit(limit: int) -> void:
+    ModLoaderLog.info("Applying Node Limit: " + str(limit), LOG_NAME)
     if is_instance_valid(Globals):
         # Override if features disabled
         if !mod_config["enable_features"]:
@@ -724,7 +780,7 @@ func _apply_node_limit(limit: int) -> void:
         # We now set the CUSTOM limit, not the window count itself!
         if "custom_node_limit" in Globals:
             Globals.custom_node_limit = limit
-            ModLoaderLog.info("Node limit set to: " + ("unlimited" if limit == -1 else str(limit)), LOG_NAME)
+            ModLoaderLog.info("Globals.custom_node_limit set to: " + str(limit), LOG_NAME)
         else:
              ModLoaderLog.warning("Globals.custom_node_limit not found. Extension not loaded?", LOG_NAME)
 
