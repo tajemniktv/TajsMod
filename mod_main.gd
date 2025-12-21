@@ -16,8 +16,10 @@ const CONFIG_PATH := "user://TajsModded_config.json"
 
 
 # ==============================================================================
+# ==============================================================================
 # VARIABLES
 # ==============================================================================
+
 
 # Paths
 var mod_dir_path := ""
@@ -37,18 +39,16 @@ var current_tab := 0
 const DEFAULT_CONFIG := {
     # General tab
     "enable_features": true,
-    "auto_claim_achievements": false,
-    "enhanced_stats": false,
-    "animation_speed": 1.0,
-    "node_limit": 400, # -1 = unlimited
+    "node_limit": 400,
+    "screenshot_quality": 0.5,
     # Visuals tab
-    "custom_particles": false,
     "extra_glow": false,
-    "compact_numbers": false,
+    "glow_intensity": 2.0,
+    "glow_strength": 1.3,
+    "glow_bloom": 0.2,
+    "glow_sensitivity": 0.8,
     "ui_opacity": 100.0,
     # Debug tab
-    "show_debug_info": false,
-    "verbose_logging": false
 }
 
 # Configuration (persisted to file)
@@ -60,6 +60,8 @@ var mod_config := DEFAULT_CONFIG.duplicate()
 # ==============================================================================
 
 func _init() -> void:
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/globals.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/windows_menu.gd")
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
     _load_mod_version()
@@ -109,7 +111,70 @@ func _check_existing_main() -> void:
             if hud:
                 var extras := hud.get_node_or_null("Main/MainContainer/Overlay/ExtrasButtons/Container")
                 if extras and !extras.has_node("TajsModdedSettings"):
-                     setup_mod_button(main_node)
+                    setup_mod_button(main_node)
+func _process(delta: float) -> void:
+    # Continuously try to patch desktop until successful
+    # This is a bit brute-force but guarantees it catches the node when it spawns, stays until I find another way
+    if is_instance_valid(Globals.desktop):
+        _patch_desktop_script()
+        
+    # Check for Boot screen
+    var boot = get_tree().root.get_node_or_null("Boot")
+    if is_instance_valid(boot):
+        _patch_boot_screen(boot)
+
+
+func _patch_boot_screen(boot_node: Node) -> void:
+    var name_label = boot_node.get_node_or_null("LogoContainer/Name")
+    var init_label = boot_node.get_node_or_null("LogoContainer/Label")
+    
+    # Check if we already applied our change by checking the main label
+    if name_label and !name_label.text.begins_with("Taj's Mod"):
+        name_label.text = "Taj's Mod OS " + ProjectSettings.get_setting("application/config/version")
+        
+        if init_label:
+            init_label.text = "Initializing - Mod v" + mod_version
+        # Add custom icon above the main logo
+        var logo_rect = boot_node.get_node_or_null("LogoContainer/Logo")
+        if logo_rect and !logo_rect.has_node("TajsModIcon"):
+            var custom_icon_tex = load(mod_dir_path.path_join("icon.png"))
+            if custom_icon_tex:
+                var new_icon = TextureRect.new()
+                new_icon.name = "TajsModIcon"
+                new_icon.texture = custom_icon_tex
+                new_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+                new_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+                # Adjust size and position relative to the main logo
+                # Image is 4:1 ratio (2048x512), so we need a wide container
+                var target_width = 360
+                var target_height = 90 # 4:1 ratio
+                
+                new_icon.custom_minimum_size = Vector2(target_width, target_height)
+                new_icon.size = Vector2(target_width, target_height)
+                
+                # Center on the TOP edge of the main logo (Slight overlap downwards)
+                new_icon.position = Vector2(
+                    (logo_rect.size.x - new_icon.size.x) / 2,
+                     - new_icon.size.y + 25 # Sit on top, overlap 25px down
+                )
+                
+                logo_rect.add_child(new_icon)
+
+
+func _patch_desktop_script() -> void:
+    # Check if already patched
+    if Globals.desktop.get_script().resource_path == "res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd":
+        set_process(false) # Stop checking once patched
+        return
+
+    ModLoaderLog.info("Attempting to patch Desktop script...", LOG_NAME)
+    var new_script = load("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd")
+    if new_script:
+        Globals.desktop.set_script(new_script)
+        ModLoaderLog.info("Desktop script patched successfully!", LOG_NAME)
+        set_process(false) # Stop checking
+    else:
+        ModLoaderLog.error("Failed to load desktop patch script", LOG_NAME)
 
 
 func _load_mod_version() -> void:
@@ -143,6 +208,7 @@ func _on_node_added(node: Node) -> void:
                 var extras := hud.get_node_or_null("Main/MainContainer/Overlay/ExtrasButtons/Container")
                 if extras and !extras.has_node("TajsModdedSettings"):
                      setup_mod_button(node)
+                Signals.notify.emit("exclamation", "Taj's Mod Initialized")
 
 
 # ==============================================================================
@@ -188,10 +254,16 @@ func setup_mod_button(main: Node) -> void:
     _apply_node_limit(mod_config["node_limit"])
     
     ModLoaderLog.info("Mod button added to UI!", LOG_NAME)
+    
+    # Apply visuals
+    if mod_config["extra_glow"]:
+        _apply_extra_glow(true)
+        
+    _apply_ui_opacity(mod_config["ui_opacity"])
 
 
 func _create_settings_panel(hud: Node) -> void:
-    # Create our own container (like Menus but independent, not animated by game)
+    # Create our own container
     var mod_menu_container := Control.new()
     mod_menu_container.name = "TajsModdedMenus"
     mod_menu_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -207,13 +279,13 @@ func _create_settings_panel(hud: Node) -> void:
     if overlay:
         overlay.add_child(mod_menu_container)
     
-    # Main panel - like game's Settings panel
+    # Main panel
     settings_panel = PanelContainer.new()
     settings_panel.name = "TajsModdedSettingsPanel"
     settings_panel.visible = false
     settings_panel.theme_type_variation = "ShadowPanelContainer"
     
-    # Fill the container (like Settings in Menus)
+    # Fill the container
     settings_panel.anchor_right = 1.0
     settings_panel.anchor_bottom = 1.0
     settings_panel.offset_right = -20.0
@@ -388,10 +460,19 @@ func _create_general_tab() -> ScrollContainer:
     var vbox: VBoxContainer = result[1]
     
     _add_toggle_setting(vbox, "Enable Mod Features", "enable_features")
-    _add_toggle_setting(vbox, "Auto-claim Achievements", "auto_claim_achievements")
-    _add_toggle_setting(vbox, "Enhanced Stats Display", "enhanced_stats")
-    _add_slider_setting(vbox, "Animation Speed", "animation_speed", 0.5, 2.0, 0.1, "x")
     _add_node_limit_slider(vbox)
+    
+    _add_screenshot_quality_selector(vbox)
+    
+    # Screenshot Button
+    var screenshot_btn := Button.new()
+    screenshot_btn.name = "ScreenshotButton"
+    screenshot_btn.text = "Take Screenshot"
+    screenshot_btn.custom_minimum_size = Vector2(0, 60)
+    screenshot_btn.theme_type_variation = "TabButton"
+    screenshot_btn.focus_mode = Control.FOCUS_NONE
+    screenshot_btn.pressed.connect(_take_screenshot)
+    vbox.add_child(screenshot_btn)
     
     return scroll
 
@@ -401,9 +482,7 @@ func _create_visuals_tab() -> ScrollContainer:
     var scroll: ScrollContainer = result[0]
     var vbox: VBoxContainer = result[1]
     
-    _add_toggle_setting(vbox, "Custom Particle Effects", "custom_particles")
-    _add_toggle_setting(vbox, "Extra Glow Effects", "extra_glow")
-    _add_toggle_setting(vbox, "Compact Number Display", "compact_numbers")
+    _add_glow_settings_section(vbox)
     _add_slider_setting(vbox, "UI Opacity", "ui_opacity", 50, 100, 5, "%")
     
     return scroll
@@ -414,8 +493,8 @@ func _create_debug_tab() -> ScrollContainer:
     var scroll: ScrollContainer = result[0]
     var vbox: VBoxContainer = result[1]
     
-    _add_toggle_setting(vbox, "Show Debug Info", "show_debug_info")
-    _add_toggle_setting(vbox, "Verbose Logging", "verbose_logging")
+    # _add_toggle_setting(vbox, "Show Debug Info", "show_debug_info")
+    # _add_toggle_setting(vbox, "Verbose Logging", "verbose_logging")
     
     # Reset button
     var reset_btn := Button.new()
@@ -449,6 +528,29 @@ func _create_cheats_tab() -> ScrollContainer:
     _add_cheat_button_pair(vbox, "Research", "research", "res://textures/icons/research.png")
     
     return scroll
+
+
+func _add_glow_settings_section(parent: VBoxContainer) -> void:
+    # Glow Config Section
+    _add_toggle_setting(parent, "Extra Glow Customization", "extra_glow")
+    
+    var container := VBoxContainer.new()
+    container.name = "glow_settings_container"
+    container.add_theme_constant_override("separation", 10)
+    # Add indent
+    var margin := MarginContainer.new()
+    margin.add_theme_constant_override("margin_left", 30)
+    margin.add_child(container)
+    parent.add_child(margin)
+    
+    # Sliders
+    _add_slider_setting(container, "Intensity", "glow_intensity", 0.0, 5.0, 0.1, "")
+    _add_slider_setting(container, "Strength", "glow_strength", 0.5, 2.0, 0.05, "")
+    _add_slider_setting(container, "Bloom", "glow_bloom", 0.0, 0.5, 0.05, "")
+    _add_slider_setting(container, "Sensitivity", "glow_sensitivity", 0.0, 1.0, 0.05, "")
+    
+    # Initial visibility
+    margin.visible = mod_config["extra_glow"]
 
 
 # ==============================================================================
@@ -510,11 +612,62 @@ func _add_slider_setting(parent: VBoxContainer, label_text: String, config_key: 
     container.add_child(slider)
 
 
+func _add_screenshot_quality_selector(parent: VBoxContainer) -> void:
+    var container := VBoxContainer.new()
+    container.name = "screenshot_quality_container"
+    container.add_theme_constant_override("separation", 10)
+    parent.add_child(container)
+    
+    var label := Label.new()
+    label.text = "Screenshot Quality"
+    label.add_theme_font_size_override("font_size", 32)
+    container.add_child(label)
+    
+    var buttons_row := HBoxContainer.new()
+    buttons_row.name = "buttons_row"
+    buttons_row.add_theme_constant_override("separation", 10)
+    container.add_child(buttons_row)
+    
+    var options = [
+        {"label": "Low", "value": 0.25},
+        {"label": "Medium", "value": 0.5},
+        {"label": "High", "value": 0.75},
+        {"label": "Original", "value": 1.0}
+    ]
+    
+    var group = ButtonGroup.new()
+    
+    for opt in options:
+        var btn := Button.new()
+        btn.name = "QualityBtn_" + str(opt["value"])
+        btn.text = opt["label"]
+        btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+        btn.focus_mode = Control.FOCUS_NONE
+        btn.theme_type_variation = "TabButton"
+        btn.toggle_mode = true
+        btn.button_group = group
+        # Auto-select current config
+        if is_equal_approx(mod_config.get("screenshot_quality", 0.5), opt["value"]):
+            btn.button_pressed = true
+            
+        btn.pressed.connect(func(): _on_quality_selected(opt["value"]))
+        buttons_row.add_child(btn)
+
+
+func _on_quality_selected(value: float) -> void:
+    mod_config["screenshot_quality"] = value
+    save_config()
+    ModLoaderLog.info("Screenshot quality set to: " + str(value), LOG_NAME)
+    Sound.play("click")
+
+
 func _format_slider_value(value: float, suffix: String) -> String:
     if suffix == "x":
         return str(snapped(value, 0.1)) + suffix
-    else:
+    elif suffix == "%":
         return str(int(value)) + suffix
+    else:
+        return str(snapped(value, 0.1))
 
 
 func _add_node_limit_slider(parent: VBoxContainer) -> void:
@@ -564,8 +717,48 @@ func _on_node_limit_changed(value: float) -> void:
 
 func _apply_node_limit(limit: int) -> void:
     if is_instance_valid(Globals):
-        Globals.max_window_count = limit
-        ModLoaderLog.info("Node limit set to: " + ("unlimited" if limit == -1 else str(limit)), LOG_NAME)
+        # Override if features disabled
+        if !mod_config["enable_features"]:
+            limit = 400
+            
+        # We now set the CUSTOM limit, not the window count itself!
+        if "custom_node_limit" in Globals:
+            Globals.custom_node_limit = limit
+            ModLoaderLog.info("Node limit set to: " + ("unlimited" if limit == -1 else str(limit)), LOG_NAME)
+        else:
+             ModLoaderLog.warning("Globals.custom_node_limit not found. Extension not loaded?", LOG_NAME)
+
+func _apply_extra_glow(enabled: bool) -> void:
+    # Override if features disabled
+    if !mod_config["enable_features"]:
+        enabled = false
+
+    # Find Main node if we don't have it passed (usually via tree)
+    var main := get_tree().root.get_node_or_null("Main")
+    if !is_instance_valid(main):
+        return
+        
+    var world_env := main.get_node_or_null("WorldEnvironment")
+    if !world_env or !world_env.environment:
+        return
+        
+    var env: Environment = world_env.environment
+    
+    if enabled:
+        env.glow_intensity = mod_config["glow_intensity"]
+        env.glow_strength = mod_config["glow_strength"]
+        env.glow_bloom = mod_config["glow_bloom"]
+        # Sensitivity 0.0 -> Threshold 1.0 (Low glow)
+        # Sensitivity 1.0 -> Threshold 0.0 (Max glow - everything glows)
+        env.glow_hdr_threshold = lerp(1.0, 0.0, mod_config["glow_sensitivity"])
+        ModLoaderLog.info("Extra glow applied", LOG_NAME)
+    else:
+        # Reset to defaults
+        env.glow_intensity = 0.8
+        env.glow_strength = 1.0
+        env.glow_bloom = 0.0
+        env.glow_hdr_threshold = 1.0
+        ModLoaderLog.info("Extra glow disabled", LOG_NAME)
 
 
 func _update_node_limit_label(value: int) -> void:
@@ -577,6 +770,190 @@ func _update_node_limit_label(value: int) -> void:
     var value_label = general_tab.get_node_or_null("MarginContainer/VBoxContainer/node_limit_container/node_limit_header/node_limit_value")
     if value_label:
         value_label.text = "∞" if value == -1 else str(value)
+
+
+func _apply_ui_opacity(value: float) -> void:
+    # Override if features disabled
+    if !mod_config["enable_features"]:
+        value = 100.0
+
+    # Find Main node
+    var main := get_tree().root.get_node_or_null("Main")
+    if !is_instance_valid(main):
+        return
+        
+    var hud_main := main.get_node_or_null("HUD/Main")
+    if hud_main:
+        hud_main.modulate.a = value / 100.0
+        ModLoaderLog.debug("UI Opacity set to: " + str(value) + "%", LOG_NAME)
+
+
+func _take_screenshot() -> void:
+    # 1. Notify start
+    Signals.notify.emit("exclamation", "Capturing High-Res...")
+    
+    # 2. Hide UI
+    var main = get_tree().root.get_node_or_null("Main")
+    var hud = main.get_node_or_null("HUD")
+    var hud_was_visible = true
+    if hud:
+        hud_was_visible = hud.visible
+        hud.visible = false
+        
+    # Hide our panel
+    var panel_was_visible = false
+    if settings_panel and settings_panel.visible:
+        toggle_settings_panel(false)
+        panel_was_visible = true
+        # Wait for anim
+        await get_tree().create_timer(0.3).timeout
+        
+    await get_tree().process_frame
+    await get_tree().process_frame
+    
+    # 3. Find Camera
+    var viewport = get_viewport()
+    var camera = viewport.get_camera_2d()
+    
+    if !camera:
+        # Fallback to simple viewport capture if no camera found
+        ModLoaderLog.warning("No camera found, taking simple screenshot", LOG_NAME)
+        _capture_and_save(viewport.get_texture().get_image())
+    else:
+        # High-Res Tiled Capture
+        await _take_high_res_screenshot(camera, viewport)
+        
+    # 4. Restore UI
+    if hud: hud.visible = hud_was_visible
+    if panel_was_visible: toggle_settings_panel(true)
+
+
+func _take_high_res_screenshot(main_camera: Camera2D, viewport: Viewport) -> void:
+    ModLoaderLog.info("Starting High-Res Capture with Temp Camera...", LOG_NAME)
+    
+    # Calculate Bounds (Full Board)
+    var bounds = Rect2()
+    var initialized = false
+    
+    if is_instance_valid(Globals.desktop):
+        for child in Globals.desktop.get_children():
+             # Skip non-visual nodes
+            if not (child is CanvasItem):
+                continue
+            if !child.visible: continue
+            var rect = Rect2()
+            
+            if child is Control:
+                rect = child.get_global_rect()
+            elif child is Node2D:
+                 rect = Rect2(child.global_position, Vector2.ZERO)
+            
+            if rect.has_area() or (child is Node2D):
+                if !initialized:
+                    bounds = rect
+                    initialized = true
+                else:
+                    bounds = bounds.merge(rect)
+    
+    if !initialized:
+        # Fallback to current view if bounds specific calculation fails
+        var center = main_camera.get_screen_center_position()
+        var size = viewport.get_visible_rect().size / main_camera.zoom
+        bounds = Rect2(center - size / 2, size)
+
+    # Grow bounds for padding
+    bounds = bounds.grow(100)
+    ModLoaderLog.info("Screenshot Bounds: " + str(bounds), LOG_NAME)
+    
+    # Create Temporary Camera
+    var temp_cam = Camera2D.new()
+    temp_cam.zoom = Vector2.ONE
+    temp_cam.anchor_mode = Camera2D.ANCHOR_MODE_FIXED_TOP_LEFT
+    temp_cam.position_smoothing_enabled = false
+    
+    # Add to the same parent as the main camera to share the coordinate space
+    main_camera.get_parent().add_child(temp_cam)
+    
+    # Activate Temp Camera
+    temp_cam.make_current()
+    
+    var vp_size = viewport.get_visible_rect().size
+    var full_image: Image
+    
+    var x = bounds.position.x
+    while x < bounds.end.x:
+        var y = bounds.position.y
+        while y < bounds.end.y:
+            # Move Temp Camera
+            temp_cam.global_position = Vector2(x, y)
+            
+            # Wait for render 
+            # Needs at least 2 frames for camera update to propagate through the engine
+            await get_tree().process_frame
+            await get_tree().process_frame
+            await get_tree().create_timer(0.1).timeout
+            
+            var chunk = viewport.get_texture().get_image()
+            
+            # Initialize Full Image on first chunk to ensure Format matches!
+            # (Fixes the "format != p_src->format" error)
+            if !full_image:
+                full_image = Image.create(int(bounds.size.x), int(bounds.size.y), false, chunk.get_format())
+            
+            var region_w = min(bounds.end.x - x, vp_size.x)
+            var region_h = min(bounds.end.y - y, vp_size.y)
+            var src_rect = Rect2(0, 0, region_w, region_h)
+            
+            full_image.blit_rect(chunk, src_rect, Vector2(x - bounds.position.x, y - bounds.position.y))
+            
+            y += vp_size.y
+        x += vp_size.x
+        
+    # Cleanup
+    temp_cam.queue_free()
+    # Main camera should automatically become current again, or we can force it:
+    if is_instance_valid(main_camera):
+        main_camera.make_current()
+    
+    # Resize based on quality setting
+    # Using Cubic interpolation for good balance of speed/quality
+    var quality: float = mod_config.get("screenshot_quality", 0.5)
+    
+    # Only resize if not 1.0 (Original)
+    if quality < 0.99:
+        var new_width = int(full_image.get_width() * quality)
+        var new_height = int(full_image.get_height() * quality)
+        if new_width > 0 and new_height > 0:
+            full_image.resize(new_width, new_height, Image.INTERPOLATE_CUBIC)
+    
+    _capture_and_save(full_image)
+
+
+func _capture_and_save(img: Image) -> void:
+    # Create directory
+    var dir = DirAccess.open("user://")
+    if !dir.dir_exists("screenshots"):
+        dir.make_dir("screenshots")
+    
+    # Generate filename with timestamp
+    var time = Time.get_datetime_dict_from_system()
+    var filename = "screenshot_%04d-%02d-%02d_%02d-%02d-%02d.jpg" % [time.year, time.month, time.day, time.hour, time.minute, time.second]
+    var path = "user://screenshots/".path_join(filename)
+    
+    # Save as JPG (Quality 0.8 is a good balance)
+    var err = img.save_jpg(path, 0.8)
+    
+    if err == OK:
+        ModLoaderLog.info("Screenshot saved to: " + path, LOG_NAME)
+        # Globalize path for easier access
+        var global_path = ProjectSettings.globalize_path(path)
+        ModLoaderLog.info("Full path: " + global_path, LOG_NAME)
+        
+        Signals.notify.emit("exclamation", "Screenshot Saved!")
+        Sound.play("click")
+    else:
+        ModLoaderLog.error("Failed to save screenshot: " + str(err), LOG_NAME)
+        Signals.notify.emit("exclamation", "Screenshot Failed!")
 
 
 func _add_cheat_button_pair(parent: VBoxContainer, label_text: String, currency_key: String, icon_path: String) -> void:
@@ -719,7 +1096,35 @@ func _on_setting_toggled(config_key: String, value: bool) -> void:
     mod_config[config_key] = value
     save_config()
     ModLoaderLog.info(config_key + ": " + str(value), LOG_NAME)
-    # TODO: Implement actual feature logic based on config_key
+    
+    if config_key == "enable_features":
+        # Refresh all features
+        _apply_node_limit(mod_config["node_limit"])
+        _apply_extra_glow(mod_config["extra_glow"])
+        _apply_ui_opacity(mod_config["ui_opacity"])
+    
+    if config_key == "extra_glow":
+        _apply_extra_glow(value)
+        _update_glow_settings_visibility(value)
+        
+        
+func _update_glow_settings_visibility(visible: bool) -> void:
+    if !tab_container:
+        return
+    var visuals_tab = tab_container.get_node_or_null("Visuals")
+    if !visuals_tab:
+        return
+    # The margin container holding the glow sliders is slightly tricky to find by path since we added it dynamically
+    # But we know it's in the VBoxContainer. 
+    # Let's iterate or find children.
+    # We didn't give the MarginContainer a specific name in _add_glow_settings_section, doing that would be better.
+    # But we named the vbox inside it "glow_settings_container".
+    var vbox = visuals_tab.get_node_or_null("MarginContainer/VBoxContainer")
+    if vbox:
+        for child in vbox.get_children():
+            if child is MarginContainer and child.get_child_count() > 0 and child.get_child(0).name == "glow_settings_container":
+                child.visible = visible
+                break
 
 
 func _on_setting_slider_changed(config_key: String, value: float, suffix: String) -> void:
@@ -727,21 +1132,38 @@ func _on_setting_slider_changed(config_key: String, value: float, suffix: String
     save_config()
     ModLoaderLog.info(config_key + ": " + str(value), LOG_NAME)
     _update_slider_label(config_key, value, suffix)
-    # TODO: Implement actual feature logic based on config_key
+    
+    if config_key == "extra_glow" or config_key.begins_with("glow_"):
+        if mod_config["extra_glow"]:
+             _apply_extra_glow(true)
+        
+    if config_key == "ui_opacity":
+        _apply_ui_opacity(value)
 
 
 func _update_slider_label(config_key: String, value: float, suffix: String) -> void:
     if !tab_container:
         return
     
+    # Helper to find node recursively
+    var label_name = config_key + "_value"
+    var found_label: Label = null
+    
+    # Scan all tabs
     for tab in tab_container.get_children():
-        var container = tab.get_node_or_null("MarginContainer/VBoxContainer/" + config_key + "_container")
-        if !container:
-            continue
-        var value_label = container.get_node_or_null(config_key + "_header/" + config_key + "_value")
-        if value_label:
-            value_label.text = _format_slider_value(value, suffix)
+        found_label = _find_node_by_name(tab, label_name)
+        if found_label:
+            found_label.text = _format_slider_value(value, suffix)
             break
+
+func _find_node_by_name(node: Node, name_to_find: String) -> Node:
+    if node.name == name_to_find:
+        return node
+    for child in node.get_children():
+        var found = _find_node_by_name(child, name_to_find)
+        if found:
+            return found
+    return null
 
 
 func _on_reset_settings_pressed() -> void:
@@ -778,6 +1200,17 @@ func load_config() -> void:
                     for key in data:
                         if mod_config.has(key):
                             mod_config[key] = data[key]
+                    
+                    # Migration: extra_glow float -> bool (from intermediate version)
+                    if mod_config["extra_glow"] is float:
+                        mod_config["extra_glow"] = mod_config["extra_glow"] > 0.0
+                        ModLoaderLog.info("Migrated extra_glow from float to bool", LOG_NAME)
+                    
+                    # Migration: glow_threshold -> glow_sensitivity
+                    if data.has("glow_threshold") and !mod_config.has("glow_sensitivity"):
+                        mod_config["glow_sensitivity"] = clamp(1.0 - data["glow_threshold"], 0.0, 1.0)
+                        ModLoaderLog.info("Migrated glow_threshold to sensitivity", LOG_NAME)
+                        
                     ModLoaderLog.info("Config loaded from " + CONFIG_PATH, LOG_NAME)
             else:
                 ModLoaderLog.warning("Failed to parse config JSON", LOG_NAME)
@@ -815,8 +1248,24 @@ func apply_config_to_ui() -> void:
                 if slider and mod_config.has(config_key):
                     slider.value = mod_config[config_key]
                 if value_label and mod_config.has(config_key):
-                    var suffix := "x" if config_key == "animation_speed" else "%"
-                    value_label.text = _format_slider_value(mod_config[config_key], suffix)
+                    if config_key == "node_limit":
+                        var val = mod_config[config_key]
+                        value_label.text = "∞" if val == -1 else str(int(val))
+                    else:
+                        var suffix := "%" if config_key == "ui_opacity" else ""
+                        value_label.text = _format_slider_value(mod_config[config_key], suffix)
+    
+            # Handle Quality Selector
+            elif child_name == "screenshot_quality_container":
+                var btn_row = child.get_node_or_null("buttons_row")
+                if btn_row:
+                    for btn in btn_row.get_children():
+                        if btn is Button:
+                            # Extract value from name "QualityBtn_0.5"
+                             var val_str = btn.name.replace("QualityBtn_", "")
+                             if val_str.is_valid_float():
+                                 var val = val_str.to_float()
+                                 btn.button_pressed = is_equal_approx(mod_config["screenshot_quality"], val)
 
 
 # ==============================================================================
