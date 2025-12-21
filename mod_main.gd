@@ -63,6 +63,7 @@ var mod_config := DEFAULT_CONFIG.duplicate()
 func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/globals.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/windows_menu.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/schematic_container.gd")
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
     _load_mod_version()
@@ -71,6 +72,12 @@ func _init() -> void:
 
 func _ready() -> void:
     ModLoaderLog.info("TajsModded ready!", LOG_NAME)
+    
+    # DEBUG: Check what limit we loaded
+    if "custom_node_limit" in Globals:
+        ModLoaderLog.info("DEBUG: Globals.custom_node_limit at startup: " + str(Globals.custom_node_limit), LOG_NAME)
+    else:
+        ModLoaderLog.warning("DEBUG: Globals.custom_node_limit NOT FOUND at startup", LOG_NAME)
     
     # Listen for Main node being added
     get_tree().node_added.connect(_on_node_added)
@@ -1267,11 +1274,24 @@ func load_config() -> void:
                         mod_config["glow_sensitivity"] = clamp(1.0 - data["glow_threshold"], 0.0, 1.0)
                         ModLoaderLog.info("Migrated glow_threshold to sensitivity", LOG_NAME)
                         
+                        ModLoaderLog.info("Migrated glow_threshold to sensitivity", LOG_NAME)
+                    
+                    _sanitize_config()
+                        
                     ModLoaderLog.info("Config loaded from " + CONFIG_PATH, LOG_NAME)
             else:
                 ModLoaderLog.warning("Failed to parse config JSON", LOG_NAME)
     else:
         ModLoaderLog.info("No config file found, using defaults", LOG_NAME)
+
+
+func _sanitize_config() -> void:
+    # Ensure node_limit is valid
+    # If it's 0 or very small (likely corruption or uninitialized), reset to default 400
+    if mod_config["node_limit"] != -1 and mod_config["node_limit"] < 100:
+        ModLoaderLog.warning("Node Limit found to be < 100 (" + str(mod_config["node_limit"]) + "). Resetting to 400.", LOG_NAME)
+        mod_config["node_limit"] = 400
+        save_config()
 
 
 func apply_config_to_ui() -> void:
