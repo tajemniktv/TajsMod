@@ -64,6 +64,7 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/globals.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/windows_menu.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/schematic_container.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_group.gd")
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
     _load_mod_version()
@@ -72,6 +73,26 @@ func _init() -> void:
 
 func _ready() -> void:
     ModLoaderLog.info("TajsModded ready!", LOG_NAME)
+    
+    # Inject Bin Window
+    if !Data.windows.has("bin"):
+        Data.windows["bin"] = {
+            "name": "Bin",
+            "icon": "trash_bin",
+            "description": "Deletes items.",
+            "category": "utility",
+            "sub_category": "organizer",
+            "scene": "window_bin",
+            "level": 0,
+            "requirement": "",
+            "hidden": false,
+            "group": "",
+            "data": {},
+            "attributes": {
+                "limit": - 1
+            },
+            "guide": ""
+        }
     
     # DEBUG: Check what limit we loaded
     if "custom_node_limit" in Globals:
@@ -1322,7 +1343,11 @@ func apply_config_to_ui() -> void:
                 var slider := child.get_node_or_null(config_key + "_slider")
                 var value_label := child.get_node_or_null(config_key + "_header/" + config_key + "_value")
                 if slider and mod_config.has(config_key):
-                    slider.value = mod_config[config_key]
+                    # Special handling for Node Limit -1 (Infinity) -> Slider Max
+                    if config_key == "node_limit" and mod_config[config_key] == -1:
+                        slider.value = slider.max_value
+                    else:
+                        slider.value = mod_config[config_key]
                 if value_label and mod_config.has(config_key):
                     if config_key == "node_limit":
                         var val = mod_config[config_key]
