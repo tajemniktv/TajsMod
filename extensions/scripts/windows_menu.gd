@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Windows Menu - Handles window creation and selection logic
+# Author: TajemnikTV
+# =============================================================================
 extends "res://scripts/windows_menu.gd"
 
 func _on_add_pressed() -> void:
