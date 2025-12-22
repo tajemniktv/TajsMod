@@ -1,3 +1,8 @@
+# ==============================================================================
+# Taj's Mod - Upload Labs
+# Config Manager - Handles persistent configuration
+# Author: TajemnikTV
+# ==============================================================================
 class_name TajsModConfigManager
 extends RefCounted
 
@@ -16,6 +21,17 @@ const DEFAULT_CONFIG := {
 	"glow_bloom": 0.2,
 	"glow_sensitivity": 0.8,
 	"ui_opacity": 100.0,
+	# Palette tab
+	"palette_tools_enabled": false,
+	# Wire Drop Menu
+	"wire_drop_menu_enabled": true,
+	# Right-click wire clear
+	"right_click_clear_enabled": true,
+	# Focus mute (Issue #11)
+	"mute_on_focus_loss": true,
+	"background_volume": 0.0, # 0-100%, 0 = mute
+	# Drag dead zone (Issue #13)
+	"drag_dead_zone": 5, # pixels
 	# Debug tab
 }
 
