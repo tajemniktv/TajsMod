@@ -19,3 +19,8 @@
 *.uid
 
 *.import
+
+docs/
+
+extensions/scripts/palette/README.md
+
