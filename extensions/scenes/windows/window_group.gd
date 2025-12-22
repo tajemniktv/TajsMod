@@ -91,8 +91,11 @@ func _ready() -> void:
 			var pattern_btn = Button.new()
 			pattern_btn.name = "PatternButton"
 			pattern_btn.custom_minimum_size = Vector2(40, 40)
+			pattern_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			pattern_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			pattern_btn.focus_mode = Control.FOCUS_NONE
 			pattern_btn.theme_type_variation = "SettingButton"
+			pattern_btn.add_theme_constant_override("icon_max_width", 20)
 			pattern_btn.icon = load("res://textures/icons/grid.png")
 			pattern_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			pattern_btn.expand_icon = true
