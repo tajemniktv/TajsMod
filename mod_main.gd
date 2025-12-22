@@ -13,11 +13,17 @@ const ConfigManager = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensi
 const Patcher = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/patcher.gd")
 const SettingsUI = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/settings_ui.gd")
 const ScreenshotManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/screenshot_manager.gd")
+const PaletteControllerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/palette_controller.gd")
+const WireClearHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/wire_drop/wire_clear_handler.gd")
+const FocusHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/focus_handler.gd")
 
 # Components
 var config # ConfigManager instance
 var ui # SettingsUI instance
 var screenshot_manager # ScreenshotManager instance
+var palette_controller # PaletteController instance
+var wire_clear_handler # WireClearHandler instance
+var focus_handler # FocusHandler instance
 
 # State
 var mod_dir_path: String = ""
@@ -26,6 +32,10 @@ var _desktop_patched := false
 var _node_info_label: Label = null # Reference for updates
 var _debug_log_label: Label = null # Debug log display
 var _debug_mode := false # Toggle for verbose debug logging
+var _node_limit_slider: HSlider = null
+var _node_limit_value_label: Label = null
+var _extra_glow_toggle: CheckButton = null
+var _extra_glow_sub: MarginContainer = null
 
 # ==============================================================================
 # LIFECYCLE
@@ -38,6 +48,7 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/popup_schematic.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_group.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_bin.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_inventory.gd") # 6 inputs
     
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
@@ -49,6 +60,20 @@ func _init() -> void:
     # Init Screenshot Manager (tree set in _ready)
     screenshot_manager = ScreenshotManagerScript.new()
     screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
+    
+    # Init Palette Controller
+    palette_controller = PaletteControllerScript.new()
+    add_child(palette_controller)
+    
+    # Init Wire Clear Handler
+    wire_clear_handler = WireClearHandlerScript.new()
+    wire_clear_handler.setup(config)
+    add_child(wire_clear_handler)
+    
+    # Init Focus Handler (mute on focus loss)
+    focus_handler = FocusHandlerScript.new()
+    focus_handler.setup(config)
+    add_child(focus_handler)
 
 func _ready() -> void:
     ModLoaderLog.info("TajsModded ready!", LOG_NAME)
@@ -130,6 +155,10 @@ func _setup_for_main(main_node: Node) -> void:
     
     _build_settings_menu()
     
+    # Initialize palette system
+    palette_controller.initialize(get_tree(), config, ui, self)
+    _register_palette_screenshot_command()
+    
     # Apply initial visuals
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
@@ -141,6 +170,12 @@ func _build_settings_menu() -> void:
     
     ui.add_toggle(gen_vbox, "Enable Mod Features", config.get_value("enable_features"), func(v):
         config.set_value("enable_features", v)
+    )
+    
+    # Wire Drop Node Menu toggle
+    ui.add_toggle(gen_vbox, "Wire Drop Node Menu", config.get_value("wire_drop_menu_enabled"), func(v):
+        config.set_value("wire_drop_menu_enabled", v)
+        palette_controller.set_wire_drop_enabled(v)
     )
     
     # Node Info Label (Custom)
@@ -158,6 +193,18 @@ func _build_settings_menu() -> void:
     
     # Screenshot Section
     screenshot_manager.add_screenshot_section(gen_vbox, ui, config)
+    
+    # Focus Mute Section (Issue #11)
+    var fh = focus_handler # Capture for closure
+    ui.add_toggle(gen_vbox, "Mute on Focus Loss", config.get_value("mute_on_focus_loss"), func(v):
+        fh.set_enabled(v)
+    )
+    ui.add_slider(gen_vbox, "Background Volume", config.get_value("background_volume"), 0, 100, 5, "%", func(v):
+        fh.set_background_volume(v)
+    )
+    
+    # Note: Drag Dead Zone (Issue #13) cannot be implemented via script extension
+    # due to class_name WindowContainer conflict. Would require game code change.
     
     # --- VISUALS ---
     var vis_vbox = ui.add_tab("Visuals", "res://textures/icons/eye_ball.png")
@@ -177,11 +224,12 @@ func _build_settings_menu() -> void:
     glow_sub_vbox.add_theme_constant_override("separation", 10)
     glow_sub.add_child(glow_sub_vbox)
     
-    ui.add_toggle(glow_container, "Extra Glow", config.get_value("extra_glow"), func(v):
+    _extra_glow_toggle = ui.add_toggle(glow_container, "Extra Glow", config.get_value("extra_glow"), func(v):
         config.set_value("extra_glow", v)
         glow_sub.visible = v
         _apply_extra_glow(v)
     )
+    _extra_glow_sub = glow_sub
     
     glow_container.add_child(glow_sub)
     
@@ -308,28 +356,47 @@ func _add_node_limit_slider(parent: Control) -> void:
     label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     header.add_child(label)
     
-    var value_label := Label.new()
+    _node_limit_value_label = Label.new()
     var current_val = config.get_value("node_limit")
-    value_label.text = "∞" if current_val == -1 else str(int(current_val))
-    value_label.add_theme_font_size_override("font_size", 32)
-    header.add_child(value_label)
+    _node_limit_value_label.text = "∞" if current_val == -1 else str(int(current_val))
+    _node_limit_value_label.add_theme_font_size_override("font_size", 32)
+    header.add_child(_node_limit_value_label)
     
     # Slider: Use 0-2050 range, where 2050 represents ∞ (-1 internally)
-    var slider := HSlider.new()
-    slider.min_value = 50
-    slider.max_value = 2050 # 2050 = ∞
-    slider.step = 50
+    _node_limit_slider = HSlider.new()
+    _node_limit_slider.min_value = 50
+    _node_limit_slider.max_value = 2050 # 2050 = ∞
+    _node_limit_slider.step = 50
     # Map -1 to 2050 for display
-    slider.value = 2050 if current_val == -1 else current_val
-    slider.focus_mode = Control.FOCUS_NONE
+    _node_limit_slider.value = 2050 if current_val == -1 else current_val
+    _node_limit_slider.focus_mode = Control.FOCUS_NONE
     
-    slider.value_changed.connect(func(v):
+    var vl = _node_limit_value_label
+    _node_limit_slider.value_changed.connect(func(v):
         var actual_val = -1 if v >= 2050 else int(v)
-        value_label.text = "∞" if actual_val == -1 else str(actual_val)
+        vl.text = "∞" if actual_val == -1 else str(actual_val)
         config.set_value("node_limit", actual_val)
         Globals.custom_node_limit = actual_val
     )
-    container.add_child(slider)
+    container.add_child(_node_limit_slider)
+
+## Public method to update node limit from palette
+func set_node_limit(value: int) -> void:
+    config.set_value("node_limit", value)
+    Globals.custom_node_limit = value
+    if _node_limit_slider:
+        _node_limit_slider.value = 2050 if value == -1 else value
+    if _node_limit_value_label:
+        _node_limit_value_label.text = "∞" if value == -1 else str(value)
+
+## Public method to update extra glow from palette
+func set_extra_glow(enabled: bool) -> void:
+    config.set_value("extra_glow", enabled)
+    _apply_extra_glow(enabled)
+    if _extra_glow_toggle:
+        _extra_glow_toggle.button_pressed = enabled
+    if _extra_glow_sub:
+        _extra_glow_sub.visible = enabled
 
 func _apply_extra_glow(enabled: bool) -> void:
     var main = get_tree().root.get_node_or_null("Main")
@@ -444,3 +511,19 @@ func _modify_currency(type: String, percent: float) -> void:
         Globals.process(0)
     
     Sound.play("click")
+
+func _register_palette_screenshot_command() -> void:
+    # Override the screenshot command to use our screenshot manager
+    var registry = palette_controller.get_registry()
+    var sm = screenshot_manager # Capture reference for closure
+    
+    registry.register({
+        "id": "cmd_take_screenshot",
+        "title": "Take Screenshot",
+        "category_path": ["Taj's Mod", "Screenshots"],
+        "keywords": ["screenshot", "capture", "photo", "save", "image"],
+        "hint": "Capture a full desktop screenshot",
+        "icon_path": "res://textures/icons/camera.png",
+        "badge": "SAFE",
+        "run": func(ctx): sm.take_screenshot()
+    })
