@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Schematic Container - Handles schematic button logic
+# Author: TajemnikTV
+# =============================================================================
 extends "res://scenes/schematic_container.gd"
 
 

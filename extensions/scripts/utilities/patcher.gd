@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Patcher - Patches core game files
+# Author: TajemnikTV
+# =============================================================================
 class_name TajsModPatcher
 extends RefCounted
 

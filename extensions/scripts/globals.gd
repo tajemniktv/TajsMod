@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Globals - Shared constants and variables
+# Author: TajemnikTV
+# =============================================================================
 extends "res://scripts/globals.gd"
 
 var custom_node_limit: int = 400

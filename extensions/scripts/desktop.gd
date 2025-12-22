@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Desktop Script - Handles window creation and pasting logic
+# Author: TajemnikTV
+# =============================================================================
 extends "res://scripts/desktop.gd"
 
 func paste(data: Dictionary) -> void:

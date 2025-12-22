@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Bin Input - Universal receiver logic
+# Author: TajemnikTV
+# =============================================================================
 extends "res://scenes/resource_container.gd"
 
 # MOD: Universal Receiver Logic

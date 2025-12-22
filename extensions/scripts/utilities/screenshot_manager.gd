@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Screenshot Manager - Captures full desktop images
+# Author: TajemnikTV
+# =============================================================================
 class_name ScreenshotManager
 extends RefCounted
 

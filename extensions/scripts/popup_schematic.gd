@@ -1,3 +1,8 @@
+# =============================================================================
+# Taj's Mod - Upload Labs
+# Popup Schematic - Handles schematic creation and saving logic
+# Author: TajemnikTV
+# =============================================================================
 extends "res://scripts/popup_schematic.gd"
 
 # Define extra icons to add
