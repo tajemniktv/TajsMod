@@ -64,9 +64,7 @@ If something feels missing, annoying, or you want a specific option/toggle — l
 2. Launch the game — the mod will load automatically
 
 ### Manual Installation
-1. Download the latest release from [GitHub Releases](https://github.com/tajemniktv/TajsView/releases)
-2. Extract the contents to `Upload Labs/mods-unpacked/TajemnikTV-TajsModded/`
-3. Launch the game
+No support for manual installation, unless you know what you're doing and in extreme situations only.
 
 > ⚠️ If you previously installed the mod manually, remove old versions to avoid duplicates.
 
@@ -87,7 +85,7 @@ If something feels missing, annoying, or you want a specific option/toggle — l
 
 | Action | Input |
 |--------|-------|
-| Open Command Palette | Middle-click or Spacebar |
+| Open Command Palette | Middle-click |
 | Navigate Palette | Arrow keys / Mouse |
 | Go Back (Palette) | Mouse Back Button |
 | Go Forward (Palette) | Mouse Forward Button |
@@ -109,7 +107,7 @@ Pull requests are welcome! Please check [CONTRIBUTING.md](CONTRIBUTING.md) for g
 ## Links
 
 - **GitHub:** https://github.com/tajemniktv/TajsView
-- **Steam Workshop:** *Coming Soon*
+- **Steam Workshop:** https://steamcommunity.com/sharedfiles/filedetails/?id=3628222709
 - **Issues:** https://github.com/tajemniktv/TajsView/issues
 
 ---
