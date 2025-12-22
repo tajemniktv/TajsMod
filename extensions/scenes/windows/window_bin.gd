@@ -1,3 +1,8 @@
+# ==============================================================================
+# Taj's Mod - Upload Labs
+# Bin Window Extension - Adds 5th and 6th input slots
+# Author: TajemnikTV
+# ==============================================================================
 extends "res://scenes/windows/window_bin.gd"
 
 var _extra_inputs: Array[Control] = []

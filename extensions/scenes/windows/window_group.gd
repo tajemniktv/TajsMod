@@ -1,3 +1,8 @@
+# ==============================================================================
+# Taj's Mod - Upload Labs
+# Group Window Extension - Expanded color palette and patterns
+# Author: TajemnikTV
+# ==============================================================================
 extends "res://scenes/windows/window_group.gd"
 
 # Expanded color palette

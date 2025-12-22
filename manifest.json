@@ -1,36 +1,34 @@
 {
-	"dependencies": [],
-	"description": "A growing collection of Utility / QoL + Visual Tweaks, without overhauling the whole core gameplay loop.",
-	"extra": {
-		"godot": {
-			"authors": [
-				"TajemnikTV"
-			],
-			"compatible_game_version": [
-				"2.0.17"
-			],
-			"compatible_mod_loader_version": [
-				"7.0.0"
-			],
-			"config_schema": {
-
-			},
-			"description_rich": "",
-			"image": null,
-			"incompatibilities": [],
-			"load_before": [],
-			"optional_dependencies": [],
-			"tags": [
-				"gameplay",
-				"qol",
-				"visual",
-				"cheats",
-				"beta"
-			]
-		}
-	},
-	"name": "TajsModded",
-	"namespace": "TajemnikTV",
-	"version_number": "0.0.14",
-	"website_url": "https://github.com/tajemniktv/TajsView/"
+    "dependencies": [],
+    "description": "A growing collection of Utility / QoL + Visual Tweaks, without overhauling the whole core gameplay loop.",
+    "extra": {
+        "godot": {
+            "authors": [
+                "TajemnikTV"
+            ],
+            "compatible_game_version": [
+                "2.0.17"
+            ],
+            "compatible_mod_loader_version": [
+                "7.0.0"
+            ],
+            "config_schema": {},
+            "description_rich": "",
+            "image": null,
+            "incompatibilities": [],
+            "load_before": [],
+            "optional_dependencies": [],
+            "tags": [
+                "gameplay",
+                "qol",
+                "visual",
+                "cheats",
+                "beta"
+            ]
+        }
+    },
+    "name": "TajsModded",
+    "namespace": "TajemnikTV",
+    "version_number": "0.0.15",
+    "website_url": "https://github.com/tajemniktv/TajsView/"
 }
