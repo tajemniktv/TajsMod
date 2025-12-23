@@ -159,42 +159,27 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "SAFE"
     })
     
-    # ==========================================
-    # NODES > UPGRADE
-    # ==========================================
-    
-    registry.register({
-        "id": "cat_nodes_upgrade",
-        "title": "Upgrade",
-        "category_path": ["Nodes"],
-        "keywords": ["upgrade", "level", "up", "improve"],
-        "hint": "Upgrade nodes",
-        "icon_path": "res://textures/icons/up.png",
-        "is_category": true,
-        "badge": "SAFE"
-    })
-    
-    # Upgrade Selected command
+    # Upgrade Selected command (in root Nodes)
     registry.register({
         "id": "cmd_upgrade_selected",
         "title": "Upgrade Selected",
-        "category_path": ["Nodes", "Upgrade"],
+        "category_path": ["Nodes"],
         "keywords": ["upgrade", "selected", "level", "up"],
         "hint": "Upgrade all selected nodes (if affordable)",
-        "icon_path": "res://textures/icons/up.png",
+        "icon_path": "res://textures/icons/up_arrow.png",
         "badge": "SAFE",
         "run": func(ctx):
             _upgrade_nodes(Globals.selections if Globals else [])
     })
     
-    # Upgrade All command
+    # Upgrade All command (in root Nodes)
     registry.register({
         "id": "cmd_upgrade_all",
         "title": "Upgrade All",
-        "category_path": ["Nodes", "Upgrade"],
+        "category_path": ["Nodes"],
         "keywords": ["upgrade", "all", "level", "up", "everything"],
         "hint": "Upgrade all nodes on desktop (if affordable)",
-        "icon_path": "res://textures/icons/up.png",
+        "icon_path": "res://textures/icons/up_arrow.png",
         "badge": "SAFE",
         "run": func(ctx):
             if Globals and Globals.desktop:
@@ -206,16 +191,6 @@ static func register_all(registry, refs: Dictionary) -> void:
                             all_windows.append(child)
                     _upgrade_nodes(all_windows)
     })
-    
-    # Register upgrade commands for each category
-    _register_upgrade_category(registry, "network", "Network")
-    _register_upgrade_category(registry, "cpu", "CPU")
-    _register_upgrade_category(registry, "gpu", "GPU")
-    _register_upgrade_category(registry, "research", "Research")
-    _register_upgrade_category(registry, "factory", "Factory")
-    _register_upgrade_category(registry, "hacking", "Hacking")
-    _register_upgrade_category(registry, "coding", "Coding")
-    _register_upgrade_category(registry, "utility", "Utility")
     
     # ==========================================
     # TAJ'S MOD - SETTINGS
@@ -583,7 +558,7 @@ static func _modify_currency(type: String, percent: float) -> void:
     Sound.play("click")
 
 
-## Helper to register a node category with select command (avoids closure capture)
+## Helper to register a node category with select and upgrade commands
 static func _register_node_category(registry, cat_id: String, cat_title: String, icon: String) -> void:
     # Register category
     registry.register({
@@ -597,7 +572,7 @@ static func _register_node_category(registry, cat_id: String, cat_title: String,
         "badge": "SAFE"
     })
     
-    # Register select all for this category - use window property for type
+    # Register select all for this category
     registry.register({
         "id": "cmd_select_" + cat_id,
         "title": "Select All " + cat_title,
@@ -612,11 +587,9 @@ static func _register_node_category(registry, cat_id: String, cat_title: String,
                     var typed_windows: Array[WindowContainer] = []
                     for child in windows_container.get_children():
                         if child is WindowContainer:
-                            # Use the 'window' property which contains the window type key
                             var window_key = ""
                             if "window" in child:
                                 window_key = child.window
-                            
                             if window_key and window_key in Data.windows:
                                 if Data.windows[window_key].category == cat_id:
                                     typed_windows.append(child)
@@ -624,3 +597,93 @@ static func _register_node_category(registry, cat_id: String, cat_title: String,
                     Globals.set_selection(typed_windows, typed_connectors, 1)
                     Signals.notify.emit("check", "Selected %d %s nodes" % [typed_windows.size(), cat_title])
     })
+    
+    # Register upgrade for this category
+    registry.register({
+        "id": "cmd_upgrade_" + cat_id,
+        "title": "Upgrade " + cat_title,
+        "category_path": ["Nodes", cat_title],
+        "keywords": ["upgrade", cat_id, cat_title.to_lower(), "level", "up"],
+        "hint": "Upgrade all " + cat_title + " nodes (if affordable)",
+        "icon_path": "res://textures/icons/up_arrow.png",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if Globals and Globals.desktop:
+                var windows_container = Globals.desktop.get_node_or_null("Windows")
+                if windows_container:
+                    var category_windows: Array = []
+                    for child in windows_container.get_children():
+                        if child is WindowContainer:
+                            var window_key = ""
+                            if "window" in child:
+                                window_key = child.window
+                            if window_key and window_key in Data.windows:
+                                if Data.windows[window_key].category == cat_id:
+                                    category_windows.append(child)
+                    _upgrade_nodes(category_windows)
+    })
+
+
+## Helper to upgrade a list of nodes with cost checking
+static func _upgrade_nodes(windows: Array) -> void:
+    var upgraded_count = 0
+    var skipped_count = 0
+    
+    for window in windows:
+        if window == null:
+            continue
+        
+        # Check if window has upgrade capability
+        if not window.has_method("upgrade"):
+            continue
+        
+        # Check if can afford the upgrade
+        if window.has_method("can_upgrade"):
+            if not window.can_upgrade():
+                skipped_count += 1
+                continue
+            # Windows with can_upgrade() usually handle their own cost deduction
+            if window.has_method("_on_upgrade_button_pressed"):
+                window._on_upgrade_button_pressed()
+                upgraded_count += 1
+                continue
+        
+        # For windows without can_upgrade, check cost manually
+        var cost = window.get("cost")
+        if cost != null and cost > 0:
+            if cost > Globals.currencies.get("money", 0):
+                skipped_count += 1
+                continue
+            Globals.currencies["money"] -= cost
+        
+        # Call upgrade with appropriate arguments
+        var arg_count = _get_method_arg_count(window, "upgrade")
+        if arg_count == 0:
+            window.upgrade()
+        else:
+            window.upgrade(1)
+        upgraded_count += 1
+    
+    # Provide feedback
+    if upgraded_count > 0:
+        Sound.play("upgrade")
+        var msg = "Upgraded " + str(upgraded_count) + " nodes"
+        if skipped_count > 0:
+            msg += " (" + str(skipped_count) + " skipped)"
+        Signals.notify.emit("check", msg)
+    else:
+        Sound.play("error")
+        if skipped_count > 0:
+            Signals.notify.emit("exclamation", "Can't afford any upgrades (" + str(skipped_count) + " nodes)")
+        else:
+            Signals.notify.emit("exclamation", "No upgradeable nodes")
+
+
+## Helper to get method argument count
+static func _get_method_arg_count(obj: Object, method_name: String) -> int:
+    var script = obj.get_script()
+    if script:
+        for method in script.get_script_method_list():
+            if method.name == method_name:
+                return method.args.size()
+    return 1

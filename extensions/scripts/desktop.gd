@@ -58,3 +58,23 @@ func paste(data: Dictionary) -> void:
             Signals.create_connection.emit(i, output)
 
     $Connectors.connector_data.clear()
+
+
+func _input(event: InputEvent) -> void:
+    # Ctrl+A to select all nodes
+    if event is InputEventKey and event.pressed:
+        if event.keycode == KEY_A and event.ctrl_pressed:
+            _select_all_nodes()
+            get_viewport().set_input_as_handled()
+
+
+func _select_all_nodes() -> void:
+    var windows_container = get_node_or_null("Windows")
+    if windows_container:
+        var typed_windows: Array[WindowContainer] = []
+        for child in windows_container.get_children():
+            if child is WindowContainer:
+                typed_windows.append(child)
+        var typed_connectors: Array[Control] = []
+        Globals.set_selection(typed_windows, typed_connectors, 1)
+        Signals.notify.emit("check", "Selected %d nodes" % typed_windows.size())
