@@ -40,6 +40,15 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: mod_loader_version
+    attributes:
+      label: Mod loader version
+      description: Mod loader version you're using.
+      placeholder: "e.g. 7.0.0"
+    validations:
+      required: true
+
   # ——— Bug description ———
   - type: markdown
     attributes:
@@ -103,7 +112,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## 📈 Frequency
+        ## 🔋 Frequency
 
   - type: dropdown
     id: frequency
@@ -161,7 +170,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## 🧩 Mods / Conflicts
+        ## 🧰 Mods / Conflicts
 
   - type: textarea
     id: other_mods
@@ -180,16 +189,16 @@ body:
     attributes:
       label: Conflict checks (if possible)
       options:
-        - label: I tested with **only Taj's Mod enabled** (or I cannot because: explained in notes).
+        - label: "I tested with **only Taj's Mod enabled** (or I cannot because I explained in notes)"
           required: false
-        - label: I checked that I’m not running an outdated/unknown build from a third-party reupload.
+        - label: "I checked that I’m not running an outdated/unknown build from a third-party reupload."
           required: false
 
   # ——— Environment ———
   - type: markdown
     attributes:
       value: |
-        ## 🖥️ System info
+        ## 💻 System info
 
   - type: textarea
     id: environment
@@ -209,7 +218,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## 📄 Logs / Config / Save (optional but very helpful)
+        ## 🐄 Logs / Config / Save (optional but very helpful)
 
   - type: textarea
     id: logs
@@ -228,7 +237,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## 🧠 Additional context (optional)
+        ## 💡 Additional context (optional)
 
   - type: textarea
     id: additional_context
