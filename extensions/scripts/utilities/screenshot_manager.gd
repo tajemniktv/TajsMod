@@ -14,10 +14,12 @@ const LOG_NAME = "TajsModded:Screenshot"
 # Quality settings
 var quality: int = 2 # 0=Low, 1=Med, 2=High, 3=Original
 var debug_mode: bool = false
+var screenshot_folder: String = "user://screenshots" # Configurable folder
 
 # References
 var _tree: SceneTree
 var _ui # SettingsUI reference for hiding during capture
+var _config # ConfigManager reference for saving settings
 
 # Callbacks
 var _log_callback: Callable # Optional debug log callback
@@ -33,6 +35,10 @@ func set_ui(ui_ref) -> void:
 
 func set_log_callback(callback: Callable) -> void:
     _log_callback = callback
+
+
+func set_config(config_manager) -> void:
+    _config = config_manager
 
 
 func _log(message: String, force: bool = false) -> void:
@@ -200,8 +206,8 @@ func take_screenshot() -> void:
     var time = Time.get_datetime_string_from_system().replace(":", "-")
     var quality_names = ["low", "med", "high", "original"]
     var extension = ".jpg" if use_jpg else ".png"
-    var path = "user://screenshots/fullboard_" + quality_names[quality] + "_" + time + extension
-    DirAccess.make_dir_recursive_absolute("user://screenshots")
+    var path = screenshot_folder.path_join("fullboard_" + quality_names[quality] + "_" + time + extension)
+    DirAccess.make_dir_recursive_absolute(screenshot_folder)
     
     if use_jpg:
         final_image.save_jpg(path, 0.85) # 85% quality for good compression
@@ -258,3 +264,106 @@ func add_screenshot_section(parent: Control, ui_builder, config_manager) -> void
     take_btn.custom_minimum_size = Vector2(0, 60)
     take_btn.pressed.connect(take_screenshot)
     container.add_child(take_btn)
+    
+    # Screenshot Folder Section
+    var folder_section = VBoxContainer.new()
+    folder_section.add_theme_constant_override("separation", 5)
+    container.add_child(folder_section)
+    
+    var folder_label = Label.new()
+    folder_label.text = "Screenshot Folder"
+    folder_label.add_theme_font_size_override("font_size", 28)
+    folder_section.add_child(folder_label)
+    
+    # Current folder path display
+    var path_label = Label.new()
+    path_label.text = _get_display_path()
+    path_label.add_theme_font_size_override("font_size", 14)
+    path_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+    path_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+    folder_section.add_child(path_label)
+    
+    # Folder button row
+    var folder_btn_row = HBoxContainer.new()
+    folder_btn_row.add_theme_constant_override("separation", 5)
+    folder_section.add_child(folder_btn_row)
+    
+    var self_ref = self
+    
+    # Open folder button
+    var open_btn = Button.new()
+    open_btn.text = "📁 Open Folder"
+    open_btn.theme_type_variation = "TabButton"
+    open_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    open_btn.custom_minimum_size = Vector2(0, 50)
+    open_btn.pressed.connect(func():
+        self_ref.open_screenshot_folder()
+    )
+    folder_btn_row.add_child(open_btn)
+    
+    # Change folder button
+    var change_btn = Button.new()
+    change_btn.text = "🔄 Change Folder"
+    change_btn.theme_type_variation = "TabButton"
+    change_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    change_btn.custom_minimum_size = Vector2(0, 50)
+    change_btn.pressed.connect(func():
+        self_ref._show_folder_dialog(path_label, config_manager)
+    )
+    folder_btn_row.add_child(change_btn)
+
+
+## Get display-friendly path for the current screenshot folder
+func _get_display_path() -> String:
+    if screenshot_folder.begins_with("user://"):
+        return ProjectSettings.globalize_path(screenshot_folder)
+    return screenshot_folder
+
+
+## Open the screenshot folder in the system file explorer
+func open_screenshot_folder() -> void:
+    DirAccess.make_dir_recursive_absolute(screenshot_folder)
+    var global_path = screenshot_folder
+    if screenshot_folder.begins_with("user://"):
+        global_path = ProjectSettings.globalize_path(screenshot_folder)
+    
+    _log("Opening folder: " + global_path)
+    var err = OS.shell_open(global_path)
+    if err != OK:
+        _log("Failed to open folder: " + str(err), true)
+        Signals.notify.emit("exclamation", "Could not open folder")
+
+
+## Show file dialog to change screenshot folder
+func _show_folder_dialog(path_label: Label, config_manager) -> void:
+    # Create FileDialog
+    var dialog = FileDialog.new()
+    dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+    dialog.access = FileDialog.ACCESS_FILESYSTEM
+    dialog.title = "Select Screenshot Folder"
+    dialog.size = Vector2(800, 500)
+    
+    # Set initial path to current folder
+    var initial_path = screenshot_folder
+    if initial_path.begins_with("user://"):
+        initial_path = ProjectSettings.globalize_path(initial_path)
+    dialog.current_dir = initial_path
+    
+    var self_ref = self
+    dialog.dir_selected.connect(func(dir: String):
+        self_ref.screenshot_folder = dir
+        config_manager.set_value("screenshot_folder", dir)
+        path_label.text = dir
+        self_ref._log("Screenshot folder changed to: " + dir, true)
+        Signals.notify.emit("check", "Screenshot folder updated")
+        dialog.queue_free()
+    )
+    
+    dialog.canceled.connect(func():
+        dialog.queue_free()
+    )
+    
+    # Add to the tree and show
+    if _tree:
+        _tree.root.add_child(dialog)
+        dialog.popup_centered()

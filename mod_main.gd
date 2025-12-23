@@ -16,6 +16,7 @@ const ScreenshotManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModd
 const PaletteControllerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/palette_controller.gd")
 const WireClearHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/wire_drop/wire_clear_handler.gd")
 const FocusHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/focus_handler.gd")
+const WireColorOverridesScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/wire_color_overrides.gd")
 
 # Components
 var config # ConfigManager instance
@@ -24,6 +25,7 @@ var screenshot_manager # ScreenshotManager instance
 var palette_controller # PaletteController instance
 var wire_clear_handler # WireClearHandler instance
 var focus_handler # FocusHandler instance
+var wire_colors # WireColorOverrides instance
 
 # State
 var mod_dir_path: String = ""
@@ -60,6 +62,8 @@ func _init() -> void:
     # Init Screenshot Manager (tree set in _ready)
     screenshot_manager = ScreenshotManagerScript.new()
     screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
+    screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
+    screenshot_manager.set_config(config)
     
     # Init Palette Controller
     palette_controller = PaletteControllerScript.new()
@@ -74,9 +78,17 @@ func _init() -> void:
     focus_handler = FocusHandlerScript.new()
     focus_handler.setup(config)
     add_child(focus_handler)
+    
+    # Init Wire Color Overrides (applied in _ready when Data is loaded)
+    wire_colors = WireColorOverridesScript.new()
 
 func _ready() -> void:
     ModLoaderLog.info("TajsModded ready!", LOG_NAME)
+    
+    # Apply wire color overrides (Data is now loaded)
+    wire_colors.setup(config)
+    if config.get_value("custom_wire_colors", true):
+        wire_colors.apply_overrides()
     
     # Set tree for screenshot manager (not available in _init)
     screenshot_manager.set_tree(get_tree())
@@ -209,6 +221,9 @@ func _build_settings_menu() -> void:
     # --- VISUALS ---
     var vis_vbox = ui.add_tab("Visuals", "res://textures/icons/eye_ball.png")
     
+    # Wire Colors Section
+    _add_wire_color_section(vis_vbox)
+    
     # Glow toggle + sub-settings container
     var glow_container = VBoxContainer.new()
     glow_container.add_theme_constant_override("separation", 10)
@@ -276,6 +291,8 @@ func _build_settings_menu() -> void:
         # Apply defaults immediately
         Globals.custom_node_limit = config.get_value("node_limit")
         screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
+        screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
+        wire_colors.set_enabled(config.get_value("custom_wire_colors", true))
         _apply_extra_glow(config.get_value("extra_glow"))
         _apply_ui_opacity(config.get_value("ui_opacity"))
         _add_debug_log("Settings reset to defaults")
@@ -308,6 +325,183 @@ func _build_settings_menu() -> void:
     log_label.autowrap_mode = TextServer.AUTOWRAP_WORD
     debug_vbox.add_child(log_label)
     _debug_log_label = log_label
+
+
+func _add_wire_color_section(parent: Control) -> void:
+    var wire_container = VBoxContainer.new()
+    wire_container.add_theme_constant_override("separation", 10)
+    parent.add_child(wire_container)
+    
+    # Sub-settings (shown when toggle is on)
+    var wire_sub = MarginContainer.new()
+    wire_sub.name = "wire_color_sub"
+    wire_sub.add_theme_constant_override("margin_left", 20)
+    wire_sub.visible = config.get_value("custom_wire_colors", true)
+    
+    var wire_sub_vbox = VBoxContainer.new()
+    wire_sub_vbox.add_theme_constant_override("separation", 6)
+    wire_sub.add_child(wire_sub_vbox)
+    
+    var wc = wire_colors # Capture for closure
+    var sub_ref = wire_sub
+    var self_ref = self
+    
+    # Main toggle
+    ui.add_toggle(wire_container, "Custom Wire Colors", config.get_value("custom_wire_colors", true), func(v):
+        config.set_value("custom_wire_colors", v)
+        sub_ref.visible = v
+        wc.set_enabled(v)
+        self_ref._refresh_all_connectors()
+    )
+    
+    wire_container.add_child(wire_sub)
+    
+    # Define categories
+    var categories = {
+        "⚡ Speeds": ["download_speed", "upload_speed", "clock_speed", "gpu_speed", "code_speed", "work_speed"],
+        "💰 Resources": ["money", "research", "token", "power", "research_power", "contribution"],
+        "🔓 Hacking": ["hack_power", "hack_experience", "virus", "trojan", "infected_computer"],
+        "📊 Data Types": ["bool", "char", "int", "float", "bitflag", "bigint", "decimal", "string", "vector"],
+        "🧠 AI / Neural": ["ai", "neuron_text", "neuron_image", "neuron_sound", "neuron_video", "neuron_program", "neuron_game"],
+        "🚀 Boosts": ["boost_component", "boost_research", "boost_hack", "boost_code", "overclock"],
+        "📦 Other": ["heat", "vulnerability", "storage", "corporation_data", "government_data", "litecoin", "bitcoin", "ethereum"]
+    }
+    
+    var configurable = wire_colors.get_configurable_wires()
+    
+    # Create collapsible sections for each category
+    for category_name in categories:
+        var resource_ids = categories[category_name]
+        _add_wire_category(wire_sub_vbox, category_name, resource_ids, configurable)
+    
+    # Apply button to refresh all connectors
+    var apply_btn = Button.new()
+    apply_btn.text = "🔄 Apply Colors"
+    apply_btn.tooltip_text = "Refresh all visible wires with new colors"
+    apply_btn.theme_type_variation = "TabButton"
+    apply_btn.custom_minimum_size = Vector2(0, 45)
+    apply_btn.pressed.connect(_refresh_all_connectors)
+    wire_sub_vbox.add_child(apply_btn)
+
+
+func _add_wire_category(parent: Control, category_name: String, resource_ids: Array, all_wires: Dictionary) -> void:
+    var section = VBoxContainer.new()
+    section.add_theme_constant_override("separation", 4)
+    parent.add_child(section)
+    
+    # Content container (collapsible)
+    var content = VBoxContainer.new()
+    content.add_theme_constant_override("separation", 4)
+    content.visible = false
+    
+    var content_margin = MarginContainer.new()
+    content_margin.add_theme_constant_override("margin_left", 15)
+    content_margin.add_child(content)
+    
+    # Header button to toggle
+    var header = Button.new()
+    header.text = "▶ " + category_name
+    header.theme_type_variation = "TabButton"
+    header.custom_minimum_size = Vector2(0, 35)
+    header.alignment = HORIZONTAL_ALIGNMENT_LEFT
+    
+    var content_ref = content
+    header.pressed.connect(func():
+        content_ref.visible = !content_ref.visible
+        header.text = ("▼ " if content_ref.visible else "▶ ") + category_name
+    )
+    
+    section.add_child(header)
+    section.add_child(content_margin)
+    
+    # Add color pickers for each resource in this category
+    for resource_id in resource_ids:
+        if all_wires.has(resource_id):
+            _add_wire_color_picker(content, all_wires[resource_id], resource_id)
+
+
+func _add_wire_color_picker(parent: Control, label_text: String, resource_id: String) -> void:
+    var row = HBoxContainer.new()
+    row.add_theme_constant_override("separation", 10)
+    parent.add_child(row)
+    
+    var label = Label.new()
+    label.text = label_text
+    label.add_theme_font_size_override("font_size", 22)
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    row.add_child(label)
+    
+    # Color picker button
+    var picker = ColorPickerButton.new()
+    picker.custom_minimum_size = Vector2(80, 36)
+    picker.color = wire_colors.get_color(resource_id)
+    picker.edit_alpha = false
+    
+    var wc = wire_colors
+    var res_id = resource_id
+    var self_ref = self
+    picker.color_changed.connect(func(new_color: Color):
+        wc.set_color_from_rgb(res_id, new_color)
+    )
+    
+    # When popup closes, auto-apply
+    picker.popup_closed.connect(func():
+        self_ref._refresh_all_connectors()
+    )
+    
+    row.add_child(picker)
+    
+    # Reset button
+    var reset_btn = Button.new()
+    reset_btn.text = "↺"
+    reset_btn.tooltip_text = "Reset to default"
+    reset_btn.custom_minimum_size = Vector2(36, 36)
+    reset_btn.pressed.connect(func():
+        wc.reset_color(res_id)
+        picker.color = wc.get_original_color(res_id)
+        self_ref._refresh_all_connectors()
+    )
+    row.add_child(reset_btn)
+
+
+func _refresh_all_connectors() -> void:
+    # Refresh wire lines (Connector nodes that draw the actual lines)
+    var connectors = get_tree().get_nodes_in_group("connector")
+    for connector in connectors:
+        # Connector class stores color and has output ResourceContainer
+        if connector is Connector:
+            # Get the output connector button to read the current color
+            var output_res = connector.output
+            if output_res:
+                var output_connector_btn = output_res.get_node_or_null("OutputConnector")
+                if output_connector_btn and output_connector_btn.has_method("get_connector_color"):
+                    var color_name = output_connector_btn.get_connector_color()
+                    if Data.connectors.has(color_name):
+                        connector.color = Color(Data.connectors[color_name].color)
+                        # Also update the pivot color
+                        if connector.pivot:
+                            connector.pivot.self_modulate = connector.color
+                        # Redraw the wire
+                        connector.draw_update()
+    
+    # Refresh connector buttons (the input/output circles on windows)
+    var windows = get_tree().get_nodes_in_group("window")
+    for window in windows:
+        var buttons = _find_connector_buttons(window)
+        for btn in buttons:
+            if btn.has_method("update_connector_button"):
+                btn.update_connector_button()
+    
+    Signals.notify.emit("check", "Wire colors refreshed!")
+
+
+func _find_connector_buttons(node: Node) -> Array:
+    var result = []
+    if node.has_method("update_connector_button"):
+        result.append(node)
+    for child in node.get_children():
+        result.append_array(_find_connector_buttons(child))
+    return result
 
 
 # ==============================================================================
@@ -526,4 +720,15 @@ func _register_palette_screenshot_command() -> void:
         "icon_path": "res://textures/icons/camera.png",
         "badge": "SAFE",
         "run": func(ctx): sm.take_screenshot()
+    })
+    
+    registry.register({
+        "id": "cmd_open_screenshot_folder",
+        "title": "Open Screenshot Folder",
+        "category_path": ["Taj's Mod", "Screenshots"],
+        "keywords": ["screenshot", "folder", "open", "browse", "explorer"],
+        "hint": "Open the screenshot folder in your file explorer",
+        "icon_path": "res://textures/icons/folder.png",
+        "badge": "SAFE",
+        "run": func(ctx): sm.open_screenshot_folder()
     })

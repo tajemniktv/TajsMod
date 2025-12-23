@@ -61,12 +61,17 @@ func load_config() -> void:
 	if parse_result == OK:
 		var loaded_data = json.get_data()
 		if loaded_data is Dictionary:
-			# Merge loaded data with defaults to ensure new keys exist
+			# Start with defaults
 			for key in DEFAULT_CONFIG:
 				if loaded_data.has(key):
 					_config[key] = loaded_data[key]
 				else:
 					_config[key] = DEFAULT_CONFIG[key]
+			
+			# Also load any extra keys not in defaults (like wire_colors_hex)
+			for key in loaded_data:
+				if !DEFAULT_CONFIG.has(key):
+					_config[key] = loaded_data[key]
 			
 			ModLoaderLog.info("Config loaded successfully.", LOG_NAME)
 		else:
