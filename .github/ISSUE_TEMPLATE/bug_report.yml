@@ -1,0 +1,256 @@
+name: Bug Report
+description: File a reproducible bug to help us improve Taj's Mod
+title: "[Bug]: "
+labels: ["bug"]
+assignees:
+  - tajemniktv
+
+body:
+  # ——— Intro ———
+  - type: markdown
+    attributes:
+      value: |
+        ## Thanks for taking the time to help! 🛠️
+        Please **search existing issues** before opening a new one.
+        The more detail you provide, the faster we can reproduce and fix it.
+
+        Logs, screenshots, configs and save files are welcome.
+
+  # ——— Versions ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 📦 Versions
+
+  - type: input
+    id: mod_version
+    attributes:
+      label: Taj's Mod version
+      description: Full version string of the mod you're running.
+      placeholder: "e.g. v0.0.14"
+    validations:
+      required: true
+
+  - type: input
+    id: game_version
+    attributes:
+      label: Game version
+      description: Game version you're running.
+      placeholder: "e.g. 2.0.17"
+    validations:
+      required: true
+
+  # ——— Bug description ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🐛 What went wrong?
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: Clear and concise description. Include error messages if any.
+      placeholder: |
+        What happened?
+        What did you expect to happen?
+    validations:
+      required: true
+
+  # ——— Steps to reproduce ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🔁 Steps to reproduce
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: Steps to reproduce
+      description: Step-by-step instructions that reliably trigger the bug.
+      placeholder: |
+        1. Start the game
+        2. Open Taj's Mod settings
+        3. Enable X
+        4. …
+      render: bash
+    validations:
+      required: true
+
+  # ——— Expected vs actual ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎯 Expected vs Actual
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "What should have happened?"
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      placeholder: "What happened instead?"
+    validations:
+      required: true
+
+  # ——— Frequency ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 📈 Frequency
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it occur?
+      options:
+        - Every time
+        - Often ( > 50% )
+        - Sometimes
+        - Rarely
+        - Once
+    validations:
+      required: true
+
+  # ——— Regression ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🕒 Regression (did it work before?)
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Did this work in an older version?
+      options:
+        - "Not sure"
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+
+  - type: input
+    id: last_known_working
+    attributes:
+      label: Last known working mod version (if regression = Yes)
+      description: If you know it, tell us the last mod version where it worked.
+      placeholder: "e.g. v0.0.12"
+    validations:
+      required: false
+
+  # ——— Media ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 📷 Screenshots / Video (optional)
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Media
+      description: Drag & drop images here, or link to a short clip/GIF.
+      placeholder: "Attach screenshots/videos or paste links."
+
+  # ——— Mod conflicts ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🧩 Mods / Conflicts
+
+  - type: textarea
+    id: other_mods
+    attributes:
+      label: Other installed mods
+      description: List other mods enabled when this happens (or attach a mod list).
+      placeholder: |
+        - Mod A
+        - Mod B
+        - (none)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: conflict_checks
+    attributes:
+      label: Conflict checks (if possible)
+      options:
+        - label: I tested with **only Taj's Mod enabled** (or I cannot because: explained in notes).
+          required: false
+        - label: I checked that I’m not running an outdated/unknown build from a third-party reupload.
+          required: false
+
+  # ——— Environment ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🖥️ System info
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Hardware + OS info helps reproduce performance/UI issues.
+      value: |
+        - OS:
+        - CPU:
+        - GPU:
+        - RAM:
+        - Display / Resolution (if UI/visual bug):
+    validations:
+      required: true
+
+  # ——— Logs & files ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 📄 Logs / Config / Save (optional but very helpful)
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs & files
+      description: |
+        Paste the relevant part of your latest log, or drag-and-drop files below.
+        Configs and save files can be extremely helpful for reproduction.
+      placeholder: |
+        <!-- Paste logs here or drag files below -->
+      render: text
+    validations:
+      required: false
+
+  # ——— Additional notes ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🧠 Additional context (optional)
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional notes
+      description: Anything else that might help (settings used, keybinds, edge cases, etc.)
+      placeholder: "Any extra detail that could help reproduce or understand the bug."
+
+  # ——— Confirmations ———
+  - type: markdown
+    attributes:
+      value: |
+        ## ✅ Confirmations
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Please confirm
+      options:
+        - label: I have searched existing issues to avoid duplicates.
+          required: true
+        - label: I am using the **latest** version of the mod and the game (or I clearly stated versions above).
+          required: true
+        - label: I included enough info to reproduce (steps + expected/actual), and attached logs/media if relevant.
+          required: true

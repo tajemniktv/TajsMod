@@ -1,0 +1,209 @@
+name: Feature Request
+description: Suggest an idea, improvement, or new option for Taj's Mod
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees:
+  - tajemniktv
+
+body:
+  # ——— Intro ———
+  - type: markdown
+    attributes:
+      value: |
+        ## Thanks for the suggestion! ✨
+        Please **search existing issues** before submitting a new request.
+        The best requests explain the **problem**, propose a **solution**, and include **acceptance criteria**.
+
+  # ——— Summary ———
+  - type: markdown
+    attributes:
+      value: |
+        ## ✅ Summary
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What would you like to add/change?
+      description: One or two sentences describing the request.
+      placeholder: "Example: Add a context menu when releasing a dragged connection line to quickly spawn nodes."
+    validations:
+      required: true
+
+  # ——— Motivation ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🎯 Problem / Motivation
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: What problem does this solve?
+      description: Explain your use case and why this matters.
+      placeholder: "Example: It's slow to add nodes while wiring graphs; a context menu would speed up workflows."
+    validations:
+      required: true
+
+  # ——— Proposed solution ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 💡 Proposed Solution
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: What should happen?
+      description: Describe the desired behavior, UX, and any settings/toggles.
+      placeholder: |
+        - Where is it triggered?
+        - What does the UI look like?
+        - Any default values?
+        - Any opt-in setting?
+    validations:
+      required: true
+
+  # ——— Category ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🗂️ Category
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Visual / UI
+        - QoL / Utility
+        - Performance
+        - Accessibility
+        - Gameplay (opt-in)
+        - Modding / API / Integration
+        - Other
+    validations:
+      required: true
+
+  # ——— Scope ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🔧 Scope
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: How big is this?
+      options:
+        - Small (tweak / small option)
+        - Medium (new setting / moderate logic)
+        - Large (multi-part feature; needs planning)
+        - Not sure
+    validations:
+      required: true
+
+  # ——— Compatibility & constraints ———
+  - type: markdown
+    attributes:
+      value: |
+        ## ⚠️ Constraints / Compatibility
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Considerations (check all that apply)
+      options:
+        - label: Could impact performance (CPU/GPU/memory)
+          required: false
+        - label: Could conflict with other mods
+          required: false
+        - label: Needs a keybind / input mapping
+          required: false
+        - label: Should be opt-in (default off)
+          required: false
+        - label: Might affect multiplayer / co-op behavior
+          required: false
+        - label: Might need localization / translations
+          required: false
+
+  - type: textarea
+    id: compatibility_notes
+    attributes:
+      label: Compatibility notes (optional)
+      description: Any known constraints, edge cases, or conflicts.
+      placeholder: "Example: Must not override existing hotkeys. Should not trigger while typing in text fields."
+
+  # ——— Alternatives ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🔁 Alternatives Considered (optional)
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What other solutions did you consider?
+      description: If there are alternatives, list them and why they're worse/better.
+      placeholder: "Example: A hotkey-only approach; or adding buttons to the sidebar."
+
+  # ——— Acceptance criteria ———
+  - type: markdown
+    attributes:
+      value: |
+        ## ✅ Acceptance Criteria
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: How do we know it’s done?
+      description: Bullet list of conditions that must be true for the feature to be complete.
+      placeholder: |
+        - [ ] Feature works in-game/editor without errors
+        - [ ] Setting exists to toggle it (if needed)
+        - [ ] No noticeable input lag
+        - [ ] UI scales on 1080p and 1440p
+    validations:
+      required: true
+
+  # ——— Mockups / references ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 📷 Mockups / References (optional)
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Screenshots, mockups, or examples
+      description: Drag & drop images or paste links to references.
+      placeholder: "Attach screenshots / drawings / links (e.g., similar feature in another game/mod)."
+
+  # ——— Additional context ———
+  - type: markdown
+    attributes:
+      value: |
+        ## 🧠 Additional Context (optional)
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Anything else?
+      placeholder: "Extra details, edge cases, why it's important, etc."
+
+  # ——— Confirmations ———
+  - type: markdown
+    attributes:
+      value: |
+        ## ✅ Confirmations
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Please confirm
+      options:
+        - label: I have searched existing issues to avoid duplicates.
+          required: true
+        - label: I described the problem and proposed a concrete solution.
+          required: true
+        - label: I added acceptance criteria (what “done” means).
+          required: true
