@@ -1,6 +1,6 @@
 name: Bug Report
 description: File a reproducible bug to help us improve Taj's Mod
-title: "[Bug]: "
+title: "[Bug] "
 labels: ["bug"]
 assignees:
   - tajemniktv
@@ -37,15 +37,6 @@ body:
       label: Game version
       description: Game version you're running.
       placeholder: "e.g. 2.0.17"
-    validations:
-      required: true
-
-  - type: input
-    id: mod_loader_version
-    attributes:
-      label: Mod loader version
-      description: Mod loader version you're using.
-      placeholder: "e.g. 7.0.0"
     validations:
       required: true
 

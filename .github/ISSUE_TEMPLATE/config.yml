@@ -1,5 +1,9 @@
 blank_issues_enabled: false
 contact_links:
-  - name: "❓ Question / Support"
+  - name: "❓ Question "
     url: "https://github.com/tajemniktv/TajsMod/issues/new?template=question.yml"
+    about: "Ask here if you need help or have a general question not covered by bug or feature forms."
+contact_links:
+  - name: " X Upload Labs Discord"
+    url: "https://discord.com/invite/enigmadev"
     about: "Ask here if you need help or have a general question not covered by bug or feature forms."
