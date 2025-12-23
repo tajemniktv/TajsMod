@@ -160,6 +160,64 @@ static func register_all(registry, refs: Dictionary) -> void:
     })
     
     # ==========================================
+    # NODES > UPGRADE
+    # ==========================================
+    
+    registry.register({
+        "id": "cat_nodes_upgrade",
+        "title": "Upgrade",
+        "category_path": ["Nodes"],
+        "keywords": ["upgrade", "level", "up", "improve"],
+        "hint": "Upgrade nodes",
+        "icon_path": "res://textures/icons/up.png",
+        "is_category": true,
+        "badge": "SAFE"
+    })
+    
+    # Upgrade Selected command
+    registry.register({
+        "id": "cmd_upgrade_selected",
+        "title": "Upgrade Selected",
+        "category_path": ["Nodes", "Upgrade"],
+        "keywords": ["upgrade", "selected", "level", "up"],
+        "hint": "Upgrade all selected nodes (if affordable)",
+        "icon_path": "res://textures/icons/up.png",
+        "badge": "SAFE",
+        "run": func(ctx):
+            _upgrade_nodes(Globals.selections if Globals else [])
+    })
+    
+    # Upgrade All command
+    registry.register({
+        "id": "cmd_upgrade_all",
+        "title": "Upgrade All",
+        "category_path": ["Nodes", "Upgrade"],
+        "keywords": ["upgrade", "all", "level", "up", "everything"],
+        "hint": "Upgrade all nodes on desktop (if affordable)",
+        "icon_path": "res://textures/icons/up.png",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if Globals and Globals.desktop:
+                var windows_container = Globals.desktop.get_node_or_null("Windows")
+                if windows_container:
+                    var all_windows: Array = []
+                    for child in windows_container.get_children():
+                        if child is WindowContainer:
+                            all_windows.append(child)
+                    _upgrade_nodes(all_windows)
+    })
+    
+    # Register upgrade commands for each category
+    _register_upgrade_category(registry, "network", "Network")
+    _register_upgrade_category(registry, "cpu", "CPU")
+    _register_upgrade_category(registry, "gpu", "GPU")
+    _register_upgrade_category(registry, "research", "Research")
+    _register_upgrade_category(registry, "factory", "Factory")
+    _register_upgrade_category(registry, "hacking", "Hacking")
+    _register_upgrade_category(registry, "coding", "Coding")
+    _register_upgrade_category(registry, "utility", "Utility")
+    
+    # ==========================================
     # TAJ'S MOD - SETTINGS
     # ==========================================
     
