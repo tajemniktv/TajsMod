@@ -12,9 +12,7 @@
 			"compatible_mod_loader_version": [
 				"7.0.0"
 			],
-			"config_schema": {
-
-			},
+			"config_schema": {},
 			"description_rich": "",
 			"image": null,
 			"incompatibilities": [],
@@ -31,6 +29,6 @@
 	},
 	"name": "TajsModded",
 	"namespace": "TajemnikTV",
-	"version_number": "0.0.16",
+	"version_number": "0.0.17",
 	"website_url": "https://github.com/tajemniktv/TajsView/"
 }
