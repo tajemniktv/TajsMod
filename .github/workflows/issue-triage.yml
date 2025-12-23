@@ -1,0 +1,60 @@
+name: Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  label_by_category:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add labels based on Issue Form fields
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = context.payload.issue.body || "";
+            function getField(label) {
+              const re = new RegExp(`###\s+${label}\s*\n+([\s\S]*?)(?=\n###\s+|$)`, "i");
+              const m = body.match(re);
+              if (!m) return "";
+              return m[1].trim().split("\n")[0].trim();
+            }
+            const category = getField("Category");
+            const labels = new Set(["needs-triage"]);
+            const map = {
+              "Visual / UI": ["ui"],
+              "QoL / Utility": ["qol"],
+              "Performance": ["performance"],
+              "Accessibility": ["accessibility"],
+              "Gameplay (opt-in)": ["gameplay"],
+              "Modding / API / Integration": ["modding"],
+              "Other": []
+            };
+            if (map[category]) {
+              map[category].forEach(l => labels.add(l));
+            }
+            const text = body.toLowerCase();
+            if (text.includes("translation") || text.includes("localization") || text.includes("i18n")) {
+              labels.add("i18n");
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: Array.from(labels),
+            });
+
+  add_to_project:
+    runs-on: ubuntu-latest
+    needs: label_by_category
+    steps:
+      - name: Add issue to project board
+        uses: actions/add-to-project@v1
+        with:
+          project-url: https://github.com/users/tajemniktv/projects/4
+          github-token: ${{ secrets.PROJECT_TOKEN }}
