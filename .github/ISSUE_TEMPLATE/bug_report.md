@@ -1,30 +1,40 @@
 ---
 name: Bug Report
-about: Report a bug to help improve the mod
-title: '[BUG] '
-labels: bug
-assignees: ''
+about: Report a bug to help improve Taj's Mod
+title: "[BUG] "
+labels: ["bug"]
+assignees: ""
 ---
 
-## Describe the Bug
-A clear and concise description of what the bug is.
+## ✅ Summary
+**Describe the bug** (clear and concise).
 
-## Steps to Reproduce
-1. Go to '...'
-2. Click on '...'
-3. See error
+## 🔁 Steps to Reproduce
+1.  
+2.  
+3.  
 
-## Expected Behavior
+## 📌 Expected Behavior
 What you expected to happen.
 
-## Screenshots
-If applicable, add screenshots to help explain your problem.
+## 💥 Actual Behavior
+What actually happened (include error messages if any).
 
-## Environment
-- **Game Version:** [e.g., 2.0.17]
-- **Mod Version:** [e.g., 0.0.14]
-- **Mod Loader Version:** [e.g., 7.0.0]
-- **OS:** [e.g., Windows 11]
+## 🧠 Reproducibility
+- [ ] Happens every time
+- [ ] Happens sometimes
+- [ ] Happened once
 
-## Additional Context
-Add any other context about the problem here.
+## 🕒 Regression
+- [ ] This worked in an older version of the mod
+- If yes: last known working **Mod Version**: `...`
+
+## 📷 Screenshots / Video
+If applicable, add screenshots or a short clip showing the issue.
+
+## 📄 Logs / Errors
+If you have logs, paste relevant parts here (or attach files).  
+Tip: include the part around the error, not just one line.
+
+```text
+(paste logs here)
