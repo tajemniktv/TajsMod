@@ -347,7 +347,33 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "OPT-IN",
         "can_run": func(ctx): return ctx.are_tools_enabled(),
         "run": func(ctx):
-            _modify_currency("money", 0.1)
+            if mod_main: mod_main._modify_currency("money", 0.1)
+    })
+    
+    registry.register({
+        "id": "cmd_money_add_30",
+        "title": "Money +30%",
+        "category_path": ["Tools (Opt-in)"],
+        "keywords": ["money", "cash", "add", "cheat"],
+        "hint": "Increase money by 30%",
+        "icon_path": "res://textures/icons/money.png",
+        "badge": "OPT-IN",
+        "can_run": func(ctx): return ctx.are_tools_enabled(),
+        "run": func(ctx):
+            if mod_main: mod_main._modify_currency("money", 0.3)
+    })
+    
+    registry.register({
+        "id": "cmd_money_add_50",
+        "title": "Money +50%",
+        "category_path": ["Tools (Opt-in)"],
+        "keywords": ["money", "cash", "add", "cheat"],
+        "hint": "Increase money by 50%",
+        "icon_path": "res://textures/icons/money.png",
+        "badge": "OPT-IN",
+        "can_run": func(ctx): return ctx.are_tools_enabled(),
+        "run": func(ctx):
+            if mod_main: mod_main._modify_currency("money", 0.5)
     })
     
     registry.register({
@@ -360,7 +386,20 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "OPT-IN",
         "can_run": func(ctx): return ctx.are_tools_enabled(),
         "run": func(ctx):
-            _modify_currency("money", -0.1)
+            if mod_main: mod_main._modify_currency("money", -0.1)
+    })
+    
+    registry.register({
+        "id": "cmd_money_zero",
+        "title": "Money → 0",
+        "category_path": ["Tools (Opt-in)"],
+        "keywords": ["money", "cash", "zero", "reset", "clear", "cheat"],
+        "hint": "Set money to 0",
+        "icon_path": "res://textures/icons/money.png",
+        "badge": "OPT-IN",
+        "can_run": func(ctx): return ctx.are_tools_enabled(),
+        "run": func(ctx):
+            if mod_main: mod_main.set_currency_to_zero("money")
     })
     
     registry.register({
@@ -373,7 +412,33 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "OPT-IN",
         "can_run": func(ctx): return ctx.are_tools_enabled(),
         "run": func(ctx):
-            _modify_currency("research", 0.1)
+            if mod_main: mod_main._modify_currency("research", 0.1)
+    })
+    
+    registry.register({
+        "id": "cmd_research_add_30",
+        "title": "Research +30%",
+        "category_path": ["Tools (Opt-in)"],
+        "keywords": ["research", "science", "add", "cheat"],
+        "hint": "Increase research by 30%",
+        "icon_path": "res://textures/icons/research.png",
+        "badge": "OPT-IN",
+        "can_run": func(ctx): return ctx.are_tools_enabled(),
+        "run": func(ctx):
+            if mod_main: mod_main._modify_currency("research", 0.3)
+    })
+    
+    registry.register({
+        "id": "cmd_research_add_50",
+        "title": "Research +50%",
+        "category_path": ["Tools (Opt-in)"],
+        "keywords": ["research", "science", "add", "cheat"],
+        "hint": "Increase research by 50%",
+        "icon_path": "res://textures/icons/research.png",
+        "badge": "OPT-IN",
+        "can_run": func(ctx): return ctx.are_tools_enabled(),
+        "run": func(ctx):
+            if mod_main: mod_main._modify_currency("research", 0.5)
     })
     
     registry.register({
@@ -386,33 +451,20 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "OPT-IN",
         "can_run": func(ctx): return ctx.are_tools_enabled(),
         "run": func(ctx):
-            _modify_currency("research", -0.1)
+            if mod_main: mod_main._modify_currency("research", -0.1)
     })
     
     registry.register({
-        "id": "cmd_tokens_add",
-        "title": "Tokens +10%",
+        "id": "cmd_research_zero",
+        "title": "Research → 0",
         "category_path": ["Tools (Opt-in)"],
-        "keywords": ["tokens", "coins", "add", "cheat"],
-        "hint": "Increase tokens by 10%",
-        "icon_path": "res://textures/icons/token.png",
+        "keywords": ["research", "science", "zero", "reset", "clear", "cheat"],
+        "hint": "Set research to 0",
+        "icon_path": "res://textures/icons/research.png",
         "badge": "OPT-IN",
         "can_run": func(ctx): return ctx.are_tools_enabled(),
         "run": func(ctx):
-            _modify_currency("token", 0.1)
-    })
-    
-    registry.register({
-        "id": "cmd_tokens_sub",
-        "title": "Tokens -10%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["tokens", "coins", "remove", "cheat"],
-        "hint": "Decrease tokens by 10%",
-        "icon_path": "res://textures/icons/token.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            _modify_currency("token", -0.1)
+            if mod_main: mod_main.set_currency_to_zero("research")
     })
     
     registry.register({

@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.19] - 2025-12-TBD
+- 
 
+## [0.0.18] - 2025-12-24
+- Improve cheats
+
+## [0.0.17] - 2025-12-23
+- Change wiring color
+- Open screenshot folder
+- Change screenshot folder
 
 ## [0.0.14] - 2025-12-22
 

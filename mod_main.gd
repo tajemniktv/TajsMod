@@ -281,7 +281,6 @@ func _build_settings_menu() -> void:
     
     _add_cheat_btns(cheat_vbox, "Money", "money", "res://textures/icons/money.png")
     _add_cheat_btns(cheat_vbox, "Research", "research", "res://textures/icons/research.png")
-    _add_cheat_btns(cheat_vbox, "Tokens", "token", "res://textures/icons/token.png")
     
     # --- DEBUG ---
     var debug_vbox = ui.add_tab("Debug", "res://textures/icons/bug.png")
@@ -657,21 +656,45 @@ func _add_cheat_btns(parent, label_text: String, type: String, icon_path: String
     l.add_theme_font_size_override("font_size", 28)
     row.add_child(l)
     
+    # Zero button
+    var btn_zero = Button.new()
+    btn_zero.text = "→0"
+    btn_zero.theme_type_variation = "TabButton"
+    btn_zero.custom_minimum_size = Vector2(60, 50)
+    btn_zero.pressed.connect(func(): set_currency_to_zero(type))
+    row.add_child(btn_zero)
+    
     # Decrease button
     var btn_sub = Button.new()
     btn_sub.text = "-10%"
     btn_sub.theme_type_variation = "TabButton"
-    btn_sub.custom_minimum_size = Vector2(100, 50)
+    btn_sub.custom_minimum_size = Vector2(80, 50)
     btn_sub.pressed.connect(func(): _modify_currency(type, -0.1))
     row.add_child(btn_sub)
     
-    # Increase button
-    var btn_add = Button.new()
-    btn_add.text = "+10%"
-    btn_add.theme_type_variation = "TabButton"
-    btn_add.custom_minimum_size = Vector2(100, 50)
-    btn_add.pressed.connect(func(): _modify_currency(type, 0.1))
-    row.add_child(btn_add)
+    # +10% button
+    var btn_add_10 = Button.new()
+    btn_add_10.text = "+10%"
+    btn_add_10.theme_type_variation = "TabButton"
+    btn_add_10.custom_minimum_size = Vector2(80, 50)
+    btn_add_10.pressed.connect(func(): _modify_currency(type, 0.1))
+    row.add_child(btn_add_10)
+    
+    # +30% button
+    var btn_add_30 = Button.new()
+    btn_add_30.text = "+30%"
+    btn_add_30.theme_type_variation = "TabButton"
+    btn_add_30.custom_minimum_size = Vector2(80, 50)
+    btn_add_30.pressed.connect(func(): _modify_currency(type, 0.3))
+    row.add_child(btn_add_30)
+    
+    # +50% button
+    var btn_add_50 = Button.new()
+    btn_add_50.text = "+50%"
+    btn_add_50.theme_type_variation = "TabButton"
+    btn_add_50.custom_minimum_size = Vector2(80, 50)
+    btn_add_50.pressed.connect(func(): _modify_currency(type, 0.5))
+    row.add_child(btn_add_50)
 
 func _modify_currency(type: String, percent: float) -> void:
     if !Globals.currencies.has(type):
@@ -704,6 +727,22 @@ func _modify_currency(type: String, percent: float) -> void:
     if Globals.has_method("process"):
         Globals.process(0)
     
+    var sign_str = "+" if percent > 0 else ""
+    Signals.notify.emit("check", "%s %s%d%%" % [type.capitalize(), sign_str, int(percent * 100)])
+    Sound.play("click")
+
+
+func set_currency_to_zero(type: String) -> void:
+    if !Globals.currencies.has(type):
+        ModLoaderLog.error("Currency type not found: " + type, LOG_NAME)
+        return
+    
+    Globals.currencies[type] = 0
+    
+    if Globals.has_method("process"):
+        Globals.process(0)
+    
+    Signals.notify.emit("check", "%s set to 0" % type.capitalize())
     Sound.play("click")
 
 func _register_palette_screenshot_command() -> void:
@@ -717,7 +756,7 @@ func _register_palette_screenshot_command() -> void:
         "category_path": ["Taj's Mod", "Screenshots"],
         "keywords": ["screenshot", "capture", "photo", "save", "image"],
         "hint": "Capture a full desktop screenshot",
-        "icon_path": "res://textures/icons/camera.png",
+        "icon_path": "res://textures/icons/centrifuge.png",
         "badge": "SAFE",
         "run": func(ctx): sm.take_screenshot()
     })
