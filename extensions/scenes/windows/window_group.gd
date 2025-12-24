@@ -15,6 +15,7 @@ var pattern_index: int = 0
 var pattern_drawers: Array[Control] = []
 var custom_color: Color = Color.TRANSPARENT # Custom RGB color (TRANSPARENT = use preset)
 var color_picker_btn: ColorPickerButton = null
+var locked: bool = false # Lock group to prevent movement
 
 class PatternDrawer extends Control:
     var pattern_type: int = 0
@@ -355,6 +356,7 @@ func _get_method_arg_count(obj: Object, method_name: String) -> int:
 func save() -> Dictionary:
     var data = super.save()
     data["pattern_index"] = pattern_index
+    data["locked"] = locked
     if custom_color != Color.TRANSPARENT:
         data["custom_color"] = custom_color.to_html(true) # Include alpha
     return data
@@ -362,6 +364,7 @@ func save() -> Dictionary:
 func export() -> Dictionary:
     var data = super.export()
     data["pattern_index"] = pattern_index
+    data["locked"] = locked
     if custom_color != Color.TRANSPARENT:
         data["custom_color"] = custom_color.to_html(true)
     return data
@@ -372,3 +375,34 @@ func _load_custom_data() -> void:
         var color_str = get_meta("custom_color")
         custom_color = Color.html(color_str)
         update_color()
+
+# Lock functionality
+func toggle_lock() -> void:
+    locked = !locked
+    if locked:
+        Signals.notify.emit("lock", "Group locked")
+    else:
+        Signals.notify.emit("unlock", "Group unlocked")
+
+func is_locked() -> bool:
+    return locked
+
+# Override grab to prevent dragging when locked
+func grab(g: bool) -> void:
+    if locked and g:
+        Sound.play("error")
+        return # Don't allow grabbing when locked
+    super.grab(g)
+
+# Override movement to prevent moving when locked
+func _on_move_selection(to: Vector2) -> void:
+    if locked:
+        return # Don't move when locked
+    super._on_move_selection(to)
+
+# Override resizing to prevent when locked
+func set_resizing(l: bool, t: bool, r: bool, b: bool) -> void:
+    if locked and (l or t or r or b):
+        Sound.play("error")
+        return # Don't allow resizing when locked
+    super.set_resizing(l, t, r, b)

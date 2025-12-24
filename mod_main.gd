@@ -17,6 +17,8 @@ const PaletteControllerScript = preload("res://mods-unpacked/TajemnikTV-TajsModd
 const WireClearHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/wire_drop/wire_clear_handler.gd")
 const FocusHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/focus_handler.gd")
 const WireColorOverridesScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/wire_color_overrides.gd")
+const GotoGroupManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/goto_group_manager.gd")
+const GotoGroupPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/goto_group_panel.gd")
 
 # Components
 var config # ConfigManager instance
@@ -26,6 +28,8 @@ var palette_controller # PaletteController instance
 var wire_clear_handler # WireClearHandler instance
 var focus_handler # FocusHandler instance
 var wire_colors # WireColorOverrides instance
+var goto_group_manager # GotoGroupManager instance
+var goto_group_panel # GotoGroupPanel instance
 
 # State
 var mod_dir_path: String = ""
@@ -48,6 +52,7 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/windows_menu.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/schematic_container.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/popup_schematic.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/options_bar.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_group.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_bin.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_inventory.gd") # 6 inputs
@@ -171,10 +176,61 @@ func _setup_for_main(main_node: Node) -> void:
     palette_controller.initialize(get_tree(), config, ui, self)
     _register_palette_screenshot_command()
     
+    # Initialize Go To Group feature
+    _setup_goto_group(hud)
+    
     # Apply initial visuals
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
     _apply_ui_opacity(config.get_value("ui_opacity"))
+
+
+## Setup Go To Node Group panel in the HUD
+## Adds a button to the bottom-left area that opens a popup to navigate to any Node Group
+func _setup_goto_group(hud: Node) -> void:
+    # Find the Overlay container where we'll add our panel
+    var overlay = hud.get_node_or_null("Main/MainContainer/Overlay")
+    if not overlay:
+        ModLoaderLog.warning("Could not find HUD Overlay for Go To Group panel", LOG_NAME)
+        return
+    
+    # Check if already set up
+    if overlay.has_node("GotoGroupContainer"):
+        return
+    
+    # Create the manager
+    goto_group_manager = GotoGroupManagerScript.new()
+    goto_group_manager.name = "GotoGroupManager"
+    add_child(goto_group_manager)
+    
+    # Create the panel
+    goto_group_panel = GotoGroupPanelScript.new()
+    goto_group_panel.name = "GotoGroupPanel"
+    goto_group_panel.setup(goto_group_manager)
+    
+    # Create a container for the panel positioned ABOVE the bottom toolbar
+    # The bottom bar is approximately 70px tall, so we position above it
+    var goto_container = Control.new()
+    goto_container.name = "GotoGroupContainer"
+    goto_container.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+    goto_container.custom_minimum_size = Vector2(70, 70)
+    
+    # Position it above the bottom toolbar (which is ~70px)
+    goto_container.anchor_left = 0
+    goto_container.anchor_top = 1
+    goto_container.anchor_right = 0
+    goto_container.anchor_bottom = 1
+    goto_container.offset_left = 5
+    goto_container.offset_top = -150 # Move higher to avoid overlap
+    goto_container.offset_right = 75
+    goto_container.offset_bottom = -80 # Above the bottom bar
+    
+    goto_group_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+    goto_container.add_child(goto_group_panel)
+    
+    overlay.add_child(goto_container)
+    ModLoaderLog.info("Go To Group panel added to HUD", LOG_NAME)
+
 
 func _build_settings_menu() -> void:
     # --- GENERAL ---
