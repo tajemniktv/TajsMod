@@ -54,7 +54,7 @@ jobs:
     needs: label_by_category
     steps:
       - name: Add issue to project board
-        uses: actions/add-to-project@v1
+        uses: actions/add-to-project@v1.0.2
         with:
           project-url: https://github.com/users/tajemniktv/projects/4
           github-token: ${{ secrets.PROJECT_TOKEN }}
