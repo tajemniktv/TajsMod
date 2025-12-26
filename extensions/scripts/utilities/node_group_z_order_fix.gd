@@ -11,16 +11,19 @@
 # HOW CONTAINMENT/DEPTH IS COMPUTED:
 # 1. For each group, we get its global rect via get_global_rect()
 # 2. Group A "contains" Group B if A.encloses(B) with a small epsilon margin
-# 3. Depth = count of other groups that fully contain this group
-# 4. z_index = BASE_Z + depth, so deeply nested groups render on top
+# 3. Only groups with a containment relationship are reordered
+# 4. Partially overlapping groups (not fully contained) keep their existing order
+#
+# APPROACH:
+# For each pair of groups where A fully contains B:
+#   - If B is currently drawn before A (wrong order), move B after A
+# This ensures contained groups are always on top of their containers,
+# while leaving non-contained groups in their current order.
 #
 # ==============================================================================
 extends Node
 
 const LOG_NAME = "TajsModded:ZOrder"
-
-# Z-index base value (above normal windows which are typically 0)
-const BASE_Z_INDEX: int = 10
 
 # Epsilon margin for containment detection (prevents jitter at boundaries)
 const CONTAINMENT_EPSILON: float = 4.0
@@ -47,6 +50,10 @@ func _ready() -> void:
 	# Connect to tree signals for detecting new/removed groups
 	get_tree().node_added.connect(_on_node_added)
 	get_tree().node_removed.connect(_on_node_removed)
+	
+	# Connect to selection changes - the game moves clicked items to front,
+	# so we need to re-fix the order after selection changes
+	Signals.selection_set.connect(_on_selection_changed)
 	
 	# Initial scan after a short delay to let the scene settle
 	await get_tree().create_timer(0.1).timeout
@@ -78,6 +85,16 @@ func _on_node_removed(node: Node) -> void:
 		_request_update()
 
 
+## Called when selection changes - the game moves selected items to the front
+## We need to re-fix containment order after a short delay
+func _on_selection_changed() -> void:
+	if not _initialized:
+		return
+	
+	# Use call_deferred to let the game's move_child complete first
+	call_deferred("_fix_containment_order")
+
+
 ## Check if a node is a Node Group
 func _is_node_group(node: Node) -> bool:
 	if not is_instance_valid(node):
@@ -96,7 +113,7 @@ func _full_scan() -> void:
 		if _is_node_group(node):
 			_connect_group(node)
 	
-	_compute_and_apply_z_order()
+	_fix_containment_order()
 
 
 ## Connect to a group's signals for change detection
@@ -137,9 +154,6 @@ func _request_update() -> void:
 	# Restart the debounce timer
 	if _debounce_timer.is_stopped():
 		_debounce_timer.start()
-	else:
-		# Timer already running, it will handle the update
-		pass
 
 
 ## Called when debounce timer expires
@@ -148,7 +162,7 @@ func _on_debounce_timeout() -> void:
 	
 	# Check if any rects actually changed
 	if _check_for_changes():
-		_compute_and_apply_z_order()
+		_fix_containment_order()
 
 
 ## Check if any group rects have changed since last update
@@ -162,10 +176,10 @@ func _check_for_changes() -> bool:
 		
 		var id = group.get_instance_id()
 		var rect = _get_group_rect(group)
-		var hash = _hash_rect(rect)
+		var new_hash = _hash_rect(rect)
 		
-		if not _rect_hashes.has(id) or _rect_hashes[id] != hash:
-			_rect_hashes[id] = hash
+		if not _rect_hashes.has(id) or _rect_hashes[id] != new_hash:
+			_rect_hashes[id] = new_hash
 			changed = true
 	
 	return changed
@@ -182,7 +196,6 @@ func _get_group_rect(group: Node) -> Rect2:
 
 ## Simple hash of a rect for change detection
 func _hash_rect(rect: Rect2) -> int:
-	# Round to avoid floating point noise
 	var x = int(rect.position.x)
 	var y = int(rect.position.y)
 	var w = int(rect.size.x)
@@ -191,64 +204,77 @@ func _hash_rect(rect: Rect2) -> int:
 
 
 ## Check if rect A fully contains rect B (with epsilon margin)
-func _rect_contains(outer: Rect2, inner: Rect2) -> bool:
+func _rect_fully_contains(outer: Rect2, inner: Rect2) -> bool:
 	# Shrink the outer rect by epsilon to require clear containment
 	var shrunk_outer = outer.grow(-CONTAINMENT_EPSILON)
 	return shrunk_outer.encloses(inner)
 
 
-## Compute containment depth for each group
-func _compute_depths() -> Dictionary:
-	# depths: group instance_id -> depth (int)
-	var depths := {}
-	var valid_groups := []
+## Fix sibling order only for groups with containment relationships
+## If A fully contains B, then B must be drawn AFTER A (higher child index)
+func _fix_containment_order() -> void:
+	# Get valid groups with same parent
+	var groups_by_parent: Dictionary = {} # parent -> [group, ...]
 	
-	# Filter to only valid, visible groups
 	for group in _groups:
 		if not is_instance_valid(group):
 			continue
 		if not group.visible:
 			continue
-		valid_groups.append(group)
-		depths[group.get_instance_id()] = 0
-	
-	# For each group, count how many other groups contain it
-	for group in valid_groups:
-		var group_id = group.get_instance_id()
-		var group_rect = _get_group_rect(group)
-		var depth := 0
 		
-		for other in valid_groups:
-			if other == group:
-				continue
-			var other_rect = _get_group_rect(other)
-			
-			# Does 'other' contain 'group'?
-			if _rect_contains(other_rect, group_rect):
-				depth += 1
-		
-		depths[group_id] = depth
-	
-	return depths
-
-
-## Apply z_index based on computed depths
-func _compute_and_apply_z_order() -> void:
-	var depths = _compute_depths()
-	
-	for group in _groups:
-		if not is_instance_valid(group):
+		var parent = group.get_parent()
+		if not is_instance_valid(parent):
 			continue
 		
-		var id = group.get_instance_id()
-		var depth = depths.get(id, 0)
+		if not groups_by_parent.has(parent):
+			groups_by_parent[parent] = []
+		groups_by_parent[parent].append(group)
+	
+	# For each parent, check containment pairs and fix order
+	for parent in groups_by_parent:
+		var groups_in_parent = groups_by_parent[parent]
 		
-		# Set z_index: base + depth so nested groups are on top
-		var target_z = BASE_Z_INDEX + depth
+		# Keep fixing until no more swaps are needed (bubble sort style)
+		var fixed_something := true
+		var max_iterations := 100 # Prevent infinite loops
+		var iterations := 0
 		
-		if group.z_index != target_z:
-			group.z_index = target_z
-			group.z_as_relative = true # Relative to parent
+		while fixed_something and iterations < max_iterations:
+			fixed_something = false
+			iterations += 1
+			
+			# Check all pairs
+			for i in range(groups_in_parent.size()):
+				for j in range(i + 1, groups_in_parent.size()):
+					var group_a = groups_in_parent[i]
+					var group_b = groups_in_parent[j]
+					
+					if not is_instance_valid(group_a) or not is_instance_valid(group_b):
+						continue
+					
+					var rect_a = _get_group_rect(group_a)
+					var rect_b = _get_group_rect(group_b)
+					
+					var idx_a = group_a.get_index()
+					var idx_b = group_b.get_index()
+					
+					# Case 1: A fully contains B
+					# B should be drawn after A (idx_b > idx_a)
+					if _rect_fully_contains(rect_a, rect_b):
+						if idx_b < idx_a:
+							# B is before A but should be after - move B after A
+							parent.move_child(group_b, idx_a)
+							fixed_something = true
+					
+					# Case 2: B fully contains A
+					# A should be drawn after B (idx_a > idx_b)
+					elif _rect_fully_contains(rect_b, rect_a):
+						if idx_a < idx_b:
+							# A is before B but should be after - move A after B
+							parent.move_child(group_a, idx_b)
+							fixed_something = true
+					
+					# Case 3: Partial overlap or no overlap - don't touch
 
 
 ## Force a full rescan and update (can be called externally)

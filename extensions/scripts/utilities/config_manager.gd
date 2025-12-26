@@ -32,6 +32,8 @@ const DEFAULT_CONFIG := {
 	"background_volume": 0.0, # 0-100%, 0 = mute
 	# Drag dead zone (Issue #13)
 	"drag_dead_zone": 5, # pixels
+	# 6-input containers (Issue #18)
+	"six_input_containers": true,
 	# Debug tab
 }
 

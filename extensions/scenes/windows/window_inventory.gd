@@ -15,6 +15,19 @@ func _enter_tree() -> void:
 
 
 func _add_sixth_input_early() -> void:
+	# Check config - feature can be disabled by user
+	var config_path := "user://tajs_mod_config.json"
+	if FileAccess.file_exists(config_path):
+		var file := FileAccess.open(config_path, FileAccess.READ)
+		if file:
+			var json := JSON.new()
+			if json.parse(file.get_as_text()) == OK:
+				var data = json.get_data()
+				if data is Dictionary and data.has("six_input_containers"):
+					if not data["six_input_containers"]:
+						return # Feature disabled
+			file.close()
+	
 	var input_container = get_node_or_null("PanelContainer/MainContainer/Input")
 	if not input_container:
 		return

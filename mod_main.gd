@@ -19,6 +19,8 @@ const FocusHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/ex
 const WireColorOverridesScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/wire_color_overrides.gd")
 const GotoGroupManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/goto_group_manager.gd")
 const GotoGroupPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/goto_group_panel.gd")
+const NodeGroupZOrderFixScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/node_group_z_order_fix.gd")
+const BuyMaxManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/buy_max_manager.gd")
 
 # Components
 var config # ConfigManager instance
@@ -30,6 +32,8 @@ var focus_handler # FocusHandler instance
 var wire_colors # WireColorOverrides instance
 var goto_group_manager # GotoGroupManager instance
 var goto_group_panel # GotoGroupPanel instance
+var node_group_z_fix # NodeGroupZOrderFix instance
+var buy_max_manager # BuyMaxManager instance
 
 # State
 var mod_dir_path: String = ""
@@ -179,6 +183,12 @@ func _setup_for_main(main_node: Node) -> void:
     # Initialize Go To Group feature
     _setup_goto_group(hud)
     
+    # Initialize Node Group Z-Order Fix (contained groups render on top)
+    _setup_node_group_z_order()
+    
+    # Initialize Buy Max feature for upgrade tabs
+    _setup_buy_max()
+    
     # Apply initial visuals
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
@@ -232,6 +242,40 @@ func _setup_goto_group(hud: Node) -> void:
     ModLoaderLog.info("Go To Group panel added to HUD", LOG_NAME)
 
 
+## Setup Node Group Z-Order Fix
+## Ensures that fully contained Node Groups always render on top of their containers
+func _setup_node_group_z_order() -> void:
+    # Check if already set up
+    if node_group_z_fix != null and is_instance_valid(node_group_z_fix):
+        return
+    
+    # Create the manager
+    node_group_z_fix = NodeGroupZOrderFixScript.new()
+    node_group_z_fix.name = "NodeGroupZOrderFix"
+    add_child(node_group_z_fix)
+    
+    ModLoaderLog.info("Node Group Z-Order Fix initialized", LOG_NAME)
+
+
+## Setup Buy Max feature for upgrade tabs
+## Adds a "Buy Max" button to purchase multiple upgrades at once
+func _setup_buy_max() -> void:
+    # Check if already set up
+    if buy_max_manager != null and is_instance_valid(buy_max_manager):
+        return
+    
+    # Create the manager
+    buy_max_manager = BuyMaxManagerScript.new()
+    buy_max_manager.name = "BuyMaxManager"
+    add_child(buy_max_manager)
+    
+    # Initialize after a short delay to ensure UI is ready
+    await get_tree().create_timer(0.1).timeout
+    buy_max_manager.setup(get_tree())
+    
+    ModLoaderLog.info("Buy Max feature initialized", LOG_NAME)
+
+
 func _build_settings_menu() -> void:
     # --- GENERAL ---
     var gen_vbox = ui.add_tab("General", "res://textures/icons/cog.png")
@@ -244,6 +288,12 @@ func _build_settings_menu() -> void:
     ui.add_toggle(gen_vbox, "Wire Drop Node Menu", config.get_value("wire_drop_menu_enabled"), func(v):
         config.set_value("wire_drop_menu_enabled", v)
         palette_controller.set_wire_drop_enabled(v)
+    )
+    
+    # 6-Input Containers toggle (Issue #18) - requires restart
+    ui.add_toggle(gen_vbox, "6-Input Containers ⟳", config.get_value("six_input_containers"), func(v):
+        config.set_value("six_input_containers", v)
+        _show_restart_dialog()
     )
     
     # Node Info Label (Custom)

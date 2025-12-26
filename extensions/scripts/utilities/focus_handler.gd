@@ -72,7 +72,6 @@ func _on_focus_lost() -> void:
 			# Store current master volume before changing
 			_stored_master_volume_db = AudioServer.get_bus_volume_db(0)
 			_apply_background_volume()
-			ModLoaderLog.info("Focus lost - audio reduced to %s%%" % _background_volume, LOG_NAME)
 
 
 func _on_focus_gained() -> void:
@@ -80,7 +79,6 @@ func _on_focus_gained() -> void:
 		_was_focused = true
 		if _enabled:
 			_restore_volume()
-			ModLoaderLog.info("Focus gained - audio restored", LOG_NAME)
 
 
 func _apply_background_volume() -> void:
