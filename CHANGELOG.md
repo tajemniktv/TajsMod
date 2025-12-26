@@ -2,18 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
 
-## [0.0.19] - 2025-12-TBD
-- 
+## [0.0.20] - 2025-12-TBD
+
+- TBD
+
+## [0.0.19] - 2025-12-26
+
+- Node group Z-order fix
+- 6-input containers setting
+- Fix tutorial
+- Fix CTRL+C/CTRL+V functionality
+- Add capture delay setting
+- Additional cheats
 
 ## [0.0.18] - 2025-12-24
+
 - Improve cheats
 
 ## [0.0.17] - 2025-12-23
+
 - Change wiring color
 - Open screenshot folder
 - Change screenshot folder

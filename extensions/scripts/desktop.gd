@@ -61,6 +61,9 @@ func paste(data: Dictionary) -> void:
 
 
 func _input(event: InputEvent) -> void:
+    # Call parent to preserve CTRL+C/CTRL+V functionality
+    super._input(event)
+    
     # Ctrl+A to select all nodes
     if event is InputEventKey and event.pressed:
         if event.keycode == KEY_A and event.ctrl_pressed:

@@ -8,6 +8,13 @@ extends "res://scenes/windows/window_bin.gd"
 var _extra_inputs: Array[Control] = []
 
 func _enter_tree() -> void:
+    # IMPORTANT: Skip mod enhancements during tutorial to preserve the required
+    # Downloader → Bin connection for the "Remove a connection" tutorial step.
+    # Modifying the Input's script can break ID registration and connection creation.
+    if !Globals.tutorial_done:
+        super._enter_tree()
+        return
+    
     # 1. Unified Setup in _enter_tree
     # We setup BOTH Original and New inputs here.
     # This ensures they are ready for WindowBase's standard lifecycle mechanism (auto-restore).
@@ -40,6 +47,10 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
     super._ready()
+    
+    # Skip mod enhancements during tutorial (extra inputs weren't created)
+    if !Globals.tutorial_done:
+        return
     
     # Ensure all inputs are actively ticking (so they receive items)
     var enable_tick = func(node):

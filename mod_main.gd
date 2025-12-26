@@ -21,6 +21,7 @@ const GotoGroupManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModde
 const GotoGroupPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/goto_group_panel.gd")
 const NodeGroupZOrderFixScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/node_group_z_order_fix.gd")
 const BuyMaxManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/buy_max_manager.gd")
+const CheatManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/cheat_manager.gd")
 
 # Components
 var config # ConfigManager instance
@@ -34,6 +35,7 @@ var goto_group_manager # GotoGroupManager instance
 var goto_group_panel # GotoGroupPanel instance
 var node_group_z_fix # NodeGroupZOrderFix instance
 var buy_max_manager # BuyMaxManager instance
+var cheat_manager # CheatManager instance
 
 # State
 var mod_dir_path: String = ""
@@ -71,6 +73,7 @@ func _init() -> void:
     # Init Screenshot Manager (tree set in _ready)
     screenshot_manager = ScreenshotManagerScript.new()
     screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
+    screenshot_manager.capture_delay = int(config.get_value("screenshot_capture_delay", 3))
     screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
     screenshot_manager.set_config(config)
     
@@ -378,15 +381,8 @@ func _build_settings_menu() -> void:
     
     # --- CHEATS ---
     var cheat_vbox = ui.add_tab("Cheats", "res://textures/icons/money.png")
-    
-    var warn = Label.new()
-    warn.text = "⚠️ Using cheats may affect game balance!"
-    warn.add_theme_color_override("font_color", Color(1, 0.7, 0.3))
-    warn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    cheat_vbox.add_child(warn)
-    
-    _add_cheat_btns(cheat_vbox, "Money", "money", "res://textures/icons/money.png")
-    _add_cheat_btns(cheat_vbox, "Research", "research", "res://textures/icons/research.png")
+    cheat_manager = CheatManagerScript.new()
+    cheat_manager.build_cheats_tab(cheat_vbox)
     
     # --- DEBUG ---
     var debug_vbox = ui.add_tab("Debug", "res://textures/icons/bug.png")
@@ -396,6 +392,7 @@ func _build_settings_menu() -> void:
         # Apply defaults immediately
         Globals.custom_node_limit = config.get_value("node_limit")
         screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
+        screenshot_manager.capture_delay = int(config.get_value("screenshot_capture_delay", 3))
         screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
         wire_colors.set_enabled(config.get_value("custom_wire_colors", true))
         _apply_extra_glow(config.get_value("extra_glow"))
@@ -728,6 +725,123 @@ func _apply_ui_opacity(value: float) -> void:
                 main_container.modulate.a = value / 100.0
 
 
+func _show_restart_dialog() -> void:
+    # Create overlay to block input and darken background
+    var overlay = ColorRect.new()
+    overlay.name = "RestartDialogOverlay"
+    overlay.color = Color(0, 0, 0, 0.6)
+    overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+    overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+    
+    # Create centered dialog using game's theme
+    var dialog = PanelContainer.new()
+    dialog.name = "RestartDialog"
+    dialog.custom_minimum_size = Vector2(380, 0)
+    dialog.theme_type_variation = "ShadowPanelContainer"
+    
+    # Main VBox for title panel + content + footer
+    var main_vbox = VBoxContainer.new()
+    main_vbox.add_theme_constant_override("separation", 0)
+    dialog.add_child(main_vbox)
+    
+    # Title Panel (styled like game's overlays)
+    var title_panel = Panel.new()
+    title_panel.custom_minimum_size = Vector2(0, 60)
+    title_panel.theme_type_variation = "OverlayPanelTitle"
+    main_vbox.add_child(title_panel)
+    
+    var title_container = HBoxContainer.new()
+    title_container.set_anchors_preset(Control.PRESET_FULL_RECT)
+    title_container.offset_left = 15
+    title_container.offset_top = 10
+    title_container.offset_right = -15
+    title_container.offset_bottom = -10
+    title_container.alignment = BoxContainer.ALIGNMENT_CENTER
+    title_panel.add_child(title_container)
+    
+    var title_icon = TextureRect.new()
+    title_icon.custom_minimum_size = Vector2(32, 32)
+    title_icon.texture = load("res://textures/icons/reload.png")
+    title_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    title_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    title_icon.self_modulate = Color(1, 0.75, 0.3)
+    title_container.add_child(title_icon)
+    
+    var title = Label.new()
+    title.text = " Restart Required"
+    title.add_theme_font_size_override("font_size", 28)
+    title_container.add_child(title)
+    
+    # Content Panel
+    var content_panel = PanelContainer.new()
+    content_panel.theme_type_variation = "MenuPanel"
+    main_vbox.add_child(content_panel)
+    
+    var content_margin = MarginContainer.new()
+    content_margin.add_theme_constant_override("margin_left", 25)
+    content_margin.add_theme_constant_override("margin_right", 25)
+    content_margin.add_theme_constant_override("margin_top", 20)
+    content_margin.add_theme_constant_override("margin_bottom", 20)
+    content_panel.add_child(content_margin)
+    
+    var content_vbox = VBoxContainer.new()
+    content_vbox.add_theme_constant_override("separation", 20)
+    content_margin.add_child(content_vbox)
+    
+    # Message
+    var msg = Label.new()
+    msg.text = "This change will take effect after\nrestarting the game."
+    msg.add_theme_font_size_override("font_size", 24)
+    msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    content_vbox.add_child(msg)
+    
+    # Buttons row
+    var btn_row = HBoxContainer.new()
+    btn_row.add_theme_constant_override("separation", 15)
+    btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
+    content_vbox.add_child(btn_row)
+    
+    # Later button
+    var later_btn = Button.new()
+    later_btn.text = "Later"
+    later_btn.theme_type_variation = "TabButton"
+    later_btn.custom_minimum_size = Vector2(130, 55)
+    later_btn.focus_mode = Control.FOCUS_NONE
+    later_btn.pressed.connect(func():
+        Sound.play("menu_close")
+        overlay.queue_free()
+    )
+    btn_row.add_child(later_btn)
+    
+    # Exit Now button
+    var exit_btn = Button.new()
+    exit_btn.text = "Exit Now"
+    exit_btn.theme_type_variation = "TabButton"
+    exit_btn.custom_minimum_size = Vector2(130, 55)
+    exit_btn.focus_mode = Control.FOCUS_NONE
+    exit_btn.add_theme_color_override("font_color", Color(1.0, 0.55, 0.35))
+    exit_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.7, 0.5))
+    exit_btn.pressed.connect(func():
+        get_tree().quit()
+    )
+    btn_row.add_child(exit_btn)
+    
+    # Add dialog to overlay
+    overlay.add_child(dialog)
+    
+    # Get the HUD to add the overlay
+    var main = get_tree().root.get_node_or_null("Main")
+    if main:
+        var hud = main.get_node_or_null("HUD")
+        if hud:
+            hud.add_child(overlay)
+            Sound.play("menu_open")
+            
+            # Center the dialog after it's added
+            await get_tree().process_frame
+            dialog.position = (overlay.size - dialog.size) / 2
+
+
 func _update_node_label() -> void:
     if !_node_info_label or !ui.is_visible(): return
     
@@ -742,114 +856,6 @@ func _update_node_label() -> void:
             _node_info_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
         else:
             _node_info_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-
-func _add_cheat_btns(parent, label_text: String, type: String, icon_path: String) -> void:
-    var row = HBoxContainer.new()
-    row.add_theme_constant_override("separation", 10)
-    parent.add_child(row)
-    
-    # Icon
-    var icon = TextureRect.new()
-    icon.texture = load(icon_path)
-    icon.custom_minimum_size = Vector2(32, 32)
-    icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-    row.add_child(icon)
-    
-    var l = Label.new()
-    l.text = label_text
-    l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    l.add_theme_font_size_override("font_size", 28)
-    row.add_child(l)
-    
-    # Zero button
-    var btn_zero = Button.new()
-    btn_zero.text = "→0"
-    btn_zero.theme_type_variation = "TabButton"
-    btn_zero.custom_minimum_size = Vector2(60, 50)
-    btn_zero.pressed.connect(func(): set_currency_to_zero(type))
-    row.add_child(btn_zero)
-    
-    # Decrease button
-    var btn_sub = Button.new()
-    btn_sub.text = "-10%"
-    btn_sub.theme_type_variation = "TabButton"
-    btn_sub.custom_minimum_size = Vector2(80, 50)
-    btn_sub.pressed.connect(func(): _modify_currency(type, -0.1))
-    row.add_child(btn_sub)
-    
-    # +10% button
-    var btn_add_10 = Button.new()
-    btn_add_10.text = "+10%"
-    btn_add_10.theme_type_variation = "TabButton"
-    btn_add_10.custom_minimum_size = Vector2(80, 50)
-    btn_add_10.pressed.connect(func(): _modify_currency(type, 0.1))
-    row.add_child(btn_add_10)
-    
-    # +30% button
-    var btn_add_30 = Button.new()
-    btn_add_30.text = "+30%"
-    btn_add_30.theme_type_variation = "TabButton"
-    btn_add_30.custom_minimum_size = Vector2(80, 50)
-    btn_add_30.pressed.connect(func(): _modify_currency(type, 0.3))
-    row.add_child(btn_add_30)
-    
-    # +50% button
-    var btn_add_50 = Button.new()
-    btn_add_50.text = "+50%"
-    btn_add_50.theme_type_variation = "TabButton"
-    btn_add_50.custom_minimum_size = Vector2(80, 50)
-    btn_add_50.pressed.connect(func(): _modify_currency(type, 0.5))
-    row.add_child(btn_add_50)
-
-func _modify_currency(type: String, percent: float) -> void:
-    if !Globals.currencies.has(type):
-        ModLoaderLog.error("Currency type not found: " + type, LOG_NAME)
-        return
-    
-    var current = Globals.currencies[type]
-    var amount_to_change = current * percent
-    
-    # Minimum amounts for practical use when values are low
-    var mins = {"money": 1000.0, "research": 100.0, "token": 10.0}
-    var min_amount = mins.get(type, 100.0)
-    
-    if percent > 0 and abs(amount_to_change) < min_amount:
-        amount_to_change = min_amount
-    
-    Globals.currencies[type] += amount_to_change
-    
-    # Prevent negative values
-    if Globals.currencies[type] < 0:
-        Globals.currencies[type] = 0
-    
-    # Update max tracking for money/research (required for UI updates)
-    if type == "money":
-        Globals.max_money = max(Globals.max_money, Globals.currencies[type])
-    elif type == "research":
-        Globals.max_research = max(Globals.max_research, Globals.currencies[type])
-    
-    # CRITICAL: Call Globals.process to trigger UI refresh
-    if Globals.has_method("process"):
-        Globals.process(0)
-    
-    var sign_str = "+" if percent > 0 else ""
-    Signals.notify.emit("check", "%s %s%d%%" % [type.capitalize(), sign_str, int(percent * 100)])
-    Sound.play("click")
-
-
-func set_currency_to_zero(type: String) -> void:
-    if !Globals.currencies.has(type):
-        ModLoaderLog.error("Currency type not found: " + type, LOG_NAME)
-        return
-    
-    Globals.currencies[type] = 0
-    
-    if Globals.has_method("process"):
-        Globals.process(0)
-    
-    Signals.notify.emit("check", "%s set to 0" % type.capitalize())
-    Sound.play("click")
 
 func _register_palette_screenshot_command() -> void:
     # Override the screenshot command to use our screenshot manager

@@ -13,6 +13,7 @@ const LOG_NAME = "TajsModded:Screenshot"
 
 # Quality settings
 var quality: int = 2 # 0=Low, 1=Med, 2=High, 3=Original
+var capture_delay: int = 3 # Frames to wait per tile (increase for large boards with 450+ nodes)
 var debug_mode: bool = false
 var screenshot_folder: String = "user://screenshots" # Configurable folder
 
@@ -163,13 +164,14 @@ func take_screenshot() -> void:
             )
             main_camera.position = tile_center
             
-            # Wait for render - extra frames for first tile to let nodes become visible
-            await _tree.process_frame
-            await _tree.process_frame
+            # Wait for render - configurable delay for large boards with many nodes
+            # Users with 450+ nodes may need capture_delay of 6-10 frames
+            var frames_to_wait = capture_delay
             if tx == 0 and ty == 0:
-                # Extra frames for first tile (visibility culling needs time)
-                await _tree.process_frame
-                await _tree.process_frame
+                # Extra frames for first tile (visibility culling needs time to initialize)
+                frames_to_wait += 3
+            
+            for _frame in range(frames_to_wait):
                 await _tree.process_frame
             
             # Capture
@@ -256,6 +258,47 @@ func add_screenshot_section(parent: Control, ui_builder, config_manager) -> void
         
         btn_row.add_child(btn)
         quality_buttons.append(btn)
+    
+    # Capture Delay slider (for large boards with many nodes)
+    var delay_section = VBoxContainer.new()
+    delay_section.add_theme_constant_override("separation", 5)
+    container.add_child(delay_section)
+    
+    var delay_label_row = HBoxContainer.new()
+    delay_section.add_child(delay_label_row)
+    
+    var delay_label = Label.new()
+    delay_label.text = "Capture Delay"
+    delay_label.add_theme_font_size_override("font_size", 22)
+    delay_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    delay_label_row.add_child(delay_label)
+    
+    var delay_value_label = Label.new()
+    delay_value_label.text = str(capture_delay) + " frames"
+    delay_value_label.add_theme_font_size_override("font_size", 18)
+    delay_value_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+    delay_label_row.add_child(delay_value_label)
+    
+    var delay_slider = HSlider.new()
+    delay_slider.min_value = 2
+    delay_slider.max_value = 15
+    delay_slider.step = 1
+    delay_slider.value = capture_delay
+    delay_slider.custom_minimum_size = Vector2(0, 30)
+    delay_section.add_child(delay_slider)
+    
+    var delay_hint = Label.new()
+    delay_hint.text = "Increase if nodes get cut off (450+ nodes need 6-10)"
+    delay_hint.add_theme_font_size_override("font_size", 12)
+    delay_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+    delay_section.add_child(delay_hint)
+    
+    var self_ref_delay = self
+    delay_slider.value_changed.connect(func(val: float):
+        self_ref_delay.capture_delay = int(val)
+        delay_value_label.text = str(int(val)) + " frames"
+        config_manager.set_value("screenshot_capture_delay", int(val))
+    )
     
     # Take Screenshot button
     var take_btn = Button.new()
