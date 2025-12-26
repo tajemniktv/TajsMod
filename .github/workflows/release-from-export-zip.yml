@@ -1,11 +1,10 @@
-name: Draft release from exported ZIP
+name: Release from exported ZIP
 
 on:
   push:
     branches: ["master"]
     paths:
       - "export/TajemnikTV-TajsModded.zip"
-      - "**/manifest.json"
   workflow_dispatch: {}
 
 permissions:
@@ -15,19 +14,21 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - name: Read manifest + upload to draft release
+      - name: Read manifest + upload ZIP to GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
 
           ZIP="export/TajemnikTV-TajsModded.zip"
-          test -f "$ZIP" || (echo "Missing $ZIP" && exit 1)
+          test -f "$ZIP" || (echo "Missing $ZIP (czy na pewno jest zacommitowany?)" && exit 1)
+
+          command -v jq >/dev/null 2>&1 || (echo "jq not found" && exit 1)
 
           MANIFEST="$(git ls-files | grep -E '(^|/)manifest\.json$' | head -n 1)"
-          test -n "$MANIFEST" || (echo "No manifest.json found" && exit 1)
+          test -n "$MANIFEST" || (echo "No manifest.json found in repo" && exit 1)
 
           NAMESPACE="$(jq -r '.namespace // empty' "$MANIFEST")"
           NAME="$(jq -r '.name // empty' "$MANIFEST")"
@@ -47,13 +48,25 @@ jobs:
 
           ASSET_LABEL="TajemnikTV-TajsModded-${VER}.zip"
 
+          echo "Manifest: $MANIFEST"
+          echo "Release tag: $TAG"
+          echo "Asset label: $ASSET_LABEL"
+
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release exists: $TAG -> upload (clobber)"
+            echo "Release exists: $TAG -> upload asset (clobber)"
             gh release upload "$TAG" "${ZIP}#${ASSET_LABEL}" --clobber
+
+            # draft -> publish
+            IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
+            if [ "$IS_DRAFT" = "true" ]; then
+              echo "Release is draft -> publishing it"
+              gh release edit "$TAG" --draft=false --latest
+            fi
           else
-            echo "Creating pre-release: $TAG"
+            echo "Creating normal release: $TAG"
             gh release create "$TAG" "${ZIP}#${ASSET_LABEL}" \
-              --prerelease \
               --title "${MOD_ID} v${VER}" \
-              --notes "Auto pre-release from commit ${GITHUB_SHA}"
+              --notes "Auto release from commit ${GITHUB_SHA}" \
+              --target "${GITHUB_SHA}" \
+              --latest
           fi
