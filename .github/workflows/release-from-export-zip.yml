@@ -65,7 +65,7 @@ jobs:
           else
             echo "Creating normal release: $TAG"
             gh release create "$TAG" "${ZIP}#${ASSET_LABEL}" \
-              --title "${MOD_ID} v${VER}" \
+              --title "v${VER}" \
               --notes "Auto release from commit ${GITHUB_SHA}" \
               --target "${GITHUB_SHA}" \
               --latest
