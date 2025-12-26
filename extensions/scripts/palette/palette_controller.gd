@@ -38,6 +38,7 @@ var mod_main # Reference to mod_main.gd for calling apply functions
 
 # State
 var _initialized: bool = false
+var _palette_enabled: bool = true # Can be toggled via settings
 
 signal palette_opened
 signal palette_closed
@@ -61,10 +62,14 @@ func initialize(tree: SceneTree, config, ui = null, mod_main_ref = null) -> void
 	mod_ui = ui
 	mod_main = mod_main_ref
 	
+	# Initialize palette enabled state from config
+	_palette_enabled = mod_config.get_value("command_palette_enabled", true)
+	
 	# Create core components
 	registry = CommandRegistryScript.new()
 	context = ContextProviderScript.new()
 	palette_config = PaletteConfigScript.new()
+	palette_config.setup(mod_config)
 	
 	# Set up context
 	context.set_tree(tree)
@@ -135,8 +140,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_MIDDLE:
-				toggle()
-				get_viewport().set_input_as_handled()
+				# Only toggle palette if enabled
+				if _palette_enabled:
+					toggle()
+					get_viewport().set_input_as_handled()
 			MOUSE_BUTTON_XBUTTON1: # Mouse back button
 				if is_open():
 					overlay._go_back()
@@ -188,6 +195,13 @@ func get_context() -> RefCounted:
 func set_wire_drop_enabled(enabled: bool) -> void:
 	if wire_drop_handler:
 		wire_drop_handler.set_enabled(enabled)
+
+
+## Set palette enabled state (middle mouse button toggle)
+func set_palette_enabled(enabled: bool) -> void:
+	_palette_enabled = enabled
+	if mod_config:
+		mod_config.set_value("command_palette_enabled", enabled)
 
 
 ## Handle wire dropped on empty canvas

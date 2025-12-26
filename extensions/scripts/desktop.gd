@@ -64,11 +64,12 @@ func _input(event: InputEvent) -> void:
     # Call parent to preserve CTRL+C/CTRL+V functionality
     super._input(event)
     
-    # Ctrl+A to select all nodes
+    # Ctrl+A to select all nodes (only if enabled)
     if event is InputEventKey and event.pressed:
         if event.keycode == KEY_A and event.ctrl_pressed:
-            _select_all_nodes()
-            get_viewport().set_input_as_handled()
+            if Globals.select_all_enabled:
+                _select_all_nodes()
+                get_viewport().set_input_as_handled()
 
 
 func _select_all_nodes() -> void:

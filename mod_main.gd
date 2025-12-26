@@ -14,6 +14,8 @@ const Patcher = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/sc
 const SettingsUI = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/settings_ui.gd")
 const ScreenshotManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/screenshot_manager.gd")
 const PaletteControllerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/palette_controller.gd")
+const ColorPickerPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/color_picker_panel.gd")
+
 const WireClearHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/wire_drop/wire_clear_handler.gd")
 const FocusHandlerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/focus_handler.gd")
 const WireColorOverridesScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/wire_color_overrides.gd")
@@ -48,7 +50,12 @@ var _node_limit_slider: HSlider = null
 var _node_limit_value_label: Label = null
 var _extra_glow_toggle: CheckButton = null
 var _extra_glow_sub: MarginContainer = null
+var _settings_toggles: Dictionary = {} # config_key -> CheckButton reference
 
+# Custom Color Picker State
+var shared_color_picker # ColorPickerPanel instance
+var picker_canvas # CanvasLayer for picker
+var _current_picker_callback: Callable
 # ==============================================================================
 # LIFECYCLE
 # ==============================================================================
@@ -96,6 +103,32 @@ func _init() -> void:
 func _ready() -> void:
     ModLoaderLog.info("TajsModded ready!", LOG_NAME)
     
+    # Init Shared Color Picker Overlay
+    picker_canvas = CanvasLayer.new()
+    picker_canvas.layer = 100 # High Z-index
+    picker_canvas.visible = false
+    add_child(picker_canvas)
+    
+    # Backdrop to close on click outside
+    var backdrop = ColorRect.new()
+    backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+    backdrop.color = Color(0, 0, 0, 0.5)
+    backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+    # Click to close
+    backdrop.gui_input.connect(func(event):
+        if event is InputEventMouseButton and event.pressed:
+            _close_color_picker()
+    )
+    picker_canvas.add_child(backdrop)
+    
+    shared_color_picker = ColorPickerPanelScript.new()
+    shared_color_picker.set_anchors_preset(Control.PRESET_CENTER)
+    # shared_color_picker.position = ... (centered by preset)
+    picker_canvas.add_child(shared_color_picker)
+    
+    # Connect signals
+    shared_color_picker.color_changed.connect(_on_picker_color_changed)
+    
     # Apply wire color overrides (Data is now loaded)
     wire_colors.setup(config)
     if config.get_value("custom_wire_colors", true):
@@ -117,6 +150,19 @@ func _ready() -> void:
     get_tree().node_added.connect(_on_node_added)
     call_deferred("_check_existing_main")
 
+func _open_color_picker(start_color: Color, callback: Callable) -> void:
+    _current_picker_callback = callback
+    shared_color_picker.set_color(start_color)
+    picker_canvas.visible = true
+    
+func _close_color_picker() -> void:
+    picker_canvas.visible = false
+    _current_picker_callback = Callable()
+    
+func _on_picker_color_changed(c: Color) -> void:
+    if _current_picker_callback.is_valid():
+        _current_picker_callback.call(c)
+
 func _process(delta: float) -> void:
     # Persistent Patches
     if !_desktop_patched:
@@ -137,7 +183,15 @@ func _input(event: InputEvent) -> void:
     
     if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
         var mouse_pos := get_viewport().get_mouse_position()
-        var panel_rect: Rect2 = ui.settings_panel.get_global_rect()
+        var panel_rect: Rect2 = ui.settings_panel.get_global_rect() # Access via property or similar? ui.settings_panel is public?
+        # ui.settings_panel is a var in SettingsUI. Let's assume it's accessible or has getter.
+        # Actually SettingsUI seems to expose it.
+        
+        # However, checking existence of picker canvas first
+        if picker_canvas and picker_canvas.visible:
+            # If picker is open, let its backdrop handle closing, don't close settings UI underneath
+            return
+
         var btn_rect: Rect2 = ui.settings_button.get_global_rect() if ui.settings_button else Rect2()
         
         if !panel_rect.has_point(mouse_pos) and !btn_rect.has_point(mouse_pos):
@@ -196,6 +250,15 @@ func _setup_for_main(main_node: Node) -> void:
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
     _apply_ui_opacity(config.get_value("ui_opacity"))
+    
+    # Apply initial feature states from config
+    Globals.select_all_enabled = config.get_value("select_all_enabled", true)
+    if not config.get_value("goto_group_enabled", true):
+        call_deferred("_set_goto_group_visible", false)
+    if not config.get_value("buy_max_enabled", true):
+        call_deferred("_set_buy_max_visible", false)
+    if node_group_z_fix and not config.get_value("z_order_fix_enabled", true):
+        node_group_z_fix.set_enabled(false)
 
 
 ## Setup Go To Node Group panel in the HUD
@@ -283,20 +346,55 @@ func _build_settings_menu() -> void:
     # --- GENERAL ---
     var gen_vbox = ui.add_tab("General", "res://textures/icons/cog.png")
     
-    ui.add_toggle(gen_vbox, "Enable Mod Features", config.get_value("enable_features"), func(v):
-        config.set_value("enable_features", v)
-    )
-    
     # Wire Drop Node Menu toggle
-    ui.add_toggle(gen_vbox, "Wire Drop Node Menu", config.get_value("wire_drop_menu_enabled"), func(v):
+    _settings_toggles["wire_drop_menu_enabled"] = ui.add_toggle(gen_vbox, "Wire Drop Node Menu", config.get_value("wire_drop_menu_enabled"), func(v):
         config.set_value("wire_drop_menu_enabled", v)
         palette_controller.set_wire_drop_enabled(v)
     )
     
     # 6-Input Containers toggle (Issue #18) - requires restart
-    ui.add_toggle(gen_vbox, "6-Input Containers ⟳", config.get_value("six_input_containers"), func(v):
+    _settings_toggles["six_input_containers"] = ui.add_toggle(gen_vbox, "6-Input Containers ⟳", config.get_value("six_input_containers"), func(v):
         config.set_value("six_input_containers", v)
         _show_restart_dialog()
+    )
+    
+    # Command Palette toggle
+    _settings_toggles["command_palette_enabled"] = ui.add_toggle(gen_vbox, "Command Palette (MMB)", config.get_value("command_palette_enabled"), func(v):
+        config.set_value("command_palette_enabled", v)
+        if palette_controller:
+            palette_controller.set_palette_enabled(v)
+    )
+    
+    # Right-click Wire Clear toggle
+    _settings_toggles["right_click_clear_enabled"] = ui.add_toggle(gen_vbox, "Right-click Wire Clear", config.get_value("right_click_clear_enabled"), func(v):
+        config.set_value("right_click_clear_enabled", v)
+        if wire_clear_handler:
+            wire_clear_handler.set_enabled(v)
+    )
+    
+    # Select All (Ctrl+A) toggle
+    _settings_toggles["select_all_enabled"] = ui.add_toggle(gen_vbox, "Ctrl+A Select All", config.get_value("select_all_enabled"), func(v):
+        config.set_value("select_all_enabled", v)
+        Globals.select_all_enabled = v
+    )
+    
+    # Go To Group Panel toggle
+    _settings_toggles["goto_group_enabled"] = ui.add_toggle(gen_vbox, "Go To Group Button", config.get_value("goto_group_enabled"), func(v):
+        config.set_value("goto_group_enabled", v)
+        _set_goto_group_visible(v)
+    )
+    
+    # Buy Max Button toggle
+    _settings_toggles["buy_max_enabled"] = ui.add_toggle(gen_vbox, "Buy Max Button", config.get_value("buy_max_enabled"), func(v):
+        config.set_value("buy_max_enabled", v)
+        _set_buy_max_visible(v)
+    )
+    
+    # Z-Order Fix toggle
+    _settings_toggles["z_order_fix_enabled"] = ui.add_toggle(gen_vbox, "Group Z-Order Fix", config.get_value("z_order_fix_enabled"), func(v):
+        config.set_value("z_order_fix_enabled", v)
+        if node_group_z_fix:
+            node_group_z_fix.set_enabled(v)
     )
     
     # Node Info Label (Custom)
@@ -317,7 +415,7 @@ func _build_settings_menu() -> void:
     
     # Focus Mute Section (Issue #11)
     var fh = focus_handler # Capture for closure
-    ui.add_toggle(gen_vbox, "Mute on Focus Loss", config.get_value("mute_on_focus_loss"), func(v):
+    _settings_toggles["mute_on_focus_loss"] = ui.add_toggle(gen_vbox, "Mute on Focus Loss", config.get_value("mute_on_focus_loss"), func(v):
         fh.set_enabled(v)
     )
     ui.add_slider(gen_vbox, "Background Volume", config.get_value("background_volume"), 0, 100, 5, "%", func(v):
@@ -537,25 +635,44 @@ func _add_wire_color_picker(parent: Control, label_text: String, resource_id: St
     label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     row.add_child(label)
     
-    # Color picker button
-    var picker = ColorPickerButton.new()
-    picker.custom_minimum_size = Vector2(80, 36)
-    picker.color = wire_colors.get_color(resource_id)
-    picker.edit_alpha = false
+    # Custom Color Button using shared picker
+    var btn = Button.new()
+    btn.custom_minimum_size = Vector2(80, 36)
+    
+    # Current color state
+    var current_col = wire_colors.get_color(resource_id)
+    
+    # Style the button to show color
+    var style = StyleBoxFlat.new()
+    style.bg_color = current_col
+    style.border_width_left = 2
+    style.border_width_top = 2
+    style.border_width_right = 2
+    style.border_width_bottom = 2
+    style.border_color = Color(0.3, 0.3, 0.3)
+    style.set_corner_radius_all(4)
+    btn.add_theme_stylebox_override("normal", style)
+    btn.add_theme_stylebox_override("hover", style)
+    btn.add_theme_stylebox_override("pressed", style)
     
     var wc = wire_colors
     var res_id = resource_id
     var self_ref = self
-    picker.color_changed.connect(func(new_color: Color):
-        wc.set_color_from_rgb(res_id, new_color)
+    
+    # Open shared picker on press
+    btn.pressed.connect(func():
+        _open_color_picker(wc.get_color(res_id), func(new_col):
+            # Update storage
+            wc.set_color_from_rgb(res_id, new_col)
+            # Update button visual
+            style.bg_color = new_col
+            # Note: We don't refresh all connectors on every drag frame for performance,
+            # If we want live updates, we can uncomment:
+            # self_ref._refresh_all_connectors()
+        )
     )
     
-    # When popup closes, auto-apply
-    picker.popup_closed.connect(func():
-        self_ref._refresh_all_connectors()
-    )
-    
-    row.add_child(picker)
+    row.add_child(btn)
     
     # Reset button
     var reset_btn = Button.new()
@@ -564,7 +681,8 @@ func _add_wire_color_picker(parent: Control, label_text: String, resource_id: St
     reset_btn.custom_minimum_size = Vector2(36, 36)
     reset_btn.pressed.connect(func():
         wc.reset_color(res_id)
-        picker.color = wc.get_original_color(res_id)
+        var def_col = wc.get_original_color(res_id)
+        style.bg_color = def_col
         self_ref._refresh_all_connectors()
     )
     row.add_child(reset_btn)
@@ -727,6 +845,27 @@ func _apply_ui_opacity(value: float) -> void:
             var main_container = hud.get_node_or_null("Main/MainContainer")
             if main_container:
                 main_container.modulate.a = value / 100.0
+
+
+## Helper to show/hide Go To Group panel
+func _set_goto_group_visible(visible: bool) -> void:
+    if goto_group_panel:
+        var container = goto_group_panel.get_parent()
+        if container:
+            container.visible = visible
+
+## Helper to show/hide Buy Max button
+func _set_buy_max_visible(visible: bool) -> void:
+    if buy_max_manager and is_instance_valid(buy_max_manager._buy_max_button):
+        buy_max_manager._buy_max_button.visible = visible
+
+
+## Sync a settings toggle UI with its config value (called from palette commands)
+func sync_settings_toggle(config_key: String) -> void:
+    if _settings_toggles.has(config_key):
+        var toggle = _settings_toggles[config_key]
+        if toggle and is_instance_valid(toggle):
+            toggle.set_pressed_no_signal(config.get_value(config_key, true))
 
 
 func _show_restart_dialog() -> void:

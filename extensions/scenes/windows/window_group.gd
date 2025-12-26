@@ -14,7 +14,7 @@ const NEW_COLORS: Array[String] = [
 var pattern_index: int = 0
 var pattern_drawers: Array[Control] = []
 var custom_color: Color = Color.TRANSPARENT # Custom RGB color (TRANSPARENT = use preset)
-var color_picker_btn: ColorPickerButton = null
+var color_picker_btn = null # ColorPickerPanel reference
 var locked: bool = false # Lock group to prevent movement
 
 class PatternDrawer extends Control:
@@ -144,64 +144,66 @@ func _ready() -> void:
             if title_container.get_child_count() >= 3:
                 title_container.move_child(pattern_btn, 3)
             
-            # Keep original ColorButton but rewire it to open picker
+            # Keep original ColorButton but rewire it to open our custom picker
             var old_color_btn = title_container.get_node_or_null("ColorButton")
             
-            # Create hidden ColorPickerButton (for the picker functionality)
-            color_picker_btn = ColorPickerButton.new()
-            color_picker_btn.name = "ColorPickerBtn"
-            color_picker_btn.visible = false # Hidden - we use original button
-            color_picker_btn.edit_alpha = true # Enable alpha
+            # Create color picker overlay (click-outside-to-close + styled panel)
+            var picker_layer = CanvasLayer.new()
+            picker_layer.name = "ColorPickerLayer"
+            picker_layer.layer = 100
+            picker_layer.visible = false
+            get_tree().root.call_deferred("add_child", picker_layer)
+            
+            # Background overlay (semi-transparent, click to close)
+            var bg_overlay = ColorRect.new()
+            bg_overlay.name = "BackgroundOverlay"
+            bg_overlay.color = Color(0, 0, 0, 0.4) # Slightly darker for visibility
+            bg_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+            bg_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+            picker_layer.add_child(bg_overlay)
+            
+            # Create custom ColorPickerPanel
+            var custom_picker = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/color_picker_panel.gd").new()
+            custom_picker.name = "ColorPickerPanel"
             
             # Set initial color
             if custom_color != Color.TRANSPARENT:
-                color_picker_btn.color = custom_color
+                custom_picker.set_color(custom_color)
             else:
-                color_picker_btn.color = Color(NEW_COLORS[color])
+                custom_picker.set_color(Color(NEW_COLORS[color]))
             
-            # Setup picker options - compact mode (wheel only)
-            var picker = color_picker_btn.get_picker()
-            picker.picker_shape = ColorPicker.SHAPE_VHS_CIRCLE # Color wheel
-            picker.color_modes_visible = false # Hide mode toggle
-            picker.sliders_visible = false # Hide sliders (compact!)
-            picker.hex_visible = false # Hide hex input
-            picker.presets_visible = true # Show preset swatches
-            picker.sampler_visible = false # Hide eyedropper
+            picker_layer.add_child(custom_picker)
             
-            # Add preset colors
-            for preset_hex in NEW_COLORS:
-                picker.add_preset(Color(preset_hex))
+            # Store reference for later access
+            color_picker_btn = custom_picker
             
-            # Style the color picker popup
-            var picker_popup = color_picker_btn.get_popup()
-            picker_popup.transparent_bg = false
-            picker_popup.borderless = true
-            picker_popup.unresizable = false
+            # Helper to show/hide the picker
+            var show_picker = func():
+                picker_layer.visible = true
+                # Center manually
+                custom_picker.position = (custom_picker.get_viewport_rect().size - custom_picker.size) / 2
+                Sound.play("click2")
             
-            # Create dark panel style matching the game
-            var picker_panel_style = StyleBoxFlat.new()
-            picker_panel_style.bg_color = Color(0.08, 0.09, 0.12, 0.98)
-            picker_panel_style.border_color = Color(0.2, 0.25, 0.35, 1.0)
-            picker_panel_style.set_border_width_all(2)
-            picker_panel_style.set_corner_radius_all(12)
-            picker_panel_style.set_content_margin_all(10)
-            picker_popup.add_theme_stylebox_override("panel", picker_panel_style)
+            var hide_picker = func():
+                picker_layer.visible = false
             
-            # Style the picker font
-            picker.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+            # Click overlay to close
+            bg_overlay.gui_input.connect(func(event):
+                if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+                    hide_picker.call()
+            )
             
-            title_container.add_child(color_picker_btn)
+            custom_picker.color_changed.connect(_on_color_picked)
+            custom_picker.color_committed.connect(func(c):
+                hide_picker.call()
+            )
             
-            color_picker_btn.color_changed.connect(_on_color_picked)
-            
-            # Rewire original button to open the picker popup
+            # Rewire original button to open the custom picker
             if old_color_btn:
-                # Disconnect old signal if connected
                 if old_color_btn.pressed.is_connected(_on_color_button_pressed):
                     old_color_btn.pressed.disconnect(_on_color_button_pressed)
                 old_color_btn.pressed.connect(func():
-                    color_picker_btn.get_popup().popup_centered()
-                    Sound.play("click2")
+                    show_picker.call()
                 )
             
             # Inject Upgrade All Button
@@ -248,9 +250,11 @@ func update_color() -> void:
 
 func cycle_color() -> void:
     # Called when color button is pressed - now we open color picker instead
-    if color_picker_btn:
-        # Trigger the color picker popup
-        color_picker_btn.get_popup().popup_centered()
+    if color_picker_btn and color_picker_btn.get_parent():
+        # Trigger the color picker popup (parent is the PopupPanel)
+        var popup = color_picker_btn.get_parent()
+        if popup and popup.has_method("popup_centered"):
+            popup.popup_centered()
     else:
         # Fallback to old behavior
         color += 1

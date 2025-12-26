@@ -43,7 +43,9 @@ func spawn_and_connect(window_id: String, position: Vector2, origin_info: Dictio
         return false
     
     # Check build limits
-    if Globals.max_window_count >= Utils.MAX_WINDOW:
+    # Use custom node limit if available, otherwise fallback to vanilla check (though Globals.custom_node_limit should represent the effective limit)
+    var limit = Globals.custom_node_limit if "custom_node_limit" in Globals else Utils.MAX_WINDOW
+    if limit != -1 and Globals.max_window_count >= limit:
         Signals.notify.emit("exclamation", "build_limit_reached")
         Sound.play("error")
         spawn_failed.emit("Build limit reached")

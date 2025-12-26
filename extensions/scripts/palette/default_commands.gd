@@ -223,6 +223,198 @@ static func register_all(registry, refs: Dictionary) -> void:
     })
     
     # ==========================================
+    # TAJ'S MOD - SETTINGS TOGGLES
+    # ==========================================
+    
+    registry.register({
+        "id": "cat_tajs_toggles",
+        "title": "Feature Toggles",
+        "category_path": ["Taj's Mod"],
+        "keywords": ["toggles", "features", "enable", "disable", "settings"],
+        "hint": "Quick toggle for mod features",
+        "icon_path": "res://textures/icons/switch.png",
+        "is_category": true,
+        "badge": "SAFE"
+    })
+    
+    # Wire Drop Node Menu toggle
+    registry.register({
+        "id": "cmd_toggle_wire_drop",
+        "title": "Wire Drop Menu",
+        "get_title": func(): return "Wire Drop Menu " + ("[ON]" if mod_config.get_value("wire_drop_menu_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["wire", "drop", "menu", "toggle", "enable", "disable"],
+        "hint": "Toggle wire drop node spawning menu",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and controller:
+                var current = mod_config.get_value("wire_drop_menu_enabled", true)
+                mod_config.set_value("wire_drop_menu_enabled", !current)
+                controller.set_wire_drop_enabled(!current)
+                if mod_main: mod_main.sync_settings_toggle("wire_drop_menu_enabled")
+                Signals.notify.emit("check", "Wire Drop Menu: " + ("ON" if !current else "OFF"))
+    })
+    
+    # Command Palette toggle
+    registry.register({
+        "id": "cmd_toggle_palette",
+        "title": "Command Palette",
+        "get_title": func(): return "Command Palette " + ("[ON]" if mod_config.get_value("command_palette_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["palette", "command", "mmb", "toggle"],
+        "hint": "Toggle command palette (MMB)",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and controller:
+                var current = mod_config.get_value("command_palette_enabled", true)
+                mod_config.set_value("command_palette_enabled", !current)
+                controller.set_palette_enabled(!current)
+                if mod_main: mod_main.sync_settings_toggle("command_palette_enabled")
+                Signals.notify.emit("check", "Command Palette: " + ("ON" if !current else "OFF"))
+    })
+    
+    # Right-click Wire Clear toggle
+    registry.register({
+        "id": "cmd_toggle_wire_clear",
+        "title": "Right-click Wire Clear",
+        "get_title": func(): return "Right-click Wire Clear " + ("[ON]" if mod_config.get_value("right_click_clear_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["wire", "clear", "right", "click", "toggle"],
+        "hint": "Toggle right-click to clear wires",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main and mod_main.wire_clear_handler:
+                var current = mod_config.get_value("right_click_clear_enabled", true)
+                mod_config.set_value("right_click_clear_enabled", !current)
+                mod_main.wire_clear_handler.set_enabled(!current)
+                mod_main.sync_settings_toggle("right_click_clear_enabled")
+                Signals.notify.emit("check", "Wire Clear: " + ("ON" if !current else "OFF"))
+    })
+    
+    # Ctrl+A Select All toggle
+    registry.register({
+        "id": "cmd_toggle_select_all",
+        "title": "Ctrl+A Select All",
+        "get_title": func(): return "Ctrl+A Select All " + ("[ON]" if mod_config.get_value("select_all_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["select", "all", "ctrl", "keyboard", "toggle"],
+        "hint": "Toggle Ctrl+A select all nodes",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main:
+                var current = mod_config.get_value("select_all_enabled", true)
+                mod_config.set_value("select_all_enabled", !current)
+                Globals.select_all_enabled = !current
+                mod_main.sync_settings_toggle("select_all_enabled")
+                Signals.notify.emit("check", "Select All: " + ("ON" if !current else "OFF"))
+    })
+    
+    # Go To Group Button toggle
+    registry.register({
+        "id": "cmd_toggle_goto_group",
+        "title": "Go To Group Button",
+        "get_title": func(): return "Go To Group Button " + ("[ON]" if mod_config.get_value("goto_group_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["goto", "group", "button", "panel", "toggle"],
+        "hint": "Toggle Go To Group panel button",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main:
+                var current = mod_config.get_value("goto_group_enabled", true)
+                mod_config.set_value("goto_group_enabled", !current)
+                mod_main._set_goto_group_visible(!current)
+                mod_main.sync_settings_toggle("goto_group_enabled")
+                Signals.notify.emit("check", "Go To Group: " + ("ON" if !current else "OFF"))
+    })
+    
+    # Buy Max Button toggle
+    registry.register({
+        "id": "cmd_toggle_buy_max",
+        "title": "Buy Max Button",
+        "get_title": func(): return "Buy Max Button " + ("[ON]" if mod_config.get_value("buy_max_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["buy", "max", "button", "upgrades", "toggle"],
+        "hint": "Toggle Buy Max button in upgrades",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main:
+                var current = mod_config.get_value("buy_max_enabled", true)
+                mod_config.set_value("buy_max_enabled", !current)
+                mod_main._set_buy_max_visible(!current)
+                mod_main.sync_settings_toggle("buy_max_enabled")
+                Signals.notify.emit("check", "Buy Max: " + ("ON" if !current else "OFF"))
+    })
+    
+    # Z-Order Fix toggle
+    registry.register({
+        "id": "cmd_toggle_z_order",
+        "title": "Group Z-Order Fix",
+        "get_title": func(): return "Group Z-Order Fix " + ("[ON]" if mod_config.get_value("z_order_fix_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["z", "order", "group", "layer", "toggle"],
+        "hint": "Toggle z-order fix for nested groups",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main and mod_main.node_group_z_fix:
+                var current = mod_config.get_value("z_order_fix_enabled", true)
+                mod_config.set_value("z_order_fix_enabled", !current)
+                mod_main.node_group_z_fix.set_enabled(!current)
+                mod_main.sync_settings_toggle("z_order_fix_enabled")
+                Signals.notify.emit("check", "Z-Order Fix: " + ("ON" if !current else "OFF"))
+    })
+    
+    # 6-Input Containers toggle (requires restart)
+    registry.register({
+        "id": "cmd_toggle_six_inputs",
+        "title": "6-Input Containers ⟳",
+        "get_title": func(): return "6-Input Containers ⟳ " + ("[ON]" if mod_config.get_value("six_input_containers", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["six", "6", "input", "container", "toggle"],
+        "hint": "Toggle 6-input containers (requires restart)",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main:
+                var current = mod_config.get_value("six_input_containers", true)
+                mod_config.set_value("six_input_containers", !current)
+                mod_main.sync_settings_toggle("six_input_containers")
+                Signals.notify.emit("exclamation", "6-Input: " + ("ON" if !current else "OFF") + " (restart required)")
+    })
+    
+    # Mute on Focus Loss toggle
+    registry.register({
+        "id": "cmd_toggle_focus_mute",
+        "title": "Mute on Focus Loss",
+        "get_title": func(): return "Mute on Focus Loss " + ("[ON]" if mod_config.get_value("mute_on_focus_loss", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["mute", "focus", "background", "audio", "toggle"],
+        "hint": "Toggle mute when game loses focus",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main and mod_main.focus_handler:
+                var current = mod_config.get_value("mute_on_focus_loss", true)
+                mod_main.focus_handler.set_enabled(!current)
+                mod_main.sync_settings_toggle("mute_on_focus_loss")
+                Signals.notify.emit("check", "Focus Mute: " + ("ON" if !current else "OFF"))
+    })
+    
+    # Custom Boot Screen toggle
+    registry.register({
+        "id": "cmd_toggle_boot_screen",
+        "title": "Custom Boot Screen ⟳",
+        "get_title": func(): return "Custom Boot Screen ⟳ " + ("[ON]" if mod_config.get_value("custom_boot_screen", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["boot", "screen", "splash", "startup", "toggle"],
+        "hint": "Toggle custom boot screen (restart to see)",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main:
+                var current = mod_config.get_value("custom_boot_screen", true)
+                mod_config.set_value("custom_boot_screen", !current)
+                mod_main.sync_settings_toggle("custom_boot_screen")
+                Signals.notify.emit("check", "Boot Screen: " + ("ON" if !current else "OFF") + " (restart to see)")
+    })
+    
+    # ==========================================
     # TAJ'S MOD - VISUALS
     # ==========================================
     

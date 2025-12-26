@@ -79,6 +79,11 @@ func setup(reg, ctx, config) -> void:
 
 
 func _build_ui() -> void:
+	# Load game's main theme for consistent styling
+	var game_theme: Theme = null
+	if ResourceLoader.exists("res://themes/main.tres"):
+		game_theme = load("res://themes/main.tres")
+	
 	# Background dim
 	background = ColorRect.new()
 	background.name = "Background"
@@ -97,6 +102,10 @@ func _build_ui() -> void:
 	panel.offset_right = PANEL_WIDTH / 2
 	panel.offset_top = - PANEL_HEIGHT / 2
 	panel.offset_bottom = PANEL_HEIGHT / 2
+	
+	# Apply game theme for fonts
+	if game_theme:
+		panel.theme = game_theme
 	
 	# Apply styling
 	var style = StyleBoxFlat.new()
@@ -526,9 +535,13 @@ func _create_result_row(item: Dictionary, index: int) -> Control:
 		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		hbox.add_child(icon)
 	
-	# Title
+	# Title - support dynamic titles via get_title callable
 	var title = Label.new()
-	title.text = item.get("title", "Unknown")
+	var title_func = item.get("get_title", Callable())
+	if title_func.is_valid():
+		title.text = title_func.call()
+	else:
+		title.text = item.get("title", "Unknown")
 	title.add_theme_font_size_override("font_size", 18)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(title)

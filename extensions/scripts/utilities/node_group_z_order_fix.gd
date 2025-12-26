@@ -37,6 +37,15 @@ var _rect_hashes: Dictionary = {} # group instance_id -> rect hash for change de
 var _update_pending: bool = false
 var _debounce_timer: Timer = null
 var _initialized: bool = false
+var _enabled: bool = true # Can be toggled via settings
+
+
+## Enable or disable the z-order fix
+func set_enabled(enabled: bool) -> void:
+	_enabled = enabled
+	if enabled and _initialized:
+		# Re-apply fix when re-enabled
+		_fix_containment_order()
 
 
 func _ready() -> void:
@@ -213,6 +222,9 @@ func _rect_fully_contains(outer: Rect2, inner: Rect2) -> bool:
 ## Fix sibling order only for groups with containment relationships
 ## If A fully contains B, then B must be drawn AFTER A (higher child index)
 func _fix_containment_order() -> void:
+	if not _enabled:
+		return
+	
 	# Get valid groups with same parent
 	var groups_by_parent: Dictionary = {} # parent -> [group, ...]
 	

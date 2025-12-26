@@ -11,9 +11,26 @@ const CONFIG_PATH = "user://tajs_mod_config.json"
 
 const DEFAULT_CONFIG := {
 	# General tab
-	"enable_features": true,
 	"node_limit": 400,
 	"screenshot_quality": 2,
+	# Input/Keyboard Features
+	"select_all_enabled": true, # Ctrl+A select all nodes
+	"command_palette_enabled": true, # Middle mouse button palette
+	# Wire Drop Menu
+	"wire_drop_menu_enabled": true,
+	# Right-click wire clear
+	"right_click_clear_enabled": true,
+	# UI Features
+	"goto_group_enabled": true, # Go To Group panel button
+	"buy_max_enabled": true, # Buy Max button in upgrades
+	"z_order_fix_enabled": true, # Node group z-order fix
+	# Focus mute (Issue #11)
+	"mute_on_focus_loss": true,
+	"background_volume": 0.0, # 0-100%, 0 = mute
+	# Drag dead zone (Issue #13)
+	"drag_dead_zone": 5, # pixels
+	# 6-input containers (Issue #18)
+	"six_input_containers": true,
 	# Visuals tab
 	"extra_glow": false,
 	"glow_intensity": 2.0,
@@ -23,17 +40,6 @@ const DEFAULT_CONFIG := {
 	"ui_opacity": 100.0,
 	# Palette tab
 	"palette_tools_enabled": false,
-	# Wire Drop Menu
-	"wire_drop_menu_enabled": true,
-	# Right-click wire clear
-	"right_click_clear_enabled": true,
-	# Focus mute (Issue #11)
-	"mute_on_focus_loss": true,
-	"background_volume": 0.0, # 0-100%, 0 = mute
-	# Drag dead zone (Issue #13)
-	"drag_dead_zone": 5, # pixels
-	# 6-input containers (Issue #18)
-	"six_input_containers": true,
 	# Debug tab
 	"custom_boot_screen": true,
 }

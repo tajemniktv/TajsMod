@@ -51,6 +51,7 @@ func register(data: Dictionary) -> void:
 	var command = {
 		"id": id,
 		"title": data.get("title", ""),
+		"get_title": data.get("get_title", Callable()), # Dynamic title function
 		"category_path": data.get("category_path", []),
 		"keywords": data.get("keywords", []),
 		"hint": data.get("hint", ""),

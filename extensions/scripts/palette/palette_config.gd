@@ -7,7 +7,6 @@ class_name TajsModPaletteConfig
 extends RefCounted
 
 const LOG_NAME = "TajsModded:PaletteConfig"
-const CONFIG_PATH = "user://tajs_mod_palette.json"
 
 const DEFAULT_CONFIG := {
 	"hotkey": "middle_mouse",
@@ -18,41 +17,55 @@ const DEFAULT_CONFIG := {
 }
 
 var _config: Dictionary = {}
+var _mod_config # TajsModConfigManager reference
 
 
 func _init() -> void:
 	_config = DEFAULT_CONFIG.duplicate(true)
+
+func setup(mod_config_ref) -> void:
+	_mod_config = mod_config_ref
 	load_config()
 
 
 func load_config() -> void:
-	if not FileAccess.file_exists(CONFIG_PATH):
+	if not _mod_config: return
+	
+	var palette_data = _mod_config.get_value("palette", {})
+	
+	# Migration check: if no palette data in main config, try load from old file
+	if palette_data.is_empty() and FileAccess.file_exists("user://tajs_mod_palette.json"):
+		var file = FileAccess.open("user://tajs_mod_palette.json", FileAccess.READ)
+		if file:
+			var json = JSON.new()
+			if json.parse(file.get_as_text()) == OK:
+				var data = json.get_data()
+				if data is Dictionary:
+					palette_data = data
+					ModLoaderLog.info("Migrated old palette config to main config", LOG_NAME)
+			file.close()
+			
+			# Ensure we save the migrated data to main config immediately
+			if not palette_data.is_empty():
+				_mod_config.set_value("palette", palette_data)
+				# Optional: Rename old file to .bak to avoid re-migration/confusion
+				# DirAccess.rename_absolute("user://tajs_mod_palette.json", "user://tajs_mod_palette.json.bak")
+	
+	if palette_data is Dictionary and not palette_data.is_empty():
+		# Merge with defaults
+		for key in DEFAULT_CONFIG:
+			if palette_data.has(key):
+				_config[key] = palette_data[key]
+			else:
+				_config[key] = DEFAULT_CONFIG[key]
+	else:
+		# Save defaults if empty
 		save_config()
-		return
-	
-	var file := FileAccess.open(CONFIG_PATH, FileAccess.READ)
-	if not file:
-		ModLoaderLog.error("Failed to open palette config", LOG_NAME)
-		return
-	
-	var json := JSON.new()
-	if json.parse(file.get_as_text()) == OK:
-		var data = json.get_data()
-		if data is Dictionary:
-			# Merge with defaults
-			for key in DEFAULT_CONFIG:
-				if data.has(key):
-					_config[key] = data[key]
-				else:
-					_config[key] = DEFAULT_CONFIG[key]
-	file.close()
 
 
 func save_config() -> void:
-	var file := FileAccess.open(CONFIG_PATH, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(_config, "\t"))
-		file.close()
+	if _mod_config:
+		_mod_config.set_value("palette", _config)
 
 
 ## Get a config value
