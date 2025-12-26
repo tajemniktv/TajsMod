@@ -51,9 +51,9 @@ jobs:
             echo "Release exists: $TAG -> upload (clobber)"
             gh release upload "$TAG" "${ZIP}#${ASSET_LABEL}" --clobber
           else
-            echo "Creating draft release: $TAG"
+            echo "Creating pre-release: $TAG"
             gh release create "$TAG" "${ZIP}#${ASSET_LABEL}" \
-              --draft \
+              --prerelease \
               --title "${MOD_ID} v${VER}" \
-              --notes "Auto draft z commita ${GITHUB_SHA}"
+              --notes "Auto pre-release from commit ${GITHUB_SHA}"
           fi
