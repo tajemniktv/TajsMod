@@ -2,31 +2,49 @@ name: Issue Triage
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, edited, reopened]
 
 permissions:
   issues: write
-  contents: read
 
 jobs:
-  label_by_category:
+  triage:
     runs-on: ubuntu-latest
     steps:
-      - name: Add labels based on Issue Form fields
+      - name: Label issues based on Issue Form fields
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const action = context.payload.action;
             const body = context.payload.issue.body || "";
-            function getField(label) {
-              const re = new RegExp(`###\s+${label}\s*\n+([\s\S]*?)(?=\n###\s+|$)`, "i");
+
+            const escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+            function getSection(label) {
+              const re = new RegExp(`###\\s+${escapeRegExp(label)}\\s*\\n+([\\s\\S]*?)(?=\\n###\\s+|$)`, "i");
               const m = body.match(re);
-              if (!m) return "";
-              return m[1].trim().split("\n")[0].trim();
+              return m ? m[1].trim() : "";
             }
-            const category = getField("Category");
-            const labels = new Set(["needs-triage"]);
-            const map = {
+
+            function getSingleLine(label) {
+              const section = getSection(label);
+              if (!section) return "";
+              return section.split("\n").map(l => l.trim()).find(Boolean) || "";
+            }
+
+            function getCheckedOptions(label) {
+              const section = getSection(label);
+              if (!section) return [];
+              return section
+                .split("\n")
+                .map(l => l.trim())
+                .filter(l => /^-\s*\[[xX]\]\s+/.test(l))
+                .map(l => l.replace(/^-\s*\[[xX]\]\s+/, "").trim());
+            }
+
+            // ----- Maps -----
+            const categoryMap = {
               "Visual / UI": ["ui"],
               "QoL / Utility": ["qol"],
               "Performance": ["performance"],
@@ -35,26 +53,91 @@ jobs:
               "Modding / API / Integration": ["modding"],
               "Other": []
             };
-            if (map[category]) {
-              map[category].forEach(l => labels.add(l));
+
+            const scopeMap = {
+              "Small (tweak / small option)": ["scope:small"],
+              "Medium (new setting / moderate logic)": ["scope:medium"],
+              "Large (multi-part feature; needs planning)": ["scope:large"],
+              "Not sure": []
+            };
+
+            const constraintsMap = {
+              "Could impact performance (CPU/GPU/memory)": ["impact:performance"],
+              "Could conflict with other mods": ["impact:conflicts"],
+              "Needs a keybind / input mapping": ["needs:keybind"],
+              "Should be opt-in (default off)": ["opt-in"],
+              "Might affect multiplayer / co-op behavior": ["multiplayer"],
+              "Might need localization / translations": ["i18n"]
+            };
+
+            const bugFrequencyMap = {
+              "Every time": ["repro:always"],
+              "Often ( > 50% )": ["repro:intermittent"],
+              "Sometimes": ["repro:intermittent"],
+              "Rarely": ["repro:intermittent"],
+              "Once": ["repro:intermittent"]
+            };
+
+            // Labels, które workflow ma prawo "nadpisywać"
+            const managed = new Set([
+              "needs-triage",
+              ...Object.values(categoryMap).flat(),
+              ...Object.values(scopeMap).flat(),
+              ...Object.values(constraintsMap).flat(),
+              ...Object.values(bugFrequencyMap).flat(),
+              "regression",
+              "crash"
+            ]);
+
+            // ----- Desired labels -----
+            const desired = new Set();
+
+            // needs-triage tylko dla świeżych / ponownie otwartych
+            if (action === "opened" || action === "reopened") desired.add("needs-triage");
+
+            // Category (bug + feature)
+            const category = getSingleLine("Category");
+            if (categoryMap[category]) categoryMap[category].forEach(l => desired.add(l));
+
+            // Feature-only fields
+            const scope = getSingleLine("How big is this?");
+            if (scopeMap[scope]) scopeMap[scope].forEach(l => desired.add(l));
+
+            const constraintsChecked = getCheckedOptions("Considerations (check all that apply)");
+            for (const opt of constraintsChecked) {
+              const ls = constraintsMap[opt];
+              if (ls) ls.forEach(l => desired.add(l));
             }
-            const text = body.toLowerCase();
-            if (text.includes("translation") || text.includes("localization") || text.includes("i18n")) {
-              labels.add("i18n");
-            }
-            await github.rest.issues.addLabels({
+
+            // Bug-only fields
+            const freq = getSingleLine("How often does it occur?");
+            if (bugFrequencyMap[freq]) bugFrequencyMap[freq].forEach(l => desired.add(l));
+
+            const regression = getSingleLine("Did this work in an older version?");
+            if (regression === "Yes") desired.add("regression");
+
+            // Global keyword tags
+            const lower = body.toLowerCase();
+            if (lower.includes("crash") || lower.includes("crashed") || lower.includes("fatal")) desired.add("crash");
+            if (lower.includes("translation") || lower.includes("localization") || lower.includes("i18n")) desired.add("i18n");
+
+            // ----- Apply labels (replace managed, keep others) -----
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const existing = issue.labels.map(l => (typeof l === "string" ? l : l.name));
+
+            // zostaw labelki spoza "managed" (np. bug/enhancement, ręczne itp.)
+            const kept = existing.filter(l => !managed.has(l));
+
+            const finalLabels = Array.from(new Set([...kept, ...desired]));
+
+            await github.rest.issues.setLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              labels: Array.from(labels),
+              labels: finalLabels
             });
-
-  add_to_project:
-    runs-on: ubuntu-latest
-    needs: label_by_category
-    steps:
-      - name: Add issue to project board
-        uses: actions/add-to-project@v1.0.2
-        with:
-          project-url: https://github.com/users/tajemniktv/projects/4
-          github-token: ${{ secrets.PROJECT_TOKEN }}
