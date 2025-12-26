@@ -35,6 +35,7 @@ const DEFAULT_CONFIG := {
 	# 6-input containers (Issue #18)
 	"six_input_containers": true,
 	# Debug tab
+	"custom_boot_screen": true,
 }
 
 var _config: Dictionary = {}

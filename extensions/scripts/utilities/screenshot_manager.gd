@@ -13,8 +13,7 @@ const LOG_NAME = "TajsModded:Screenshot"
 
 # Quality settings
 var quality: int = 2 # 0=Low, 1=Med, 2=High, 3=Original
-var capture_delay: int = 3 # Frames to wait per tile (increase for large boards with 450+ nodes)
-var debug_mode: bool = false
+const CAPTURE_DELAY: int = 5 # Frames to wait per tile for proper rendering
 var screenshot_folder: String = "user://screenshots" # Configurable folder
 
 # References
@@ -86,10 +85,17 @@ func take_screenshot() -> void:
     _log("Bounds: " + str(bounds.size))
     
     # Quality settings: determines the capture zoom level and format
-    # Grid hides at zoom <= 0.3, so minimum is 0.35 for grid visibility
-    # Low=JPG 0.35x, Med=JPG 0.6x, High=PNG 0.8x, Original=PNG 1.5x
-    var capture_zoom = [0.35, 0.6, 0.8, 1.5][quality]
+    # Low=JPG 0.5x, Med=JPG 0.6x, High=PNG 0.8x, Original=PNG 1.5x
+    var capture_zoom = [0.5, 0.6, 0.8, 1.5][quality]
     var use_jpg = quality < 2 # Low and Med use JPG
+    
+    # === DISABLE ALL INPUT AT VIEWPORT LEVEL ===
+    # This is the way to prevent any input from affecting the capture
+    var viewport = _tree.root.get_viewport()
+    viewport.set_disable_input(true)
+    
+    # Show capturing notification (must be before we block everything)
+    Signals.notify.emit("check", "Capturing screenshot... please wait")
     
     # Hide HUD
     var hud = _tree.root.get_node_or_null("Main/HUD")
@@ -104,18 +110,48 @@ func take_screenshot() -> void:
     
     # Get the main camera and save its state
     var main_camera = _tree.root.get_node_or_null("Main/Main2D/Camera2D")
-    var saved_cam_pos = Vector2.ZERO
-    var saved_cam_zoom = Vector2.ONE
-    
     if !main_camera:
         _log("ERROR: Camera not found!", true)
         Signals.notify.emit("exclamation", "Camera not found")
+        viewport.set_disable_input(false) # Re-enable input before returning
         return
     
-    saved_cam_pos = main_camera.position
-    saved_cam_zoom = main_camera.zoom
+    var saved_cam_pos = main_camera.position
+    var saved_cam_zoom = main_camera.zoom
+    var saved_target_zoom = main_camera.get("target_zoom") if main_camera.get("target_zoom") else saved_cam_zoom
+    var saved_zooming = main_camera.get("zooming") if main_camera.get("zooming") != null else false
     
-    var viewport = _tree.root.get_viewport()
+    # CRITICAL: Block ALL signals on the camera - this prevents scroll wheel input
+    # Signals like movement_input, joystick_input connect to input handlers
+    main_camera.set_block_signals(true)
+    
+    # Also disable all processing methods
+    main_camera.set_process(false)
+    main_camera.set_physics_process(false)
+    main_camera.set_process_input(false)
+    main_camera.set_process_unhandled_input(false)
+    main_camera.set_process_unhandled_key_input(false)
+    main_camera.set_process_shortcut_input(false)
+    
+    # Find and disable the dragger GUI element that handles scroll wheel
+    var dragger = _tree.root.get_node_or_null("Main/Main2D/Dragger")
+    var saved_dragger_mouse_filter = Control.MOUSE_FILTER_PASS
+    if dragger and dragger is Control:
+        saved_dragger_mouse_filter = dragger.mouse_filter
+        dragger.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    
+    # Disable the zooming animation state
+    if main_camera.get("zooming") != null:
+        main_camera.set("zooming", false)
+    
+    # Force background grid (Lines) to be visible during capture
+    # Grid normally hides at low zoom levels, but we want it in all screenshots
+    var lines_node = desktop.get_node_or_null("Lines")
+    var saved_lines_visible = true
+    if lines_node:
+        saved_lines_visible = lines_node.visible
+        lines_node.visible = true
+    
     var viewport_size = viewport.size
     
     # Calculate initial tile size in world coordinates
@@ -151,9 +187,6 @@ func take_screenshot() -> void:
     var final_image = Image.create(final_width, final_height, false, Image.FORMAT_RGBA8)
     final_image.fill(Color(0.12, 0.14, 0.18, 1.0)) # Dark blue background
     
-    # Set camera zoom
-    main_camera.zoom = Vector2(capture_zoom, capture_zoom)
-    
     # Capture each tile
     for ty in range(tiles_y):
         for tx in range(tiles_x):
@@ -162,21 +195,36 @@ func take_screenshot() -> void:
                 bounds.position.x + (tx + 0.5) * tile_world_size.x,
                 bounds.position.y + (ty + 0.5) * tile_world_size.y
             )
-            main_camera.position = tile_center
             
-            # Wait for render - configurable delay for large boards with many nodes
-            # Users with 450+ nodes may need capture_delay of 6-10 frames
-            var frames_to_wait = capture_delay
+            # Set camera position and zoom
+            main_camera.position = tile_center
+            main_camera.zoom = Vector2(capture_zoom, capture_zoom)
+            if main_camera.get("target_zoom") != null:
+                main_camera.set("target_zoom", Vector2(capture_zoom, capture_zoom))
+            
+            # Wait for render
+            var frames_to_wait = CAPTURE_DELAY
             if tx == 0 and ty == 0:
                 # Extra frames for first tile (visibility culling needs time to initialize)
-                frames_to_wait += 3
+                frames_to_wait += 5
             
             for _frame in range(frames_to_wait):
+                # Keep camera locked during wait
+                main_camera.position = tile_center
+                main_camera.zoom = Vector2(capture_zoom, capture_zoom)
                 await _tree.process_frame
+            
+            # Force render sync and wait one more frame
+            RenderingServer.force_sync()
+            await _tree.process_frame
+            
+            # Final camera lock before capture
+            main_camera.position = tile_center
+            main_camera.zoom = Vector2(capture_zoom, capture_zoom)
             
             # Capture
             var tile_image = viewport.get_texture().get_image()
-            tile_image.convert(Image.FORMAT_RGBA8) # Match format with final_image
+            tile_image.convert(Image.FORMAT_RGBA8)
             
             # Paste into final image
             var paste_x = tx * int(viewport_size.x)
@@ -196,9 +244,36 @@ func take_screenshot() -> void:
     else:
         _log("Final image: " + str(final_width) + "x" + str(final_height))
     
-    # Restore camera
+    # === RESTORE ORIGINAL STATE ===
+    # Re-enable viewport input
+    viewport.set_disable_input(false)
+    
+    # Unblock signals on camera
+    main_camera.set_block_signals(false)
+    
+    # Re-enable camera processing
+    main_camera.set_process(true)
+    main_camera.set_physics_process(true)
+    main_camera.set_process_input(true)
+    main_camera.set_process_unhandled_input(true)
+    main_camera.set_process_unhandled_key_input(true)
+    main_camera.set_process_shortcut_input(true)
+    
+    # Restore dragger mouse filter
+    if dragger and dragger is Control:
+        dragger.mouse_filter = saved_dragger_mouse_filter
+    
+    # Restore camera position/zoom
     main_camera.position = saved_cam_pos
     main_camera.zoom = saved_cam_zoom
+    if main_camera.get("target_zoom") != null:
+        main_camera.set("target_zoom", saved_target_zoom)
+    if main_camera.get("zooming") != null:
+        main_camera.set("zooming", saved_zooming)
+    
+    # Restore grid visibility
+    if lines_node:
+        lines_node.visible = saved_lines_visible
     
     # Restore HUD
     if hud:
@@ -212,7 +287,9 @@ func take_screenshot() -> void:
     DirAccess.make_dir_recursive_absolute(screenshot_folder)
     
     if use_jpg:
-        final_image.save_jpg(path, 0.85) # 85% quality for good compression
+        # Low=80% quality, Medium=90% quality for good size/quality balance
+        var jpg_quality = 0.80 if quality == 0 else 0.90
+        final_image.save_jpg(path, jpg_quality)
     else:
         final_image.save_png(path)
     
@@ -258,47 +335,6 @@ func add_screenshot_section(parent: Control, ui_builder, config_manager) -> void
         
         btn_row.add_child(btn)
         quality_buttons.append(btn)
-    
-    # Capture Delay slider (for large boards with many nodes)
-    var delay_section = VBoxContainer.new()
-    delay_section.add_theme_constant_override("separation", 5)
-    container.add_child(delay_section)
-    
-    var delay_label_row = HBoxContainer.new()
-    delay_section.add_child(delay_label_row)
-    
-    var delay_label = Label.new()
-    delay_label.text = "Capture Delay"
-    delay_label.add_theme_font_size_override("font_size", 22)
-    delay_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    delay_label_row.add_child(delay_label)
-    
-    var delay_value_label = Label.new()
-    delay_value_label.text = str(capture_delay) + " frames"
-    delay_value_label.add_theme_font_size_override("font_size", 18)
-    delay_value_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-    delay_label_row.add_child(delay_value_label)
-    
-    var delay_slider = HSlider.new()
-    delay_slider.min_value = 2
-    delay_slider.max_value = 15
-    delay_slider.step = 1
-    delay_slider.value = capture_delay
-    delay_slider.custom_minimum_size = Vector2(0, 30)
-    delay_section.add_child(delay_slider)
-    
-    var delay_hint = Label.new()
-    delay_hint.text = "Increase if nodes get cut off (450+ nodes need 6-10)"
-    delay_hint.add_theme_font_size_override("font_size", 12)
-    delay_hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-    delay_section.add_child(delay_hint)
-    
-    var self_ref_delay = self
-    delay_slider.value_changed.connect(func(val: float):
-        self_ref_delay.capture_delay = int(val)
-        delay_value_label.text = str(int(val)) + " frames"
-        config_manager.set_value("screenshot_capture_delay", int(val))
-    )
     
     # Take Screenshot button
     var take_btn = Button.new()

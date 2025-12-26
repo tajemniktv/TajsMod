@@ -73,7 +73,6 @@ func _init() -> void:
     # Init Screenshot Manager (tree set in _ready)
     screenshot_manager = ScreenshotManagerScript.new()
     screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
-    screenshot_manager.capture_delay = int(config.get_value("screenshot_capture_delay", 3))
     screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
     screenshot_manager.set_config(config)
     
@@ -126,10 +125,11 @@ func _process(delta: float) -> void:
     # Update UI Logic
     _update_node_label()
     
-    # Boot Screen
-    var boot = get_tree().root.get_node_or_null("Boot")
-    if is_instance_valid(boot):
-        Patcher.patch_boot_screen(boot, mod_version, mod_dir_path.path_join("icon.png"))
+    # Boot Screen (only patch if custom boot screen is enabled)
+    if config.get_value("custom_boot_screen", true):
+        var boot = get_tree().root.get_node_or_null("Boot")
+        if is_instance_valid(boot):
+            Patcher.patch_boot_screen(boot, mod_version, mod_dir_path.path_join("icon.png"))
 
 func _input(event: InputEvent) -> void:
     # UI Close Logic
@@ -392,13 +392,17 @@ func _build_settings_menu() -> void:
         # Apply defaults immediately
         Globals.custom_node_limit = config.get_value("node_limit")
         screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
-        screenshot_manager.capture_delay = int(config.get_value("screenshot_capture_delay", 3))
         screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
         wire_colors.set_enabled(config.get_value("custom_wire_colors", true))
         _apply_extra_glow(config.get_value("extra_glow"))
         _apply_ui_opacity(config.get_value("ui_opacity"))
         _add_debug_log("Settings reset to defaults")
         Signals.notify.emit("check", "Settings reset!")
+    )
+    
+    # Custom Boot Screen toggle
+    ui.add_toggle(debug_vbox, "Custom Boot Screen ⟳", config.get_value("custom_boot_screen", true), func(v):
+        config.set_value("custom_boot_screen", v)
     )
     
     # Debug mode toggle
