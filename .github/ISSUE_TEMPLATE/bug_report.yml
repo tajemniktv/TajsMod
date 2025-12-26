@@ -40,6 +40,22 @@ body:
     validations:
       required: true
 
+  # ——— Bug Category ———
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Visual / UI
+        - QoL / Utility
+        - Performance
+        - Accessibility
+        - Gameplay (opt-in)
+        - Modding / API / Integration
+        - Other
+    validations:
+      required: true
+
   # ——— Bug description ———
   - type: markdown
     attributes:
