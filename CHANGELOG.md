@@ -4,9 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.0.20] - 2025-12-TBD
+## [0.21.0] - 2025-12-TBD
 
-- TBD
+### Added
+
+- X
+
+### Fixed
+
+- X
+
+## [0.20.0] - 2025-12-27
+
+### Added
+
+- **Buy Max** — Added a button to purchase maximum affordable levels for upgrades
+- **Boot Screen** — Added option to toggle custom boot screen in Debug settings
+
+### Fixed
+
+- **Command Palette** — Fixed `Ctrl+A` in search bar selecting game nodes instead of text
+- **Wire Drop** — Fixed custom node limit not being enforced when dropping wires
+- **Markdown Tables** — Fixed styling compliance for documentation tables
 
 ## [0.0.19] - 2025-12-26
 
