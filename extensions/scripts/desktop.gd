@@ -64,9 +64,14 @@ func _input(event: InputEvent) -> void:
     # Call parent to preserve CTRL+C/CTRL+V functionality
     super._input(event)
     
-    # Ctrl+A to select all nodes (only if enabled)
+    # Ctrl+A to select all nodes (only if enabled and no text field is focused)
     if event is InputEventKey and event.pressed:
         if event.keycode == KEY_A and event.ctrl_pressed:
+            # Skip if a text input field has focus (e.g., palette search)
+            var focused = get_viewport().gui_get_focus_owner()
+            if focused is LineEdit or focused is TextEdit:
+                return # Let the text field handle Ctrl+A
+            
             if Globals.select_all_enabled:
                 _select_all_nodes()
                 get_viewport().set_input_as_handled()

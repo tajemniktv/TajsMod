@@ -53,6 +53,8 @@ const COLOR_HOVER = Color(0.15, 0.25, 0.35, 0.5)
 const COLOR_BADGE_SAFE = Color(0.3, 0.7, 0.4)
 const COLOR_BADGE_OPTIN = Color(0.85, 0.65, 0.2)
 const COLOR_BADGE_GAMEPLAY = Color(0.8, 0.3, 0.3)
+const COLOR_TEXT_SHADOW = Color(0, 0, 0, 0.8)
+const COLOR_TEXT_GLOW = Color(0.4, 0.65, 1.0, 0.5)
 
 signal command_executed(command_id: String)
 signal node_selected(window_id: String, spawn_pos: Vector2, origin_info: Dictionary)
@@ -77,6 +79,13 @@ func setup(reg, ctx, config) -> void:
 	context = ctx
 	palette_config = config
 
+
+## Apply glow styling to a label for a polished look
+func _apply_text_style(label: Label, use_glow: bool = true) -> void:
+	# Glow effect via outline
+	if use_glow:
+		label.add_theme_constant_override("outline_size", 5)
+		label.add_theme_color_override("font_outline_color", COLOR_TEXT_GLOW)
 
 func _build_ui() -> void:
 	# Load game's main theme for consistent styling
@@ -544,6 +553,7 @@ func _create_result_row(item: Dictionary, index: int) -> Control:
 		title.text = item.get("title", "Unknown")
 	title.add_theme_font_size_override("font_size", 18)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_apply_text_style(title, true)
 	hbox.add_child(title)
 	
 	# Category path (if not at home)
@@ -553,6 +563,7 @@ func _create_result_row(item: Dictionary, index: int) -> Control:
 		path_label.text = " > ".join(cat_path)
 		path_label.add_theme_font_size_override("font_size", 12)
 		path_label.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7))
+		_apply_text_style(path_label, false) # Shadow only, no glow
 		hbox.add_child(path_label)
 	
 	# Category indicator
@@ -561,6 +572,7 @@ func _create_result_row(item: Dictionary, index: int) -> Control:
 		arrow.text = "→"
 		arrow.add_theme_font_size_override("font_size", 18)
 		arrow.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+		_apply_text_style(arrow, true)
 		hbox.add_child(arrow)
 	else:
 		# Badge
@@ -578,6 +590,7 @@ func _create_result_row(item: Dictionary, index: int) -> Control:
 				"GAMEPLAY":
 					badge.add_theme_color_override("font_color", COLOR_BADGE_GAMEPLAY)
 			
+			_apply_text_style(badge, false) # Shadow only
 			hbox.add_child(badge)
 	
 	return row
@@ -690,6 +703,12 @@ func _on_search_input(event: InputEvent) -> void:
 		KEY_F:
 			if event.ctrl_pressed:
 				_toggle_favorite_selected()
+				get_viewport().set_input_as_handled()
+		
+		KEY_A:
+			if event.ctrl_pressed:
+				# Select all text in search field (not nodes on desktop)
+				search_input.select_all()
 				get_viewport().set_input_as_handled()
 
 
