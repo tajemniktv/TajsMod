@@ -2,7 +2,7 @@
 
 > **Very WIP** – A growing collection of **Utility / QoL + Visual Tweaks** for [Upload Labs](https://store.steampowered.com/app/2881650/Upload_Labs/), without overhauling the core gameplay loop.
 
-![Mod Icon](icon.png)
+![Mod Icon](TajsModHeader.png)
 
 ---
 
