@@ -13,6 +13,7 @@ const DEFAULT_CONFIG := {
 	# General tab
 	"node_limit": 400,
 	"screenshot_quality": 2,
+	"screenshot_watermark": true, # Taj's Mod watermark on screenshots
 	# Input/Keyboard Features
 	"select_all_enabled": true, # Ctrl+A select all nodes
 	"command_palette_enabled": true, # Middle mouse button palette

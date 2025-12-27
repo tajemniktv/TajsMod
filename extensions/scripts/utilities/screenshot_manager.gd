@@ -16,6 +16,10 @@ var quality: int = 2 # 0=Low, 1=Med, 2=High, 3=Original
 const CAPTURE_DELAY: int = 5 # Frames to wait per tile for proper rendering
 var screenshot_folder: String = "user://screenshots" # Configurable folder
 
+# Watermark settings
+var watermark_enabled: bool = true
+const WATERMARK_PATH = "res://mods-unpacked/TajemnikTV-TajsModded/TajsModHeader.png"
+
 # References
 var _tree: SceneTree
 var _ui # SettingsUI reference for hiding during capture
@@ -244,6 +248,44 @@ func take_screenshot() -> void:
     else:
         _log("Final image: " + str(final_width) + "x" + str(final_height))
     
+    # === APPLY WATERMARK ===
+    if watermark_enabled:
+        var watermark_texture = load(WATERMARK_PATH) as Texture2D
+        if watermark_texture:
+            var watermark_image = watermark_texture.get_image()
+            watermark_image.convert(Image.FORMAT_RGBA8)
+            
+            # Scale watermark based on image size (aim for ~10% of image width)
+            var target_watermark_width = int(final_width * 0.15)
+            var scale_factor = float(target_watermark_width) / watermark_image.get_width()
+            var scaled_width = int(watermark_image.get_width() * scale_factor)
+            var scaled_height = int(watermark_image.get_height() * scale_factor)
+            
+            # Ensure minimum size for visibility
+            if scaled_width < 100:
+                scaled_width = 100
+                scaled_height = int(watermark_image.get_height() * (100.0 / watermark_image.get_width()))
+            
+            watermark_image.resize(scaled_width, scaled_height, Image.INTERPOLATE_LANCZOS)
+            
+            # Apply 50% opacity to watermark
+            for y in range(scaled_height):
+                for x in range(scaled_width):
+                    var pixel = watermark_image.get_pixel(x, y)
+                    pixel.a *= 0.5
+                    watermark_image.set_pixel(x, y, pixel)
+            
+            # Position in bottom-right corner with padding
+            var padding = int(final_width * 0.02) # 2% padding
+            var paste_x = final_width - scaled_width - padding
+            var paste_y = final_height - scaled_height - padding
+            
+            # Blend watermark onto final image (respects alpha)
+            final_image.blend_rect(watermark_image, Rect2i(0, 0, scaled_width, scaled_height), Vector2i(paste_x, paste_y))
+            _log("Watermark applied at " + str(paste_x) + "," + str(paste_y))
+        else:
+            _log("WARNING: Could not load watermark image", true)
+    
     # === RESTORE ORIGINAL STATE ===
     # Re-enable viewport input
     viewport.set_disable_input(false)
@@ -335,6 +377,26 @@ func add_screenshot_section(parent: Control, ui_builder, config_manager) -> void
         
         btn_row.add_child(btn)
         quality_buttons.append(btn)
+    
+    # Watermark toggle
+    var watermark_row = HBoxContainer.new()
+    watermark_row.add_theme_constant_override("separation", 10)
+    container.add_child(watermark_row)
+    
+    var watermark_label = Label.new()
+    watermark_label.text = "Add Watermark"
+    watermark_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    watermark_row.add_child(watermark_label)
+    
+    var watermark_toggle = CheckButton.new()
+    watermark_toggle.button_pressed = watermark_enabled
+    watermark_toggle.tooltip_text = "Add Taj's Mod branding to screenshots"
+    var self_ref_watermark = self
+    watermark_toggle.toggled.connect(func(pressed: bool):
+        self_ref_watermark.watermark_enabled = pressed
+        config_manager.set_value("screenshot_watermark", pressed)
+    )
+    watermark_row.add_child(watermark_toggle)
     
     # Take Screenshot button
     var take_btn = Button.new()

@@ -81,6 +81,7 @@ func _init() -> void:
     screenshot_manager = ScreenshotManagerScript.new()
     screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
     screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
+    screenshot_manager.watermark_enabled = config.get_value("screenshot_watermark", true)
     screenshot_manager.set_config(config)
     
     # Init Palette Controller
@@ -491,6 +492,7 @@ func _build_settings_menu() -> void:
         Globals.custom_node_limit = config.get_value("node_limit")
         screenshot_manager.quality = int(config.get_value("screenshot_quality", 2))
         screenshot_manager.screenshot_folder = config.get_value("screenshot_folder", "user://screenshots")
+        screenshot_manager.watermark_enabled = config.get_value("screenshot_watermark", true)
         wire_colors.set_enabled(config.get_value("custom_wire_colors", true))
         _apply_extra_glow(config.get_value("extra_glow"))
         _apply_ui_opacity(config.get_value("ui_opacity"))
