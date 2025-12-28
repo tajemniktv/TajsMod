@@ -4,7 +4,25 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.22.0] - 2025-12-27
+## [0.23.0] - 2025-12-TBD
+
+### Added
+
+-
+
+### Changed
+
+-
+
+### Removed
+
+-
+
+### Fixed
+
+-
+
+## [0.22.0] - 2025-12-28
 
 ### Added
 
@@ -12,7 +30,6 @@ All notable changes to this project will be documented in this file.
 - **Screenshot Watermark** — Added option to add watermark to screenshots
 - **Restart Required Banner** — Added banner to notify player of restart needed changes
 - **Notification Log** — Added notification log panel
--
 
 ### Changed
 
