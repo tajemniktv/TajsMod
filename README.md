@@ -60,7 +60,7 @@ If something feels missing, annoying, or you want a specific option/toggle — l
 ## Installation
 
 ### Steam Workshop (Recommended)
-1. [Subscribe on the Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=YOUR_WORKSHOP_ID)
+1. [Subscribe on the Workshop](https://steamcommunity.com/sharedfiles/filedetails/?id=3628222709)
 2. Launch the game — the mod will load automatically
 
 ### Manual Installation
