@@ -25,6 +25,7 @@ const DEFAULT_CONFIG := {
 	"goto_group_enabled": true, # Go To Group panel button
 	"buy_max_enabled": true, # Buy Max button in upgrades
 	"z_order_fix_enabled": true, # Node group z-order fix
+	"disable_slider_scroll": false, # Disable scroll wheel on sliders
 	# Focus mute (Issue #11)
 	"mute_on_focus_loss": true,
 	"background_volume": 0.0, # 0-100%, 0 = mute

@@ -10,6 +10,7 @@ const LOG_NAME = "TajsModded:UI"
 
 var _hud_node: Node
 var _mod_version: String
+var _config_ref = null # Reference to config manager for checking settings
 
 # UI References
 var root_control: Control
@@ -19,8 +20,11 @@ var tab_buttons_container: Container
 var _tab_buttons: Array[Button] = []
 var settings_button: Button
 
-# Signals can't be defined in RefCounted easily without `extends Object` and `add_user_signal` or just using Callables.
-# We will use Callables passed in.
+# Restart Banner State
+var _restart_pending := false
+var _restart_banner: Control = null
+var _restart_indicator: Control = null
+var _main_vbox: VBoxContainer = null # Reference to insert banner at top
 
 func _init(hud: Node, version: String):
     _hud_node = hud
@@ -62,6 +66,7 @@ func _create_ui_structure() -> void:
     main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
     main_vbox.add_theme_constant_override("separation", 0)
     settings_panel.add_child(main_vbox)
+    _main_vbox = main_vbox
     
     # 3. Title
     _create_title_panel(main_vbox)
@@ -212,6 +217,9 @@ func _on_tab_selected(index: int) -> void:
     for i in range(_tab_buttons.size()):
         _tab_buttons[i].set_pressed_no_signal(i == index)
 
+func set_config(config) -> void:
+    _config_ref = config
+
 func set_visible(visible: bool) -> void:
     if _is_animating: return
     
@@ -310,6 +318,15 @@ func add_slider(parent: Control, label_text: String, start_val: float, min_val: 
     slider.value = start_val
     slider.focus_mode = Control.FOCUS_NONE
     
+    # Block scroll wheel input when setting is enabled
+    var cfg = _config_ref
+    slider.gui_input.connect(func(event: InputEvent):
+        if cfg and cfg.get_value("disable_slider_scroll", false):
+            if event is InputEventMouseButton:
+                if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+                    slider.accept_event() # Consume the event to prevent slider value change
+    )
+    
     slider.value_changed.connect(func(v):
         value_label.text = _format_slider_value(v, suffix)
         callback.call(v)
@@ -334,3 +351,154 @@ func add_button(parent: Control, text: String, callback: Callable) -> Button:
     btn.pressed.connect(callback)
     parent.add_child(btn)
     return btn
+
+
+# ==============================================================================
+# Restart Banner
+# ==============================================================================
+
+## Show restart required banner (in-panel + floating indicator)
+func show_restart_banner() -> void:
+    if _restart_pending:
+        return # Already showing
+    
+    _restart_pending = true
+    _create_restart_banner()
+    _create_restart_indicator()
+    Sound.play("menu_open")
+
+## Hide restart banner and indicator
+func hide_restart_banner() -> void:
+    _restart_pending = false
+    
+    if _restart_banner and is_instance_valid(_restart_banner):
+        _restart_banner.queue_free()
+        _restart_banner = null
+    
+    if _restart_indicator and is_instance_valid(_restart_indicator):
+        _restart_indicator.queue_free()
+        _restart_indicator = null
+
+## Check if restart is pending
+func is_restart_pending() -> bool:
+    return _restart_pending
+
+## Create the in-panel restart banner
+func _create_restart_banner() -> void:
+    if _restart_banner and is_instance_valid(_restart_banner):
+        return # Already exists
+    
+    if not _main_vbox:
+        return
+    
+    # Create banner container
+    var banner = PanelContainer.new()
+    banner.name = "RestartBanner"
+    banner.custom_minimum_size = Vector2(0, 50)
+    
+    # Apply amber/warning style
+    var style = StyleBoxFlat.new()
+    style.bg_color = Color(0.85, 0.55, 0.15, 0.95)
+    style.set_corner_radius_all(0)
+    style.content_margin_left = 15
+    style.content_margin_right = 15
+    style.content_margin_top = 8
+    style.content_margin_bottom = 8
+    banner.add_theme_stylebox_override("panel", style)
+    
+    # Content HBox
+    var hbox = HBoxContainer.new()
+    hbox.add_theme_constant_override("separation", 10)
+    banner.add_child(hbox)
+    
+    # Icon
+    var icon = TextureRect.new()
+    icon.custom_minimum_size = Vector2(28, 28)
+    icon.texture = load("res://textures/icons/reload.png")
+    icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    icon.self_modulate = Color(1, 1, 1)
+    icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    hbox.add_child(icon)
+    
+    # Label
+    var label = Label.new()
+    label.text = "Restart required for changes"
+    label.add_theme_font_size_override("font_size", 22)
+    label.add_theme_color_override("font_color", Color(1, 1, 1))
+    label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+    hbox.add_child(label)
+    
+    # Dismiss button
+    var dismiss_btn = Button.new()
+    dismiss_btn.text = "Dismiss"
+    dismiss_btn.custom_minimum_size = Vector2(90, 34)
+    dismiss_btn.focus_mode = Control.FOCUS_NONE
+    dismiss_btn.theme_type_variation = "TabButton"
+    dismiss_btn.pressed.connect(func():
+        Sound.play("menu_close")
+        hide_restart_banner()
+    )
+    hbox.add_child(dismiss_btn)
+    
+    # Exit Now button
+    var exit_btn = Button.new()
+    exit_btn.text = "Exit Now"
+    exit_btn.custom_minimum_size = Vector2(90, 34)
+    exit_btn.focus_mode = Control.FOCUS_NONE
+    exit_btn.theme_type_variation = "TabButton"
+    exit_btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.7))
+    exit_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.95, 0.9))
+    exit_btn.pressed.connect(func():
+        _hud_node.get_tree().quit()
+    )
+    hbox.add_child(exit_btn)
+    
+    # Insert at top of main_vbox
+    _main_vbox.add_child(banner)
+    _main_vbox.move_child(banner, 0)
+    _restart_banner = banner
+
+## Create floating indicator near mod button
+func _create_restart_indicator() -> void:
+    if _restart_indicator and is_instance_valid(_restart_indicator):
+        return # Already exists
+    
+    if not settings_button or not is_instance_valid(settings_button):
+        return
+    
+    # Create indicator dot
+    var indicator = Panel.new()
+    indicator.name = "RestartIndicator"
+    indicator.custom_minimum_size = Vector2(14, 14)
+    indicator.mouse_filter = Control.MOUSE_FILTER_PASS
+    indicator.tooltip_text = "Restart required for some settings"
+    
+    # Amber dot style
+    var style = StyleBoxFlat.new()
+    style.bg_color = Color(1.0, 0.6, 0.2, 1.0)
+    style.set_corner_radius_all(7) # Circular
+    style.border_width_left = 2
+    style.border_width_top = 2
+    style.border_width_right = 2
+    style.border_width_bottom = 2
+    style.border_color = Color(0.3, 0.2, 0.1, 1.0)
+    indicator.add_theme_stylebox_override("panel", style)
+    
+    # Position at top-right of the button
+    var btn_parent = settings_button.get_parent()
+    if btn_parent:
+        btn_parent.add_child(indicator)
+        
+        # Position relative to button
+        indicator.set_anchors_preset(Control.PRESET_TOP_LEFT)
+        indicator.position = settings_button.position + Vector2(settings_button.size.x - 8, -3)
+        
+        # Re-position when button moves (deferred to catch layout changes)
+        settings_button.resized.connect(func():
+            if is_instance_valid(indicator) and is_instance_valid(settings_button):
+                indicator.position = settings_button.position + Vector2(settings_button.size.x - 8, -3)
+        )
+    
+    _restart_indicator = indicator

@@ -24,6 +24,7 @@ const GotoGroupPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/
 const NodeGroupZOrderFixScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/node_group_z_order_fix.gd")
 const BuyMaxManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/buy_max_manager.gd")
 const CheatManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/cheat_manager.gd")
+const NotificationLogPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/notification_log_panel.gd")
 
 # Components
 var config # ConfigManager instance
@@ -38,6 +39,7 @@ var goto_group_panel # GotoGroupPanel instance
 var node_group_z_fix # NodeGroupZOrderFix instance
 var buy_max_manager # BuyMaxManager instance
 var cheat_manager # CheatManager instance
+var notification_log_panel # NotificationLogPanel instance
 
 # State
 var mod_dir_path: String = ""
@@ -51,6 +53,7 @@ var _node_limit_value_label: Label = null
 var _extra_glow_toggle: CheckButton = null
 var _extra_glow_sub: MarginContainer = null
 var _settings_toggles: Dictionary = {} # config_key -> CheckButton reference
+var _restart_original_values: Dictionary = {} # Tracks original values of restart-required settings
 
 # Custom Color Picker State
 var shared_color_picker # ColorPickerPanel instance
@@ -179,6 +182,16 @@ func _process(delta: float) -> void:
             Patcher.patch_boot_screen(boot, mod_version, mod_dir_path.path_join("icon.png"))
 
 func _input(event: InputEvent) -> void:
+    # Global Slider Scroll Blocking (affects all sliders - mod and vanilla)
+    if config.get_value("disable_slider_scroll", false):
+        if event is InputEventMouseButton and event.pressed:
+            if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+                # Check if mouse is over any slider
+                var hovered_control = _get_hovered_slider()
+                if hovered_control:
+                    get_viewport().set_input_as_handled()
+                    return
+    
     # UI Close Logic
     if !ui or !ui.is_visible(): return
     
@@ -197,6 +210,38 @@ func _input(event: InputEvent) -> void:
         
         if !panel_rect.has_point(mouse_pos) and !btn_rect.has_point(mouse_pos):
             ui.set_visible(false)
+
+## Helper to find if a slider control is currently under the mouse cursor
+func _get_hovered_slider() -> Control:
+    var mouse_pos := get_viewport().get_mouse_position()
+    var root := get_tree().root
+    return _find_slider_at_point(root, mouse_pos)
+
+func _find_slider_at_point(node: Node, point: Vector2) -> Control:
+    # Check children in reverse order (topmost first due to draw order)
+    for i in range(node.get_child_count() - 1, -1, -1):
+        var child = node.get_child(i)
+        var result = _find_slider_at_point(child, point)
+        if result:
+            return result
+    
+    # Check if this node is a visible slider containing the point
+    if node is HSlider or node is VSlider:
+        var slider := node as Control
+        if slider.visible and slider.get_global_rect().has_point(point):
+            # Also check if any ancestor is invisible
+            if _is_control_visible_in_tree(slider):
+                return slider
+    
+    return null
+
+func _is_control_visible_in_tree(control: Control) -> bool:
+    var current = control
+    while current:
+        if not current.visible:
+            return false
+        current = current.get_parent() as Control
+    return true
 
 # ==============================================================================
 # SETUP
@@ -227,6 +272,7 @@ func _setup_for_main(main_node: Node) -> void:
     # Init UI
     ui = SettingsUI.new(hud, mod_version)
     ui.add_mod_button(func(): ui.set_visible(!ui.is_visible()))
+    ui.set_config(config) # Pass config reference for slider scroll setting
     
     # Configure screenshot manager
     screenshot_manager.set_ui(ui)
@@ -247,6 +293,9 @@ func _setup_for_main(main_node: Node) -> void:
     # Initialize Buy Max feature for upgrade tabs
     _setup_buy_max()
     
+    # Initialize Notification Log (Toast History) panel
+    _setup_notification_log(hud)
+    
     # Apply initial visuals
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
@@ -258,6 +307,8 @@ func _setup_for_main(main_node: Node) -> void:
         call_deferred("_set_goto_group_visible", false)
     if not config.get_value("buy_max_enabled", true):
         call_deferred("_set_buy_max_visible", false)
+    if not config.get_value("notification_log_enabled", true):
+        call_deferred("_set_notification_log_visible", false)
     if node_group_z_fix and not config.get_value("z_order_fix_enabled", true):
         node_group_z_fix.set_enabled(false)
 
@@ -354,9 +405,10 @@ func _build_settings_menu() -> void:
     )
     
     # 6-Input Containers toggle (Issue #18) - requires restart
+    _restart_original_values["six_input_containers"] = config.get_value("six_input_containers")
     _settings_toggles["six_input_containers"] = ui.add_toggle(gen_vbox, "6-Input Containers ⟳", config.get_value("six_input_containers"), func(v):
         config.set_value("six_input_containers", v)
-        _show_restart_dialog()
+        _check_restart_required()
     )
     
     # Command Palette toggle
@@ -396,6 +448,17 @@ func _build_settings_menu() -> void:
         config.set_value("z_order_fix_enabled", v)
         if node_group_z_fix:
             node_group_z_fix.set_enabled(v)
+    )
+    
+    # Disable Slider Scroll toggle
+    _settings_toggles["disable_slider_scroll"] = ui.add_toggle(gen_vbox, "Disable Slider Scroll", config.get_value("disable_slider_scroll"), func(v):
+        config.set_value("disable_slider_scroll", v)
+    )
+    
+    # Toast History Panel toggle
+    _settings_toggles["notification_log_enabled"] = ui.add_toggle(gen_vbox, "Toast History Panel", config.get_value("notification_log_enabled", true), func(v):
+        config.set_value("notification_log_enabled", v)
+        _set_notification_log_visible(v)
     )
     
     # Node Info Label (Custom)
@@ -500,9 +563,11 @@ func _build_settings_menu() -> void:
         Signals.notify.emit("check", "Settings reset!")
     )
     
-    # Custom Boot Screen toggle
-    ui.add_toggle(debug_vbox, "Custom Boot Screen ⟳", config.get_value("custom_boot_screen", true), func(v):
+    # Custom Boot Screen toggle - requires restart
+    _restart_original_values["custom_boot_screen"] = config.get_value("custom_boot_screen", true)
+    _settings_toggles["custom_boot_screen"] = ui.add_toggle(debug_vbox, "Custom Boot Screen ⟳", config.get_value("custom_boot_screen", true), func(v):
         config.set_value("custom_boot_screen", v)
+        _check_restart_required()
     )
     
     # Debug mode toggle
@@ -791,6 +856,15 @@ func _add_node_limit_slider(parent: Control) -> void:
     _node_limit_slider.value = 2050 if current_val == -1 else current_val
     _node_limit_slider.focus_mode = Control.FOCUS_NONE
     
+    # Block scroll wheel input when setting is enabled
+    var cfg = config
+    _node_limit_slider.gui_input.connect(func(event: InputEvent):
+        if cfg and cfg.get_value("disable_slider_scroll", false):
+            if event is InputEventMouseButton:
+                if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+                    _node_limit_slider.accept_event()
+    )
+    
     var vl = _node_limit_value_label
     _node_limit_slider.value_changed.connect(func(v):
         var actual_val = -1 if v >= 2050 else int(v)
@@ -862,6 +936,61 @@ func _set_buy_max_visible(visible: bool) -> void:
         buy_max_manager._buy_max_button.visible = visible
 
 
+## Helper to show/hide Notification Log panel
+func _set_notification_log_visible(visible: bool) -> void:
+    if notification_log_panel and notification_log_panel.toggle_btn:
+        notification_log_panel.toggle_btn.visible = visible
+        if not visible and notification_log_panel.is_popup_open:
+            notification_log_panel._close_popup()
+
+
+## Setup Notification Log (Toast History) panel in the HUD
+## Adds a bell button that shows a popup with the last 20 notifications
+func _setup_notification_log(hud: Node) -> void:
+    # Find the Overlay where we'll add our button container
+    var overlay = hud.get_node_or_null("Main/MainContainer/Overlay")
+    if not overlay:
+        ModLoaderLog.warning("Could not find Overlay for Notification Log", LOG_NAME)
+        return
+    
+    # Check if already set up
+    if overlay.has_node("NotificationLogContainer"):
+        return
+    
+    # Create a container positioned to the LEFT of ExtrasButtons
+    var container = Control.new()
+    container.name = "NotificationLogContainer"
+    container.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+    container.anchor_left = 1
+    container.anchor_top = 0
+    container.anchor_right = 1
+    container.anchor_bottom = 0
+    # Position to the left of ExtrasButtons (~70px for button width + margin)
+    container.offset_left = -140 # Far enough left to clear ExtrasButtons
+    container.offset_top = 10
+    container.offset_right = -80
+    container.offset_bottom = 70
+    
+    overlay.add_child(container)
+    
+    # Create the panel
+    notification_log_panel = NotificationLogPanelScript.new()
+    notification_log_panel.name = "NotificationLogPanel"
+    container.add_child(notification_log_panel)
+    
+    # Connect to Signals.notify to capture all notifications
+    if not Signals.notify.is_connected(_on_notification_received):
+        Signals.notify.connect(_on_notification_received)
+    
+    ModLoaderLog.info("Notification Log panel added to HUD", LOG_NAME)
+
+
+## Callback for Signals.notify - captures notifications for the log
+func _on_notification_received(icon: String, text: String) -> void:
+    if notification_log_panel:
+        notification_log_panel.add_notification(icon, text)
+
+
 ## Sync a settings toggle UI with its config value (called from palette commands)
 func sync_settings_toggle(config_key: String) -> void:
     if _settings_toggles.has(config_key):
@@ -870,121 +999,24 @@ func sync_settings_toggle(config_key: String) -> void:
             toggle.set_pressed_no_signal(config.get_value(config_key, true))
 
 
-func _show_restart_dialog() -> void:
-    # Create overlay to block input and darken background
-    var overlay = ColorRect.new()
-    overlay.name = "RestartDialogOverlay"
-    overlay.color = Color(0, 0, 0, 0.6)
-    overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-    overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+## Check if any restart-required setting differs from its original value
+## Shows banner if yes, hides if all reverted
+func _check_restart_required() -> void:
+    if not ui:
+        return
     
-    # Create centered dialog using game's theme
-    var dialog = PanelContainer.new()
-    dialog.name = "RestartDialog"
-    dialog.custom_minimum_size = Vector2(380, 0)
-    dialog.theme_type_variation = "ShadowPanelContainer"
+    var needs_restart := false
+    for key in _restart_original_values:
+        var original = _restart_original_values[key]
+        var current = config.get_value(key, original)
+        if current != original:
+            needs_restart = true
+            break
     
-    # Main VBox for title panel + content + footer
-    var main_vbox = VBoxContainer.new()
-    main_vbox.add_theme_constant_override("separation", 0)
-    dialog.add_child(main_vbox)
-    
-    # Title Panel (styled like game's overlays)
-    var title_panel = Panel.new()
-    title_panel.custom_minimum_size = Vector2(0, 60)
-    title_panel.theme_type_variation = "OverlayPanelTitle"
-    main_vbox.add_child(title_panel)
-    
-    var title_container = HBoxContainer.new()
-    title_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-    title_container.offset_left = 15
-    title_container.offset_top = 10
-    title_container.offset_right = -15
-    title_container.offset_bottom = -10
-    title_container.alignment = BoxContainer.ALIGNMENT_CENTER
-    title_panel.add_child(title_container)
-    
-    var title_icon = TextureRect.new()
-    title_icon.custom_minimum_size = Vector2(32, 32)
-    title_icon.texture = load("res://textures/icons/reload.png")
-    title_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-    title_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-    title_icon.self_modulate = Color(1, 0.75, 0.3)
-    title_container.add_child(title_icon)
-    
-    var title = Label.new()
-    title.text = " Restart Required"
-    title.add_theme_font_size_override("font_size", 28)
-    title_container.add_child(title)
-    
-    # Content Panel
-    var content_panel = PanelContainer.new()
-    content_panel.theme_type_variation = "MenuPanel"
-    main_vbox.add_child(content_panel)
-    
-    var content_margin = MarginContainer.new()
-    content_margin.add_theme_constant_override("margin_left", 25)
-    content_margin.add_theme_constant_override("margin_right", 25)
-    content_margin.add_theme_constant_override("margin_top", 20)
-    content_margin.add_theme_constant_override("margin_bottom", 20)
-    content_panel.add_child(content_margin)
-    
-    var content_vbox = VBoxContainer.new()
-    content_vbox.add_theme_constant_override("separation", 20)
-    content_margin.add_child(content_vbox)
-    
-    # Message
-    var msg = Label.new()
-    msg.text = "This change will take effect after\nrestarting the game."
-    msg.add_theme_font_size_override("font_size", 24)
-    msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-    content_vbox.add_child(msg)
-    
-    # Buttons row
-    var btn_row = HBoxContainer.new()
-    btn_row.add_theme_constant_override("separation", 15)
-    btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
-    content_vbox.add_child(btn_row)
-    
-    # Later button
-    var later_btn = Button.new()
-    later_btn.text = "Later"
-    later_btn.theme_type_variation = "TabButton"
-    later_btn.custom_minimum_size = Vector2(130, 55)
-    later_btn.focus_mode = Control.FOCUS_NONE
-    later_btn.pressed.connect(func():
-        Sound.play("menu_close")
-        overlay.queue_free()
-    )
-    btn_row.add_child(later_btn)
-    
-    # Exit Now button
-    var exit_btn = Button.new()
-    exit_btn.text = "Exit Now"
-    exit_btn.theme_type_variation = "TabButton"
-    exit_btn.custom_minimum_size = Vector2(130, 55)
-    exit_btn.focus_mode = Control.FOCUS_NONE
-    exit_btn.add_theme_color_override("font_color", Color(1.0, 0.55, 0.35))
-    exit_btn.add_theme_color_override("font_hover_color", Color(1.0, 0.7, 0.5))
-    exit_btn.pressed.connect(func():
-        get_tree().quit()
-    )
-    btn_row.add_child(exit_btn)
-    
-    # Add dialog to overlay
-    overlay.add_child(dialog)
-    
-    # Get the HUD to add the overlay
-    var main = get_tree().root.get_node_or_null("Main")
-    if main:
-        var hud = main.get_node_or_null("HUD")
-        if hud:
-            hud.add_child(overlay)
-            Sound.play("menu_open")
-            
-            # Center the dialog after it's added
-            await get_tree().process_frame
-            dialog.position = (overlay.size - dialog.size) / 2
+    if needs_restart:
+        ui.show_restart_banner()
+    else:
+        ui.hide_restart_banner()
 
 
 func _update_node_label() -> void:

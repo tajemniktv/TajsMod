@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.22.0] - 2025-12-27
+
+### Added
+
+- **Disable Slider Scroll** — Added option to disable scroll wheel on sliders
+- **Screenshot Watermark** — Added option to add watermark to screenshots
+- **Restart Required Banner** — Added banner to notify player of restart needed changes
+- **Notification Log** — Added notification log panel
+-
+
+### Changed
+
+-
+
+### Removed
+
+-
+
+### Fixed
+
+-
+
 ## [0.21.0] - 2025-12-TBD
 
 ### Added
@@ -111,4 +133,4 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-*For older versions, see [GitHub Releases](https://github.com/tajemniktv/TajsView/releases)*
+_For older versions, see [GitHub Releases](https://github.com/tajemniktv/TajsView/releases)_
