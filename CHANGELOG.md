@@ -4,7 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.23.0] - 2025-12-29
+## [0.0.25] - 2025-12-TBD
+
+### Added
+
+-
+
+### Changed
+
+-
+
+### Removed
+
+-
+
+### Fixed
+
+-
+
+## [0.0.24] - 2025-12-29
+
+### Fixed
+
+- Fix crash while opening Pattern Picker
+
+## [0.0.23] - 2025-12-29
 
 ### Added
 
@@ -33,7 +57,7 @@ All notable changes to this project will be documented in this file.
 
 - **Debug Logging** — Fixed debug setting persistence
 
-## [0.22.0] - 2025-12-28
+## [0.0.22] - 2025-12-28
 
 ### Added
 
@@ -54,7 +78,7 @@ All notable changes to this project will be documented in this file.
 
 -
 
-## [0.21.0] - 2025-12-TBD
+## [0.0.21] - 2025-12-TBD
 
 ### Added
 
@@ -64,7 +88,7 @@ All notable changes to this project will be documented in this file.
 
 - X
 
-## [0.20.0] - 2025-12-27
+## [0.0.20] - 2025-12-27
 
 ### Added
 
