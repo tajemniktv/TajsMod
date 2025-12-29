@@ -339,6 +339,256 @@ func take_screenshot() -> void:
     Signals.notify.emit("check", "Screenshot saved! (" + str(final_width) + "x" + str(final_height) + ")")
 
 
+## Take a screenshot of only the currently selected nodes
+## Uses the same quality/folder/watermark settings as full desktop screenshots
+func take_screenshot_selection() -> void:
+    _log("Taking selection screenshot...")
+    
+    # Check if there's a selection
+    if not Globals or Globals.selections.is_empty():
+        Signals.notify.emit("exclamation", "No nodes selected")
+        return
+    
+    # Compute bounds from selected windows
+    var bounds = _compute_selection_bounds()
+    if bounds.size == Vector2.ZERO:
+        Signals.notify.emit("exclamation", "Could not determine selection bounds")
+        return
+    
+    _log("Selection bounds: " + str(bounds))
+    
+    # Add padding (64px world units for better framing)
+    bounds = bounds.grow(64)
+    
+    # Now capture using the same logic as take_screenshot but with custom bounds
+    var desktop = Globals.desktop if is_instance_valid(Globals.desktop) else null
+    if !desktop:
+        _log("ERROR: Desktop not found!", true)
+        Signals.notify.emit("exclamation", "Could not capture - desktop not found")
+        return
+    
+    # Quality settings: determines the capture zoom level and format
+    var capture_zoom = [0.5, 0.6, 0.8, 1.5][quality]
+    var use_jpg = quality < 2
+    
+    # === DISABLE ALL INPUT AT VIEWPORT LEVEL ===
+    var viewport = _tree.root.get_viewport()
+    viewport.set_disable_input(true)
+    
+    Signals.notify.emit("check", "Capturing selection... please wait")
+    
+    # Hide HUD
+    var hud = _tree.root.get_node_or_null("Main/HUD")
+    var hud_was_visible = true
+    if hud:
+        hud_was_visible = hud.visible
+        hud.visible = false
+    
+    # Hide mod menu
+    if _ui and _ui.is_visible():
+        _ui.set_visible(false)
+    
+    # Get the main camera and save its state
+    var main_camera = _tree.root.get_node_or_null("Main/Main2D/Camera2D")
+    if !main_camera:
+        _log("ERROR: Camera not found!", true)
+        Signals.notify.emit("exclamation", "Camera not found")
+        viewport.set_disable_input(false)
+        return
+    
+    var saved_cam_pos = main_camera.position
+    var saved_cam_zoom = main_camera.zoom
+    var saved_target_zoom = main_camera.get("target_zoom") if main_camera.get("target_zoom") else saved_cam_zoom
+    var saved_zooming = main_camera.get("zooming") if main_camera.get("zooming") != null else false
+    
+    # Block signals and processing on camera
+    main_camera.set_block_signals(true)
+    main_camera.set_process(false)
+    main_camera.set_physics_process(false)
+    main_camera.set_process_input(false)
+    main_camera.set_process_unhandled_input(false)
+    main_camera.set_process_unhandled_key_input(false)
+    main_camera.set_process_shortcut_input(false)
+    
+    # Disable dragger
+    var dragger = _tree.root.get_node_or_null("Main/Main2D/Dragger")
+    var saved_dragger_mouse_filter = Control.MOUSE_FILTER_PASS
+    if dragger and dragger is Control:
+        saved_dragger_mouse_filter = dragger.mouse_filter
+        dragger.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    
+    if main_camera.get("zooming") != null:
+        main_camera.set("zooming", false)
+    
+    # Force grid visible
+    var lines_node = desktop.get_node_or_null("Lines")
+    var saved_lines_visible = true
+    if lines_node:
+        saved_lines_visible = lines_node.visible
+        lines_node.visible = true
+    
+    var viewport_size = viewport.size
+    var tile_world_size = viewport_size / capture_zoom
+    
+    # Add 15% padding to ensure edges are captured (matches full desktop screenshot)
+    bounds = bounds.grow(max(tile_world_size.x, tile_world_size.y) * 0.15)
+    
+    # Calculate tile counts
+    var tiles_x = int(ceil(bounds.size.x / tile_world_size.x))
+    var tiles_y = int(ceil(bounds.size.y / tile_world_size.y))
+    
+    var final_width = int(tiles_x * viewport_size.x)
+    var final_height = int(tiles_y * viewport_size.y)
+    
+    # Size limit check
+    var max_dimension = 16384
+    if final_width > max_dimension or final_height > max_dimension:
+        var scale_down = min(float(max_dimension) / final_width, float(max_dimension) / final_height)
+        capture_zoom = capture_zoom * scale_down
+        tile_world_size = viewport_size / capture_zoom
+        tiles_x = int(ceil(bounds.size.x / tile_world_size.x))
+        tiles_y = int(ceil(bounds.size.y / tile_world_size.y))
+        final_width = int(tiles_x * viewport_size.x)
+        final_height = int(tiles_y * viewport_size.y)
+    
+    _log("Capturing " + str(tiles_x) + "x" + str(tiles_y) + " tiles at zoom " + str(snapped(capture_zoom, 0.01)))
+    
+    var final_image = Image.create(final_width, final_height, false, Image.FORMAT_RGBA8)
+    final_image.fill(Color(0.12, 0.14, 0.18, 1.0))
+    
+    # Capture each tile
+    for ty in range(tiles_y):
+        for tx in range(tiles_x):
+            var tile_center = Vector2(
+                bounds.position.x + (tx + 0.5) * tile_world_size.x,
+                bounds.position.y + (ty + 0.5) * tile_world_size.y
+            )
+            
+            main_camera.position = tile_center
+            main_camera.zoom = Vector2(capture_zoom, capture_zoom)
+            if main_camera.get("target_zoom") != null:
+                main_camera.set("target_zoom", Vector2(capture_zoom, capture_zoom))
+            
+            var frames_to_wait = CAPTURE_DELAY
+            if tx == 0 and ty == 0:
+                frames_to_wait += 5
+            
+            for _frame in range(frames_to_wait):
+                main_camera.position = tile_center
+                main_camera.zoom = Vector2(capture_zoom, capture_zoom)
+                await _tree.process_frame
+            
+            RenderingServer.force_sync()
+            await _tree.process_frame
+            
+            main_camera.position = tile_center
+            main_camera.zoom = Vector2(capture_zoom, capture_zoom)
+            
+            var tile_image = viewport.get_texture().get_image()
+            tile_image.convert(Image.FORMAT_RGBA8)
+            
+            var paste_x = tx * int(viewport_size.x)
+            var paste_y = ty * int(viewport_size.y)
+            final_image.blit_rect(tile_image, Rect2i(0, 0, int(viewport_size.x), int(viewport_size.y)), Vector2i(paste_x, paste_y))
+    
+    # Crop to actual bounds size
+    var target_width = int(bounds.size.x * capture_zoom)
+    var target_height = int(bounds.size.y * capture_zoom)
+    if target_width < final_width or target_height < final_height:
+        var cropped = Image.create(target_width, target_height, false, Image.FORMAT_RGBA8)
+        cropped.blit_rect(final_image, Rect2i(0, 0, target_width, target_height), Vector2i.ZERO)
+        final_image = cropped
+        final_width = target_width
+        final_height = target_height
+    
+    # Apply watermark
+    if watermark_enabled:
+        var watermark_texture = load(WATERMARK_PATH) as Texture2D
+        if watermark_texture:
+            var watermark_image = watermark_texture.get_image()
+            watermark_image.convert(Image.FORMAT_RGBA8)
+            
+            var target_watermark_width = int(final_width * 0.15)
+            var scale_factor = float(target_watermark_width) / watermark_image.get_width()
+            var scaled_width = int(watermark_image.get_width() * scale_factor)
+            var scaled_height = int(watermark_image.get_height() * scale_factor)
+            
+            if scaled_width < 100:
+                scaled_width = 100
+                scaled_height = int(watermark_image.get_height() * (100.0 / watermark_image.get_width()))
+            
+            watermark_image.resize(scaled_width, scaled_height, Image.INTERPOLATE_LANCZOS)
+            
+            for y in range(scaled_height):
+                for x in range(scaled_width):
+                    var pixel = watermark_image.get_pixel(x, y)
+                    pixel.a *= 0.5
+                    watermark_image.set_pixel(x, y, pixel)
+            
+            var padding = int(final_width * 0.02)
+            var paste_x = final_width - scaled_width - padding
+            var paste_y = final_height - scaled_height - padding
+            final_image.blend_rect(watermark_image, Rect2i(0, 0, scaled_width, scaled_height), Vector2i(paste_x, paste_y))
+    
+    # === RESTORE STATE ===
+    viewport.set_disable_input(false)
+    main_camera.set_block_signals(false)
+    main_camera.set_process(true)
+    main_camera.set_physics_process(true)
+    main_camera.set_process_input(true)
+    main_camera.set_process_unhandled_input(true)
+    main_camera.set_process_unhandled_key_input(true)
+    main_camera.set_process_shortcut_input(true)
+    
+    if dragger and dragger is Control:
+        dragger.mouse_filter = saved_dragger_mouse_filter
+    
+    main_camera.position = saved_cam_pos
+    main_camera.zoom = saved_cam_zoom
+    if main_camera.get("target_zoom") != null:
+        main_camera.set("target_zoom", saved_target_zoom)
+    if main_camera.get("zooming") != null:
+        main_camera.set("zooming", saved_zooming)
+    
+    if lines_node:
+        lines_node.visible = saved_lines_visible
+    
+    if hud:
+        hud.visible = hud_was_visible
+    
+    # Save the image
+    var time = Time.get_datetime_string_from_system().replace(":", "-")
+    var quality_names = ["low", "med", "high", "original"]
+    var extension = ".jpg" if use_jpg else ".png"
+    var node_count = Globals.selections.size()
+    var path = screenshot_folder.path_join("selection_" + str(node_count) + "nodes_" + quality_names[quality] + "_" + time + extension)
+    DirAccess.make_dir_recursive_absolute(screenshot_folder)
+    
+    if use_jpg:
+        var jpg_quality = 0.80 if quality == 0 else 0.90
+        final_image.save_jpg(path, jpg_quality)
+    else:
+        final_image.save_png(path)
+    
+    _log("Selection screenshot saved: " + path, true)
+    Signals.notify.emit("check", "Selection captured! (" + str(node_count) + " nodes, " + str(final_width) + "x" + str(final_height) + ")")
+
+
+## Compute bounding rect from currently selected windows
+func _compute_selection_bounds() -> Rect2:
+    var first = true
+    var bounds = Rect2()
+    for window in Globals.selections:
+        if window is Control:
+            var window_rect = Rect2(window.position, window.size)
+            if first:
+                bounds = window_rect
+                first = false
+            else:
+                bounds = bounds.merge(window_rect)
+    return bounds
+
+
 ## Add screenshot UI section to a parent control
 func add_screenshot_section(parent: Control, ui_builder, config_manager) -> void:
     var container = VBoxContainer.new()

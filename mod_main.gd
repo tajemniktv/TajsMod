@@ -1184,3 +1184,15 @@ func _register_palette_screenshot_command() -> void:
         "badge": "SAFE",
         "run": func(ctx): sm.open_screenshot_folder()
     })
+    
+    registry.register({
+        "id": "cmd_screenshot_selection",
+        "title": "Screenshot: Capture Selection",
+        "category_path": ["Taj's Mod", "Screenshots"],
+        "keywords": ["screenshot", "capture", "selection", "nodes", "crop", "area", "selected"],
+        "hint": "Capture a screenshot of selected nodes only",
+        "icon_path": "res://textures/icons/centrifuge.png",
+        "badge": "SAFE",
+        "can_run": func(ctx): return Globals and Globals.selections.size() > 0,
+        "run": func(ctx): sm.take_screenshot_selection()
+    })
