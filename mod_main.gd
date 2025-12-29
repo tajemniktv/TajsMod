@@ -280,6 +280,10 @@ func _setup_for_main(main_node: Node) -> void:
     screenshot_manager.set_ui(ui)
     screenshot_manager.set_log_callback(_add_debug_log)
     
+    # Initialize Disconnected Node Highlighter BEFORE building settings menu
+    # (settings menu captures highlighter_ref, so it must exist first)
+    _setup_disconnected_highlighter()
+    
     _build_settings_menu()
     
     # Initialize palette system
@@ -297,9 +301,6 @@ func _setup_for_main(main_node: Node) -> void:
     
     # Initialize Notification Log (Toast History) panel
     _setup_notification_log(hud)
-    
-    # Initialize Disconnected Node Highlighter
-    _setup_disconnected_highlighter()
     
     # Apply initial visuals
     if config.get_value("extra_glow"):

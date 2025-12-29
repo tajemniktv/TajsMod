@@ -3,529 +3,351 @@
 # Disconnected Node Highlighter - Highlights nodes not connected to main graph
 # Author: TajemnikTV
 # ==============================================================================
+class_name DisconnectedNodeHighlighter
 extends Node
 
 const LOG_NAME = "TajsModded:DisconnectedHighlighter"
 
 # Configuration
-var _config = null
-var _tree: SceneTree = null
-var _mod_main = null # Reference to mod_main for debug mode
-var _enabled := true
-var _style := "pulse" # "pulse" or "outline"
-var _intensity := 0.5
+var _config # ConfigManager
+var _mod_main # Reference to mod_main for debug logging
 
 # State
-var _disconnected_windows: Dictionary = {} # window_name -> original modulate
-var _debounce_timer: Timer = null
-var _recompute_queued := false
-var _highlight_tweens: Dictionary = {} # window_name -> Tween
+var _enabled: bool = true
+var _style: String = "pulse" # "pulse" or "outline"
+var _intensity: float = 0.5 # 0.0 to 1.0
+
+# Connectivity Data
+var _disconnected_windows: Dictionary = {} # window_name -> bool (true if disconnected)
+var _cached_windows: Dictionary = {} # window_name -> WindowContainer (cached references)
+
+# Visuals
+var _draw_control: Control
+var _pulse_tween: Tween
+var _pulse_alpha: float = 0.0
+var _cached_stylebox: StyleBoxFlat # Reused to avoid allocation
+var _last_redraw_time: float = 0.0
 
 # Constants
-const DEBOUNCE_MS := 150
-const HIGHLIGHT_COLOR := Color(1.0, 0.3, 0.3, 1.0) # Red tint
-const PULSE_DURATION := 1.0
+const PULSE_DURATION = 1.0
+const DEBOUNCE_TIME = 0.15
+const HIGHLIGHT_COLOR = Color(1.0, 0.0, 0.0) # Red
 
+var _debounce_timer: Timer
 
-func _ready() -> void:
-	# Create debounce timer
-	_debounce_timer = Timer.new()
-	_debounce_timer.one_shot = true
-	_debounce_timer.wait_time = DEBOUNCE_MS / 1000.0
-	_debounce_timer.timeout.connect(_on_debounce_timeout)
-	add_child(_debounce_timer)
-
-
-## Initialize the highlighter with config and scene tree
-func setup(config, tree: SceneTree, mod_main = null) -> void:
+func setup(config, tree: SceneTree, mod_main_ref) -> void:
 	_config = config
-	_tree = tree
-	_mod_main = mod_main
+	_mod_main = mod_main_ref
 	
-	# Load settings from config
+	# Load settings
 	_enabled = config.get_value("highlight_disconnected_enabled", true)
 	_style = config.get_value("highlight_disconnected_style", "pulse")
 	_intensity = config.get_value("highlight_disconnected_intensity", 0.5)
 	
-	# Connect to relevant signals
-	Signals.dragged.connect(_on_node_dragged)
-	Signals.connection_created.connect(_on_connection_created)
-	Signals.connection_deleted.connect(_on_connection_deleted)
+	# Init Debouncer
+	_debounce_timer = Timer.new()
+	_debounce_timer.wait_time = DEBOUNCE_TIME
+	_debounce_timer.one_shot = true
+	_debounce_timer.timeout.connect(recompute_disconnected)
+	add_child(_debounce_timer)
 	
-	# Initial computation after a short delay
-	if _enabled:
-		await tree.create_timer(0.5).timeout
-		_queue_recompute()
+	# Start Pulse Animation
+	_start_pulse_tween()
 	
-	ModLoaderLog.info("Disconnected Node Highlighter initialized (enabled=%s)" % str(_enabled), LOG_NAME)
-
-
-## Set enabled state
-func set_enabled(enabled: bool) -> void:
-	_enabled = enabled
-	if _config:
-		_config.set_value("highlight_disconnected_enabled", enabled)
+	# Connect Signals
+	_connect_signals(tree)
 	
-	if enabled:
-		_queue_recompute()
-	else:
-		_clear_all_highlights()
+	# Defer visual setup until desktop is ready
+	call_deferred("_setup_draw_control")
+	call_deferred("recompute_disconnected")
 
-
-## Set highlight style
-func set_style(style: String) -> void:
-	_style = style
-	if _config:
-		_config.set_value("highlight_disconnected_style", style)
-	
-	# Reapply highlights with new style (preserve original modulate values)
-	if _enabled and _disconnected_windows.size() > 0:
-		# Store original values before clearing
-		var original_modulates = _disconnected_windows.duplicate()
-		
-		# Clear existing highlights (this restores original modulates)
-		for window_name in _disconnected_windows:
-			var window = _find_window_by_name(window_name)
-			if window:
-				# Kill tween without restoring modulate yet
-				if _highlight_tweens.has(window_name) and is_instance_valid(_highlight_tweens[window_name]):
-					_highlight_tweens[window_name].kill()
-					_highlight_tweens.erase(window_name)
-				# Restore original before reapplying
-				window.modulate = original_modulates[window_name]
-		
-		# Reapply with new style
-		for window_name in original_modulates:
-			var window = _find_window_by_name(window_name)
-			if window:
-				_apply_highlight(window)
-
-
-## Set highlight intensity
-func set_intensity(intensity: float) -> void:
-	_intensity = clampf(intensity, 0.0, 1.0)
-	if _config:
-		_config.set_value("highlight_disconnected_intensity", _intensity)
-	
-	# Update existing highlights
-	_update_highlight_intensity()
-
-
-## Check if debug mode is enabled (uses mod_main's debug mode)
-func _is_debug_enabled() -> bool:
-	if _mod_main and "_debug_mode" in _mod_main:
-		return _mod_main._debug_mode
-	return false
-
-
-## Get current enabled state
-func is_enabled() -> bool:
-	return _enabled
-
-
-# ==============================================================================
-# SIGNAL HANDLERS
-# ==============================================================================
-
-func _on_node_dragged(window: WindowContainer) -> void:
-	if _enabled:
-		_queue_recompute()
-
-
-func _on_connection_created(output: String, input: String) -> void:
-	if _enabled:
-		_queue_recompute()
-
-
-func _on_connection_deleted(output: String, input: String) -> void:
-	if _enabled:
-		_queue_recompute()
-
-
-func _on_debounce_timeout() -> void:
-	if _recompute_queued:
-		_recompute_queued = false
-		recompute_disconnected()
-
-
-# ==============================================================================
-# CORE LOGIC
-# ==============================================================================
-
-## Queue a recomputation (debounced)
-func _queue_recompute() -> void:
-	_recompute_queued = true
-	_debounce_timer.start()
-
-
-## Main connectivity computation
-func recompute_disconnected() -> void:
+func _setup_draw_control() -> void:
 	if not is_instance_valid(Globals.desktop):
 		return
 	
+	# Add draw control to desktop (not Windows container to avoid type iteration issues)
+	_draw_control = Control.new()
+	_draw_control.name = "DisconnectedHighlightOverlay"
+	# Large offset to handle panning in any direction
+	_draw_control.position = Vector2(-20000, -20000)
+	_draw_control.size = Vector2(40000, 40000)
+	_draw_control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_draw_control.z_index = 100 # Draw on top of windows
+	_draw_control.draw.connect(_on_draw_highlights)
+	_draw_control.visible = _enabled
+	Globals.desktop.add_child(_draw_control)
+
+func _start_pulse_tween() -> void:
+	if _pulse_tween and _pulse_tween.is_valid():
+		_pulse_tween.kill()
+		
+	_pulse_tween = create_tween()
+	_pulse_tween.set_loops()
+	# Pulse alpha from 0.0 to 1.0 and back
+	_pulse_tween.tween_property(self, "_pulse_alpha", 1.0, PULSE_DURATION / 2.0).set_trans(Tween.TRANS_SINE)
+	_pulse_tween.tween_property(self, "_pulse_alpha", 0.0, PULSE_DURATION / 2.0).set_trans(Tween.TRANS_SINE)
+
+func _is_debug_enabled() -> bool:
+	if _mod_main:
+		return _mod_main._debug_mode
+	return false
+
+func set_enabled(enabled: bool) -> void:
+	_enabled = enabled
+	if _draw_control:
+		_draw_control.visible = enabled
+		_draw_control.queue_redraw()
+	
+	if enabled:
+		recompute_disconnected()
+
+func set_style(style: String) -> void:
+	_style = style
+	if _draw_control:
+		_draw_control.queue_redraw()
+
+func set_intensity(val: float) -> void:
+	_intensity = val
+	if _draw_control:
+		_draw_control.queue_redraw()
+
+func _connect_signals(tree: SceneTree) -> void:
+	if Signals:
+		if not Signals.connection_created.is_connected(_on_connection_changed):
+			Signals.connection_created.connect(_on_connection_changed)
+		if not Signals.connection_deleted.is_connected(_on_connection_changed):
+			Signals.connection_deleted.connect(_on_connection_changed)
+	
+	# Listen for new windows being added (copy/paste, node creation)
+	call_deferred("_connect_windows_container_signals")
+
+func _connect_windows_container_signals() -> void:
+	if not is_instance_valid(Globals.desktop):
+		return
+	var windows_container = Globals.desktop.get_node_or_null("Windows")
+	if windows_container and not windows_container.child_entered_tree.is_connected(_on_window_added):
+		windows_container.child_entered_tree.connect(_on_window_added)
+		windows_container.child_exiting_tree.connect(_on_window_removed)
+
+func _on_window_added(node: Node) -> void:
+	if node is WindowContainer:
+		_trigger_recompute()
+
+func _on_window_removed(node: Node) -> void:
+	if node is WindowContainer:
+		_trigger_recompute()
+
+func _process(delta: float) -> void:
+	# Only redraw if pulse mode (outline is static) and limit to ~30 FPS
+	if not _enabled or _disconnected_windows.is_empty() or not _draw_control:
+		return
+	
+	# Limit redraw rate
+	var now = Time.get_ticks_msec() / 1000.0
+	if now - _last_redraw_time < 0.033: # ~30 FPS
+		return
+	_last_redraw_time = now
+	
+	_draw_control.queue_redraw()
+
+func _on_connection_changed(_a = null, _b = null) -> void:
+	_trigger_recompute()
+
+func _trigger_recompute() -> void:
+	if _enabled:
+		_debounce_timer.start()
+
+# --------------------------------------------------------------------------------
+# CORE CONNECTIVITY LOGIC
+# --------------------------------------------------------------------------------
+
+func recompute_disconnected() -> void:
+	if not is_instance_valid(Globals.desktop):
+		return
+		
 	var windows_container = Globals.desktop.get_node_or_null("Windows")
 	if not windows_container:
 		return
-	
-	# Step 1: Collect all ResourceContainers and their connection info
-	var all_resources: Array[ResourceContainer] = []
-	var resource_to_window: Dictionary = {} # resource_id -> window
+
+	# 1. Gather all resources and map them to their Windows
+	var all_res_ids: Dictionary = {} # id -> ResourceContainer
+	var res_to_window: Dictionary = {} # id -> WindowContainer
 	
 	for window in windows_container.get_children():
 		if window is WindowContainer:
 			var resources = _get_window_resources(window)
 			for res in resources:
 				if res.id and not res.id.is_empty():
-					all_resources.append(res)
-					resource_to_window[res.id] = window
+					all_res_ids[res.id] = res
+					res_to_window[res.id] = window
 	
-	if all_resources.is_empty():
-		_clear_all_highlights()
+	if all_res_ids.is_empty():
+		_disconnected_windows.clear()
+		if _draw_control:
+			_draw_control.queue_redraw()
 		return
+
+	# 2. Build Adjacency Graph (Global)
+	var adjacency: Dictionary = {} # id -> Array[id]
 	
-	# Step 2: Group resources by SHAPE only
-	# We will handle color separation logically during BFS
-	var shape_groups: Dictionary = {} # "shape" -> Array[ResourceContainer]
-	
-	for res in all_resources:
-		var shape = res.get_connection_shape()
-		if shape.is_empty():
-			continue
-			
-		if not shape_groups.has(shape):
-			shape_groups[shape] = []
-		shape_groups[shape].append(res)
-	
-	# Step 3: Build adjacency map for all resources
-	var adjacency: Dictionary = {} # resource_id -> Array of connected resource_ids
-	
-	# Initialize adjacency for all
-	for res in all_resources:
-		adjacency[res.id] = []
-	
-	# Add external connections (Wires)
-	for res in all_resources:
-		# Add outputs
-		for output_id in res.outputs_id:
-			adjacency[res.id].append(output_id)
-		# Add input (bidirectional for connectivity check)
-		if not res.input_id.is_empty():
-			adjacency[res.id].append(res.input_id)
-			
-	# Add internal connections (Same shape resources on same window are connected)
+	# Initialize list
+	for id in all_res_ids:
+		adjacency[id] = []
+		
+	for id in all_res_ids:
+		var res = all_res_ids[id]
+		
+		# External Connections (Wires)
+		for out_id in res.outputs_id:
+			if all_res_ids.has(out_id):
+				adjacency[id].append(out_id)
+				adjacency[out_id].append(id) # Bidirectional
+
+	# Add Internal Connections (Same Shape Only)
 	for window in windows_container.get_children():
 		if window is WindowContainer:
 			var resources = _get_window_resources(window)
-			var resources_by_shape = {}
-			
+			var by_shape = {}
 			for res in resources:
-				if res.id.is_empty(): continue
 				var shape = res.get_connection_shape()
-				if shape.is_empty(): continue
-				
-				if not resources_by_shape.has(shape):
-					resources_by_shape[shape] = []
-				resources_by_shape[shape].append(res.id)
+				if not by_shape.has(shape): by_shape[shape] = []
+				by_shape[shape].append(res.id)
 			
-			# Fully connect all resources of same shape on this window
-			for shape in resources_by_shape:
-				var ids = resources_by_shape[shape]
-				if ids.size() > 1:
-					for i in range(ids.size()):
-						for j in range(i + 1, ids.size()):
-							var id1 = ids[i]
-							var id2 = ids[j]
-							# Add bidirectional internal edge
-							if adjacency.has(id1): adjacency[id1].append(id2)
-							if adjacency.has(id2): adjacency[id2].append(id1)
-			
-	# Step 4: For each shape, analyze components per color
-	var disconnected_windows: Dictionary = {} # window -> true
-	var valid_resource_ids: Dictionary = {} # resource_id -> true (marked as connected)
+			for shape in by_shape:
+				var ids = by_shape[shape]
+				for i in range(ids.size()):
+					for j in range(i + 1, ids.size()):
+						var id1 = ids[i]
+						var id2 = ids[j]
+						adjacency[id1].append(id2)
+						adjacency[id2].append(id1)
+
+	# 3. BFS to find Connected Components
+	var visited: Dictionary = {}
+	var valid_res_ids: Dictionary = {} # id -> true
 	
-	for shape in shape_groups:
-		var group_resources = shape_groups[shape]
-		
-		# Identify all distinct colors in this shape group (excluding white/wildcard)
-		var distinct_colors: Dictionary = {}
-		var white_resources: Array[String] = []
-		var resources_by_color: Dictionary = {} # color -> Array[String ids]
-		
-		for res in group_resources:
-			var color = res.get_connector_color()
-			if color == "white" or color == "universal": # treat universal as white
-				white_resources.append(res.id)
-			else:
-				distinct_colors[color] = true
-				if not resources_by_color.has(color):
-					resources_by_color[color] = []
-				resources_by_color[color].append(res.id)
-		
-		# If no distinct colors (only white), treat 'white' as the color
-		var colors_to_process = distinct_colors.keys()
-		if colors_to_process.is_empty() and not white_resources.is_empty():
-			colors_to_process.append("white")
-			resources_by_color["white"] = white_resources # White only pass
-			white_resources = [] # Clear white list so we don't double add
-			
-		# Run BFS for each color
-		for color in colors_to_process:
-			# The graph nodes for this pass are: Specific Color Nodes + White Nodes
-			var pass_nodes: Dictionary = {}
-			for id in resources_by_color.get(color, []):
-				pass_nodes[id] = true
-			for id in white_resources:
-				pass_nodes[id] = true
-				
-			if pass_nodes.is_empty():
-				continue
-				
-			# Find connected components within pass_nodes
-			var visited: Dictionary = {}
-			var components: Array = []
-			
-			for start_node in pass_nodes:
-				if visited.has(start_node):
-					continue
-				
-				var component: Array = []
-				var queue: Array = [start_node]
-				visited[start_node] = true
-				
-				var queue_idx = 0
-				while queue_idx < queue.size():
-					var current = queue[queue_idx]
-					queue_idx += 1
-					component.append(current)
-					
-					if adjacency.has(current):
-						for neighbor in adjacency[current]:
-							# Traverse ONLY if neighbor is also in this pass (Color or White)
-							if pass_nodes.has(neighbor) and not visited.has(neighbor):
-								visited[neighbor] = true
-								queue.append(neighbor)
-				
-				if not component.is_empty():
-					components.append(component)
-					
-			# Identify valid components
-			# Heuristic: A component is valid if it involves at least 2 distinct windows.
-			# This implies it has an external connection.
-			# Single-window components (isolated nodes or internal loops) are disconnected.
-			
-			if components.size() > 0:
-				for component_nodes in components:
-					var distinct_windows = {}
-					var is_valid = false
-					
-					for res_id in component_nodes:
-						if resource_to_window.has(res_id):
-							var win = resource_to_window[res_id]
-							distinct_windows[win.name] = true
-						if distinct_windows.size() >= 2:
-							is_valid = true
-							break
-					
-					# Removed unsafe 'size > 4' check
-					
-					if is_valid:
-						for id in component_nodes:
-							valid_resource_ids[id] = true
-					
-				# Debug stats per color pass
-				if _is_debug_enabled():
-					var invalid_count = 0
-					for id in pass_nodes:
-						if not valid_resource_ids.has(id):
-							invalid_count += 1
-							
-					ModLoaderLog.info("  [%s:%s] Total Nodes: %d, Components: %d, Disconnected: %d" %
-						[shape, color, pass_nodes.size(), components.size(), invalid_count], LOG_NAME)
-
-	# Step 5: Identify windows that have ANY resource that remained invalid
-	# A window is disconnected if it has a resource that:
-	# 1. Was part of a checked shape/color group
-	# 2. Was NOT marked valid by ANY color pass
+	var components = []
 	
-	# We re-iterate all resources to see who was left behind
-	for res in all_resources:
-		var shape = res.get_connection_shape()
-		if shape.is_empty(): continue
+	for start_id in all_res_ids:
+		if visited.has(start_id): continue
 		
-		# If a resource was part of the analysis but not validated, it's disconnected
-		# Note: We track checks implicitly. If it wasn't valid, it's disconnected.
-		# Exception: Single nodes forming a component of size 1?
-		# Our logic above: Largest component is valid. Component of size 1 is valid if it's the largest.
-		# If there are multiple components, smaller ones are invalid.
+		# Start BFS
+		var component = []
+		var queue = [start_id]
+		visited[start_id] = true
 		
-		if not valid_resource_ids.has(res.id):
-			# Just to be safe, check if it was actually processed (avoid untracked types)
-			# But we processed all shapes.
-			if resource_to_window.has(res.id):
-				var window = resource_to_window[res.id]
-				disconnected_windows[window.name] = true
+		var idx = 0
+		while idx < queue.size():
+			var curr = queue[idx]
+			idx += 1
+			component.append(curr)
+			
+			if adjacency.has(curr):
+				for neighbor in adjacency[curr]:
+					if not visited.has(neighbor):
+						visited[neighbor] = true
+						queue.append(neighbor)
+		
+		components.append(component)
+	
+	# 4. Validate Components - Must span >= 2 Distinct Windows
+	var newly_disconnected_windows: Dictionary = {}
+	
+	for comp in components:
+		var distinct_windows = {}
+		for r_id in comp:
+			var w = res_to_window[r_id]
+			distinct_windows[w.name] = true
+			
+		if distinct_windows.size() >= 2:
+			# Valid - mark all resources
+			for r_id in comp:
+				valid_res_ids[r_id] = true
+		else:
+			# Invalid (Isolated) - mark windows
+			for r_id in comp:
+				var w = res_to_window[r_id]
+				newly_disconnected_windows[w.name] = true
 
-	# Apply/remove highlights
-	_update_highlights(disconnected_windows)
+	# Update State
+	_disconnected_windows = newly_disconnected_windows
+	_cached_windows.clear() # Clear cache to avoid stale references
+	
+	if _is_debug_enabled():
+		ModLoaderLog.info("Connectivity Scan: Total Nodes: %d, Components: %d, Highlighted Windows: %d" %
+			[all_res_ids.size(), components.size(), _disconnected_windows.size()], LOG_NAME)
 
+	if _draw_control:
+		_draw_control.queue_redraw()
 
-## Get all ResourceContainer nodes from a window
-func _get_window_resources(window: WindowContainer) -> Array[ResourceContainer]:
-	var result: Array[ResourceContainer] = []
-	_find_resource_containers(window, result)
-	return result
-
-
-func _find_resource_containers(node: Node, result: Array[ResourceContainer]) -> void:
+func _get_window_resources(node: Node, result: Array = []) -> Array:
 	if node is ResourceContainer:
 		result.append(node)
 	for child in node.get_children():
-		_find_resource_containers(child, result)
+		_get_window_resources(child, result)
+	return result
 
+func _find_window_by_name(name: String) -> WindowContainer:
+	if not is_instance_valid(Globals.desktop): return null
+	var wc = Globals.desktop.get_node_or_null("Windows")
+	if wc:
+		return wc.get_node_or_null(name)
+	return null
 
-## Find window by name
-func _find_window_by_name(window_name: String) -> WindowContainer:
-	if not is_instance_valid(Globals.desktop):
-		return null
-	var windows_container = Globals.desktop.get_node_or_null("Windows")
-	if not windows_container:
-		return null
-	return windows_container.get_node_or_null(window_name)
+# --------------------------------------------------------------------------------
+# DRAWING
+# --------------------------------------------------------------------------------
 
-
-# ==============================================================================
-# VISUAL HIGHLIGHTING
-# ==============================================================================
-
-## Update highlights based on new disconnected set
-func _update_highlights(new_disconnected: Dictionary) -> void:
-	# Remove highlights from windows no longer disconnected
-	var to_remove: Array = []
-	for window_name in _disconnected_windows:
-		if not new_disconnected.has(window_name):
-			to_remove.append(window_name)
-	
-	for window_name in to_remove:
-		var window = _find_window_by_name(window_name)
-		if window:
-			_remove_highlight(window)
-		_disconnected_windows.erase(window_name)
-	
-	# Add highlights to newly disconnected windows
-	for window_name in new_disconnected:
-		if not _disconnected_windows.has(window_name):
-			var window = _find_window_by_name(window_name)
-			if window:
-				# Store original modulate
-				# Sanity check: If already red-tinted (from previous run/hot reload), assume White
-				var current = window.modulate
-				# Simple heuristic: High Red, Low Green/Blue = likely tinted
-				if current.g < 0.6 and current.b < 0.6 and current.r > 0.8:
-					_disconnected_windows[window_name] = Color.WHITE
-				else:
-					_disconnected_windows[window_name] = current
-				
-				_apply_highlight(window)
-
-
-## Apply highlight to a window
-func _apply_highlight(window: WindowContainer) -> void:
-	if _style == "outline":
-		_apply_outline_highlight(window)
-	else:
-		_apply_pulse_highlight(window)
-
-
-## Apply pulsing tint highlight
-func _apply_pulse_highlight(window: WindowContainer) -> void:
-	var window_name = window.name
-	
-	# Cancel existing tween if any
-	if _highlight_tweens.has(window_name) and is_instance_valid(_highlight_tweens[window_name]):
-		_highlight_tweens[window_name].kill()
-	
-	# Calculate highlight color based on intensity
-	# Use nearly full range (0.0 to 0.9) to ensure visibility changes are obvious
-	var intensity_factor = _intensity * 0.9
-	var original = _disconnected_windows.get(window_name, Color.WHITE)
-	var pulse_high = original.lerp(HIGHLIGHT_COLOR, intensity_factor)
-	var pulse_low = original
-	
-	# Create looping pulse tween
-	# Start from current modulate to allow smooth updates (no forced reset)
-	var tween = window.create_tween()
-	tween.set_loops()
-	tween.tween_property(window, "modulate", pulse_high, PULSE_DURATION / 2).set_trans(Tween.TRANS_SINE)
-	tween.tween_property(window, "modulate", pulse_low, PULSE_DURATION / 2).set_trans(Tween.TRANS_SINE)
-	
-	_highlight_tweens[window_name] = tween
-
-
-## Apply outline highlight (static tint)
-func _apply_outline_highlight(window: WindowContainer) -> void:
-	var window_name = window.name
-	
-	# Ensure any existing tween is killed (e.g. if switching from Pulse)
-	if _highlight_tweens.has(window_name):
-		if is_instance_valid(_highlight_tweens[window_name]):
-			_highlight_tweens[window_name].kill()
-		_highlight_tweens.erase(window_name)
-
-	# Apply constant red tint at configured intensity (0.0 to 1.0)
-	# Direct linear scaling so 0% is invisible and 100% is full tint
-	var intensity_factor = _intensity
-	var original = _disconnected_windows.get(window_name, Color.WHITE)
-	var tinted = original.lerp(HIGHLIGHT_COLOR, intensity_factor)
-	window.modulate = tinted
-
-
-## Remove highlight from a window
-func _remove_highlight(window: WindowContainer) -> void:
-	var window_name = window.name
-	
-	# Stop tween if running
-	if _highlight_tweens.has(window_name) and is_instance_valid(_highlight_tweens[window_name]):
-		_highlight_tweens[window_name].kill()
-		_highlight_tweens.erase(window_name)
-	
-	# Restore original modulate
-	if _disconnected_windows.has(window_name):
-		window.modulate = _disconnected_windows[window_name]
-
-
-## Clear all highlights
-func _clear_all_highlights() -> void:
-	for window_name in _disconnected_windows:
-		var window = _find_window_by_name(window_name)
-		if window:
-			_remove_highlight(window)
-	
-	_disconnected_windows.clear()
-	
-	# Kill all tweens
-	for window_name in _highlight_tweens:
-		if is_instance_valid(_highlight_tweens[window_name]):
-			_highlight_tweens[window_name].kill()
-	_highlight_tweens.clear()
-
-
-## Update intensity on existing highlights
-func _update_highlight_intensity() -> void:
-	if not _enabled:
+func _on_draw_highlights() -> void:
+	if not _enabled or _disconnected_windows.is_empty():
 		return
+		
+	var draw_style = _style
+	var intensity_val = _intensity
 	
-	# Reapply highlights with new intensity
-	for window_name in _disconnected_windows:
-		var window = _find_window_by_name(window_name)
-		if window:
-			_apply_highlight(window)
+	if draw_style == "pulse":
+		# Pulse Alpha: min 0.1 to max (0.3 + 0.5*intensity)
+		var max_a = 0.3 + (intensity_val * 0.5)
+		var min_a = 0.1
+		var cur_a = min_a + (max_a - min_a) * _pulse_alpha
+		
+		var col = HIGHLIGHT_COLOR
+		col.a = cur_a
+		
+		# Use simple draw_rect instead of StyleBox (StyleBox may cause edge artifacts)
+		for win_name in _disconnected_windows:
+			var win = _get_cached_window(win_name)
+			if win:
+				var local_pos = win.global_position - _draw_control.global_position
+				var win_size = win.custom_minimum_size if win.custom_minimum_size != Vector2.ZERO else win.size
+				var rect = Rect2(local_pos, win_size)
+				_draw_control.draw_rect(rect, col, true) # Filled rect
+				
+	else:
+		# Outline
+		var col = HIGHLIGHT_COLOR
+		col.a = 0.3 + (intensity_val * 0.7)
+		var border_width = 4
+		
+		for win_name in _disconnected_windows:
+			var win = _get_cached_window(win_name)
+			if win:
+				var local_pos = win.global_position - _draw_control.global_position
+				var win_size = win.custom_minimum_size if win.custom_minimum_size != Vector2.ZERO else win.size
+				var rect = Rect2(local_pos, win_size)
+				_draw_control.draw_rect(rect, col, false, border_width)
 
+func _get_cached_window(win_name: String) -> WindowContainer:
+	if _cached_windows.has(win_name) and is_instance_valid(_cached_windows[win_name]):
+		return _cached_windows[win_name]
+	var win = _find_window_by_name(win_name)
+	if win:
+		_cached_windows[win_name] = win
+	return win
 
-## Get debug stats for display
-func get_debug_stats() -> Dictionary:
-	return {
-		"enabled": _enabled,
-		"style": _style,
-		"intensity": _intensity,
-		"disconnected_count": _disconnected_windows.size()
-	}
+func _update_stylebox(col: Color) -> void:
+	if not _cached_stylebox:
+		_cached_stylebox = StyleBoxFlat.new()
+		_cached_stylebox.set_corner_radius_all(10)
+		_cached_stylebox.draw_center = true
+	_cached_stylebox.bg_color = col
