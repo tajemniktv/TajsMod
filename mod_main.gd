@@ -1,7 +1,7 @@
 # ==============================================================================
 # Taj's Mod - Upload Labs
 # Author: TajemnikTV
-# Description: TBD
+# Description: A growing collection of Utility / QoL + Visual Tweaks for Upload Labs
 # ==============================================================================
 extends Node
 
