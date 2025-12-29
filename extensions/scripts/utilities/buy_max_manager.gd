@@ -150,12 +150,15 @@ func _inject_buy_max_button() -> void:
 	_strategy_button.custom_minimum_size = Vector2(45, 0)
 	_strategy_button.tooltip_text = "Select purchase strategy"
 	
-	# Setup strategy popup menu
+	# Setup strategy popup menu with game-matching dark theme
 	var popup = _strategy_button.get_popup()
 	popup.clear()
 	for strategy_id in STRATEGY_NAMES.keys():
 		popup.add_item(STRATEGY_NAMES[strategy_id], strategy_id)
 	popup.id_pressed.connect(_on_strategy_selected)
+	
+	# Style popup to match game theme
+	_style_popup_menu(popup)
 	_update_strategy_menu()
 	
 	# Add to container
@@ -194,6 +197,41 @@ func _update_strategy_menu() -> void:
 				popup.set_item_text(i, "   " + base_text)
 	
 	_update_main_button_tooltip()
+
+
+## Style popup menu to match game's dark theme
+func _style_popup_menu(popup: PopupMenu) -> void:
+	# Create StyleBoxFlat matching game theme (from main.tres)
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.0862745, 0.101961, 0.137255, 1) # Dark blue-grey
+	panel_style.border_width_left = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.270064, 0.332386, 0.457031, 1) # Light blue-grey
+	panel_style.corner_radius_top_left = 8
+	panel_style.corner_radius_top_right = 8
+	panel_style.corner_radius_bottom_right = 8
+	panel_style.corner_radius_bottom_left = 8
+	panel_style.content_margin_left = 8
+	panel_style.content_margin_right = 8
+	panel_style.content_margin_top = 8
+	panel_style.content_margin_bottom = 8
+	
+	# Hover style - slightly lighter
+	var hover_style = StyleBoxFlat.new()
+	hover_style.bg_color = Color(0.101961, 0.12549, 0.172549, 1) # Slightly lighter
+	hover_style.corner_radius_top_left = 4
+	hover_style.corner_radius_top_right = 4
+	hover_style.corner_radius_bottom_right = 4
+	hover_style.corner_radius_bottom_left = 4
+	
+	# Apply styles
+	popup.add_theme_stylebox_override("panel", panel_style)
+	popup.add_theme_stylebox_override("hover", hover_style)
+	popup.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9, 1))
+	popup.add_theme_color_override("font_hover_color", Color(1, 1, 1, 1))
+	popup.add_theme_constant_override("v_separation", 6)
 
 
 ## Handle strategy selection from dropdown
