@@ -26,6 +26,7 @@ const BuyMaxManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/e
 const CheatManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/cheat_manager.gd")
 const NotificationLogPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/notification_log_panel.gd")
 const DisconnectedNodeHighlighterScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/disconnected_node_highlighter.gd")
+const StickyNoteManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/sticky_note_manager.gd")
 
 # Components
 var config # ConfigManager instance
@@ -42,6 +43,7 @@ var buy_max_manager # BuyMaxManager instance
 var cheat_manager # CheatManager instance
 var notification_log_panel # NotificationLogPanel instance
 var disconnected_highlighter # DisconnectedNodeHighlighter instance
+var sticky_note_manager # StickyNoteManager instance
 
 # State
 var mod_dir_path: String = ""
@@ -302,6 +304,9 @@ func _setup_for_main(main_node: Node) -> void:
     # Initialize Notification Log (Toast History) panel
     _setup_notification_log(hud)
     
+    # Initialize Sticky Notes feature
+    _setup_sticky_notes()
+    
     # Apply initial visuals
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
@@ -418,6 +423,27 @@ func _setup_disconnected_highlighter() -> void:
     disconnected_highlighter.setup(config, get_tree(), self)
     
     ModLoaderLog.info("Disconnected Node Highlighter initialized", LOG_NAME)
+
+
+## Setup Sticky Notes feature
+## Allows players to place editable text notes on the canvas
+func _setup_sticky_notes() -> void:
+    # Check if already set up
+    if sticky_note_manager != null and is_instance_valid(sticky_note_manager):
+        return
+    
+    # Create the manager
+    sticky_note_manager = StickyNoteManagerScript.new()
+    sticky_note_manager.name = "StickyNoteManager"
+    add_child(sticky_note_manager)
+    
+    # Initialize with config and tree
+    sticky_note_manager.setup(config, get_tree(), self)
+    
+    # Apply debug setting
+    sticky_note_manager.set_debug_enabled(_debug_mode)
+    
+    ModLoaderLog.info("Sticky Notes feature initialized", LOG_NAME)
 
 
 func _build_settings_menu() -> void:
@@ -602,6 +628,8 @@ func _build_settings_menu() -> void:
     # Debug mode toggle
     var debug_toggle = ui.add_toggle(debug_vbox, "Enable Debug Logging", _debug_mode, func(v):
         _debug_mode = v
+        if sticky_note_manager:
+            sticky_note_manager.set_debug_enabled(v)
         _add_debug_log("Debug mode " + ("enabled" if v else "disabled"), true)
     , "Log extra debug information to the console and debug tab.")
     

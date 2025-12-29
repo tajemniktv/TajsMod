@@ -762,6 +762,39 @@ static func register_all(registry, refs: Dictionary) -> void:
     })
     
     # ==========================================
+    # TOOLS - STICKY NOTES
+    # ==========================================
+    
+    registry.register({
+        "id": "cmd_add_sticky_note",
+        "title": "Add Sticky Note",
+        "category_path": ["Tools (Opt-in)"],
+        "keywords": ["note", "sticky", "sign", "label", "text", "comment", "annotation"],
+        "hint": "Place a text note on the canvas to label areas",
+        "icon_path": "res://textures/icons/star.png",
+        "badge": "NEW",
+        "run": func(ctx):
+            if mod_main and mod_main.sticky_note_manager:
+                mod_main.sticky_note_manager.create_note_at_camera_center()
+            else:
+                Signals.notify.emit("exclamation", "Sticky notes not initialized")
+    })
+    
+    registry.register({
+        "id": "cmd_clear_all_notes",
+        "title": "Clear All Sticky Notes",
+        "category_path": ["Tools (Opt-in)"],
+        "keywords": ["note", "sticky", "clear", "delete", "remove", "all"],
+        "hint": "Delete all sticky notes from the canvas",
+        "icon_path": "res://textures/icons/trash.png",
+        "badge": "OPT-IN",
+        "can_run": func(ctx): return ctx.are_tools_enabled() and mod_main and mod_main.sticky_note_manager and mod_main.sticky_note_manager.get_note_count() > 0,
+        "run": func(ctx):
+            if mod_main and mod_main.sticky_note_manager:
+                mod_main.sticky_note_manager.clear_all_notes()
+    })
+    
+    # ==========================================
     # HELP & LINKS
     # ==========================================
     
