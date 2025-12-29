@@ -15,7 +15,7 @@ jobs:
       notes: ${{ steps.meta.outputs.notes }}
       version: ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install jq
         run: |
@@ -98,7 +98,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Stage Workshop payload (zip only)
         shell: bash
@@ -109,7 +109,7 @@ jobs:
           cp "export/TajemnikTV-TajsModded.zip" "workshop_upload/TajemnikTV-TajsModded.zip"
 
       - name: Upload to Steam Workshop (steamcmd)
-        uses: BoldestDungeon/steam-workshop-deploy@v2
+        uses: BoldestDungeon/steam-workshop-deploy@v4
         with:
           username: ${{ secrets.STEAM_USERNAME }}
           configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
