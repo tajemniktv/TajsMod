@@ -628,8 +628,15 @@ func _build_settings_menu() -> void:
     , "Show a custom boot screen with mod version info. Requires restart.")
     
     # Debug mode toggle
-    var debug_toggle = ui.add_toggle(debug_vbox, "Enable Debug Logging", _debug_mode, func(v):
+    var saved_debug = config.get_value("debug_mode", false)
+    _debug_mode = saved_debug
+    # Apply initial debug state to components that need it
+    if sticky_note_manager:
+        sticky_note_manager.set_debug_enabled(saved_debug)
+    
+    var debug_toggle = ui.add_toggle(debug_vbox, "Enable Debug Logging", saved_debug, func(v):
         _debug_mode = v
+        config.set_value("debug_mode", v)
         if sticky_note_manager:
             sticky_note_manager.set_debug_enabled(v)
         _add_debug_log("Debug mode " + ("enabled" if v else "disabled"), true)
