@@ -26,6 +26,7 @@ const BuyMaxManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/e
 const CheatManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/cheat_manager.gd")
 const NotificationLogPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/notification_log_panel.gd")
 const DisconnectedNodeHighlighterScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/disconnected_node_highlighter.gd")
+const UpgradeManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/upgrade_manager.gd")
 const StickyNoteManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/sticky_note_manager.gd")
 
 # Components
@@ -44,10 +45,11 @@ var cheat_manager # CheatManager instance
 var notification_log_panel # NotificationLogPanel instance
 var disconnected_highlighter # DisconnectedNodeHighlighter instance
 var sticky_note_manager # StickyNoteManager instance
+var upgrade_manager # UpgradeManager instance
 
 # State
 var mod_dir_path: String = ""
-var mod_version: String = "0.0.0"
+var mod_version: String = "0.20.0"
 var _desktop_patched := false
 var _node_info_label: Label = null # Reference for updates
 var _debug_log_label: Label = null # Debug log display
@@ -315,6 +317,9 @@ func _setup_for_main(main_node: Node) -> void:
     # Initialize Sticky Notes feature
     _setup_sticky_notes()
     
+    # Initialize Upgrade Manager (Modifier Keys)
+    _setup_upgrade_manager()
+    
     # Apply initial visuals
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
@@ -502,6 +507,14 @@ func _build_settings_menu() -> void:
         config.set_value("buy_max_enabled", v)
         _set_buy_max_visible(v)
     , "Add a button to buy the maximum affordable upgrades at once.")
+    
+    # Upgrade Multiplier Slider
+    var saved_mult = config.get_value("upgrade_multiplier", 10)
+    Globals.custom_upgrade_multiplier = saved_mult
+    ui.add_slider(gen_vbox, "Upgrade Multiplier (Ctrl)", saved_mult, 2, 100, 1, "x", func(v):
+        config.set_value("upgrade_multiplier", v)
+        Globals.custom_upgrade_multiplier = v
+    )
     
     # Z-Order Fix toggle
     _settings_toggles["z_order_fix_enabled"] = ui.add_toggle(gen_vbox, "Group Z-Order Fix", config.get_value("z_order_fix_enabled"), func(v):
@@ -1214,3 +1227,21 @@ func _register_palette_screenshot_command() -> void:
         "can_run": func(ctx): return Globals and Globals.selections.size() > 0,
         "run": func(ctx): sm.take_screenshot_selection()
     })
+
+
+## Setup Upgrade Manager (Modifier Keys)
+## Handles bulk upgrades (x10, x100) using modifier keys on window upgrade buttons
+func _setup_upgrade_manager() -> void:
+    # Check if already set up
+    if upgrade_manager != null and is_instance_valid(upgrade_manager):
+        return
+        
+    # Create the manager
+    upgrade_manager = UpgradeManagerScript.new()
+    upgrade_manager.name = "UpgradeManager"
+    add_child(upgrade_manager)
+    
+    # Initialize
+    upgrade_manager.setup(get_tree(), config)
+    
+    ModLoaderLog.info("Upgrade Manager initialized", LOG_NAME)
