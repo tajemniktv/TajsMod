@@ -1,5 +1,4 @@
-name: Release from exported ZIP
-
+name: Release + Steam Workshop
 on:
   push:
     branches: ["master"]
@@ -7,27 +6,32 @@ on:
       - "export/TajemnikTV-TajsModded.zip"
   workflow_dispatch: {}
 
-permissions:
-  contents: write
-
 jobs:
-  release:
+  prep:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      title: ${{ steps.meta.outputs.title }}
+      notes: ${{ steps.meta.outputs.notes }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - name: Read manifest + upload ZIP to GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Read manifest.json (metadata for tag/title)
+        id: meta
+        shell: bash
         run: |
           set -euo pipefail
 
           ZIP="export/TajemnikTV-TajsModded.zip"
           test -f "$ZIP" || (echo "Missing $ZIP (czy na pewno jest zacommitowany?)" && exit 1)
 
-          command -v jq >/dev/null 2>&1 || (echo "jq not found" && exit 1)
-
-          MANIFEST="$(git ls-files | grep -E '(^|/)manifest\.json$' | head -n 1)"
+          MANIFEST="$(git ls-files | grep -E '(^|/)manifest\.json$' | head -n 1 || true)"
           test -n "$MANIFEST" || (echo "No manifest.json found in repo" && exit 1)
 
           NAMESPACE="$(jq -r '.namespace // empty' "$MANIFEST")"
@@ -46,27 +50,70 @@ jobs:
           SAFE_ID="$(echo "$MOD_ID" | tr ' ' '-' | tr -cd '[:alnum:]._-' )"
           TAG="${SAFE_ID}-v${VER}"
 
-          ASSET_LABEL="TajemnikTV-TajsModded-${VER}.zip"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "title=${MOD_ID} v${VER}" >> "$GITHUB_OUTPUT"
+          echo "notes=Auto release from commit ${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "version=$VER"     >> "$GITHUB_OUTPUT"
 
-          echo "Manifest: $MANIFEST"
-          echo "Release tag: $TAG"
-          echo "Asset label: $ASSET_LABEL"
+  github_release:
+    runs-on: ubuntu-latest
+    needs: [prep]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create/Update GitHub Release (normal release)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ZIP="export/TajemnikTV-TajsModded.zip"
+          test -f "$ZIP" || (echo "Missing $ZIP" && exit 1)
+
+          TAG="${{ needs.prep.outputs.tag }}"
+          TITLE="${{ needs.prep.outputs.title }}"
+          NOTES="${{ needs.prep.outputs.notes }}"
+          VER="${{ needs.prep.outputs.version }}"
+
+          ASSET_NAME="TajemnikTV-TajsModded-${VER}.zip"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release exists: $TAG -> upload asset (clobber)"
-            gh release upload "$TAG" "${ZIP}#${ASSET_LABEL}" --clobber
-
-            # draft -> publish
-            IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq '.isDraft')"
-            if [ "$IS_DRAFT" = "true" ]; then
-              echo "Release is draft -> publishing it"
-              gh release edit "$TAG" --draft=false --latest
-            fi
+            gh release upload "$TAG" "${ZIP}#${ASSET_NAME}" --clobber
           else
-            echo "Creating normal release: $TAG"
-            gh release create "$TAG" "${ZIP}#${ASSET_LABEL}" \
-              --title "v${VER}" \
-              --notes "Auto release from commit ${GITHUB_SHA}" \
-              --target "${GITHUB_SHA}" \
+            echo "Creating release: $TAG"
+            gh release create "$TAG" "${ZIP}#${ASSET_NAME}" \
+              --title "$TITLE" \
+              --notes "$NOTES" \
+              --target "$GITHUB_SHA" \
               --latest
           fi
+
+  steam_workshop:
+    runs-on: ubuntu-latest
+    needs: [prep, github_release]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage Workshop payload (zip only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf workshop_upload
+          mkdir -p workshop_upload
+          cp "export/TajemnikTV-TajsModded.zip" "workshop_upload/TajemnikTV-TajsModded.zip"
+
+      - name: Upload to Steam Workshop (steamcmd)
+        uses: BoldestDungeon/steam-workshop-deploy@v2
+        with:
+          username: ${{ secrets.STEAM_USERNAME }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          path: workshop_upload
+          appId: "3606890"
+          publishedFileId: "3628222709"
+          changeNote: ${{ needs.prep.outputs.title }}
