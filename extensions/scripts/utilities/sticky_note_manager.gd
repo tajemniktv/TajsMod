@@ -213,6 +213,15 @@ func get_all_notes() -> Array:
             result.append(_notes[note_id])
     return result
 
+func navigate_to_note(note: Control) -> void:
+    if not is_instance_valid(note): return
+    # Use center_camera signal to pan
+    var center = note.position + note.size / 2
+    Signals.center_camera.emit(center)
+    # Select the note
+    Globals.set_selection([], [], 0) # Clear other selections
+    note._set_selected(true)
+
 func clear_all_notes() -> void:
     for note_id in _notes.keys():
         delete_note(note_id)

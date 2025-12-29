@@ -45,6 +45,10 @@ var _picker_nodes: Array[Dictionary] = []
 var _group_picker_mode: bool = false
 var _group_picker_groups: Array = [] # Array of group node references
 
+# Note Picker Mode (for Jump to Note feature)
+var _note_picker_mode: bool = false
+var _note_picker_notes: Array = [] # Array of sticky note references
+
 # Styling
 const PANEL_WIDTH = 600
 const PANEL_HEIGHT = 500
@@ -64,6 +68,7 @@ const COLOR_TEXT_GLOW = Color(0.4, 0.65, 1.0, 0.5)
 signal command_executed(command_id: String)
 signal node_selected(window_id: String, spawn_pos: Vector2, origin_info: Dictionary)
 signal group_selected(group) # Emitted when a group is selected in group picker mode
+signal note_picker_selected(note) # Emitted when a note is selected in note picker mode
 signal closed
 
 
@@ -381,6 +386,10 @@ func hide_palette() -> void:
 	_group_picker_mode = false
 	_group_picker_groups.clear()
 	
+	# Reset note picker mode state
+	_note_picker_mode = false
+	_note_picker_notes.clear()
+	
 	closed.emit()
 	
 	if Engine.has_singleton("Sound"):
@@ -618,6 +627,120 @@ func _filter_group_picker(query: String) -> void:
 			filtered.append(group)
 	
 	_display_group_picker(filtered)
+
+
+# ==============================================================================
+# Note Picker Mode (for Jump to Note feature)
+# ==============================================================================
+
+## Show the note picker for Jump to Note feature
+func show_note_picker(notes: Array, sticky_manager) -> void:
+	# Reset other modes
+	_picker_mode = false
+	_picker_origin_info.clear()
+	_picker_nodes.clear()
+	_group_picker_mode = false
+	_group_picker_groups.clear()
+	
+	_note_picker_mode = true
+	_note_picker_notes = notes.duplicate()
+	
+	# If already open, just transition; if not, open
+	if not _is_open:
+		_is_open = true
+		visible = true
+	
+	search_input.text = ""
+	search_input.placeholder_text = "Search notes to jump to..."
+	_selected_index = 0
+	_current_path = []
+	_history_back.clear()
+	_history_forward.clear()
+	
+	# Store the manager reference for later use
+	set_meta("sticky_note_manager", sticky_manager)
+	
+	# Display notes
+	_display_note_picker(_note_picker_notes)
+	_update_note_picker_breadcrumbs()
+	
+	# Focus search input
+	search_input.grab_focus()
+	
+	Sound.play("menu_open")
+
+## Display notes in the note picker mode
+func _display_note_picker(notes: Array) -> void:
+	# Clear existing items
+	for child in _result_items:
+		child.queue_free()
+	_result_items.clear()
+	
+	_displayed_items.clear()
+	_selected_index = 0
+	
+	# Convert note data to display format
+	for note in notes:
+		if not is_instance_valid(note):
+			continue
+		
+		var title = note.title_text if "title_text" in note else "Note"
+		var body = note.body_text if "body_text" in note else ""
+		
+		# Truncate body for hint
+		var hint = body.replace("\n", " ").substr(0, 50)
+		if body.length() > 50: hint += "..."
+		
+		var item := {
+			"id": str(note.get_instance_id()),
+			"title": title,
+			"hint": hint,
+			"category_path": [],
+			"icon_path": "res://textures/icons/star.png",
+			"is_category": false,
+			"badge": "SAFE",
+			"_note_ref": note
+		}
+		_displayed_items.append(item)
+	
+	no_results_label.visible = _displayed_items.is_empty()
+	if _displayed_items.is_empty():
+		no_results_label.text = "No notes found on desktop"
+	
+	for i in range(_displayed_items.size()):
+		var item = _displayed_items[i]
+		var row = _create_result_row(item, i)
+		results_container.add_child(row)
+		_result_items.append(row)
+	
+	_update_selection()
+
+
+## Update breadcrumbs for note picker mode
+func _update_note_picker_breadcrumbs() -> void:
+	breadcrumb_label.text = "📍 Jump to Note (%d notes)" % _note_picker_notes.size()
+
+
+## Filter note picker by search query
+func _filter_note_picker(query: String) -> void:
+	if query.is_empty():
+		_display_note_picker(_note_picker_notes)
+		return
+	
+	var filtered: Array = []
+	var query_lower := query.to_lower()
+	
+	for note in _note_picker_notes:
+		if not is_instance_valid(note):
+			continue
+		
+		var title: String = note.title_text if "title_text" in note else ""
+		var body: String = note.body_text if "body_text" in note else ""
+		
+		if query_lower in title.to_lower() or query_lower in body.to_lower():
+			filtered.append(note)
+	
+	_display_note_picker(filtered)
 
 
 # ==============================================================================
@@ -870,6 +993,11 @@ func _perform_search() -> void:
 	if _group_picker_mode:
 		_filter_group_picker(query)
 		return
+		
+	# Handle note picker mode search
+	if _note_picker_mode:
+		_filter_note_picker(query)
+		return
 	
 	if query.is_empty():
 		if _current_path.is_empty():
@@ -993,6 +1121,11 @@ func _execute_selected() -> void:
 	if _group_picker_mode:
 		_execute_group_selection(item)
 		return
+		
+	# Handle note picker mode
+	if _note_picker_mode:
+		_execute_note_picker_selection(item)
+		return
 	
 	# If it's a category, enter it
 	if item.get("is_category", false):
@@ -1042,6 +1175,22 @@ func _execute_group_selection(item: Dictionary) -> void:
 	
 	# Emit signal for controller/caller to handle navigation
 	group_selected.emit(group)
+	
+	Sound.play("click")
+	hide_palette()
+
+
+## Execute a note picker selection (navigate to note)
+func _execute_note_picker_selection(item: Dictionary) -> void:
+	var note = item.get("_note_ref", null)
+	
+	if not is_instance_valid(note):
+		Signals.notify.emit("exclamation", "Note no longer exists")
+		hide_palette()
+		return
+	
+	# Emit signal for controller/caller to handle navigation
+	note_picker_selected.emit(note)
 	
 	Sound.play("click")
 	hide_palette()

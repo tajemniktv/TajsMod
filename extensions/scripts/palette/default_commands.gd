@@ -35,6 +35,17 @@ static func register_all(registry, refs: Dictionary) -> void:
     })
     
     registry.register({
+        "id": "cat_notes",
+        "title": "Notes",
+        "category_path": [],
+        "keywords": ["notes", "sticky", "annotations", "comments", "text"],
+        "hint": "Sticky notes and annotations",
+        "icon_path": "res://textures/icons/star.png",
+        "is_category": true,
+        "badge": "SAFE"
+    })
+    
+    registry.register({
         "id": "cat_tajs_mod",
         "title": "Taj's Mod",
         "category_path": [],
@@ -762,17 +773,47 @@ static func register_all(registry, refs: Dictionary) -> void:
     })
     
     # ==========================================
-    # TOOLS - STICKY NOTES
+    # NOTES - COMMANDS
     # ==========================================
+    
+    registry.register({
+        "id": "cmd_jump_to_note",
+        "title": "Jump to Note",
+        "category_path": ["Notes"],
+        "keywords": ["jump", "goto", "navigate", "note", "sticky", "list"],
+        "hint": "Open palette picker to jump to any sticky note",
+        "icon_path": "res://textures/icons/crosshair.png",
+        "badge": "SAFE",
+        "keep_open": true,
+        "run": func(ctx):
+            if not mod_main:
+                Signals.notify.emit("exclamation", "Mod not initialized")
+                return
+            
+            if not mod_main.sticky_note_manager:
+                Signals.notify.emit("exclamation", "Note manager not found")
+                return
+            
+            var notes = mod_main.sticky_note_manager.get_all_notes()
+            if notes.is_empty():
+                Signals.notify.emit("exclamation", "No notes on desktop")
+                return
+            
+            if controller and controller.overlay:
+                var overlay = controller.overlay
+                if overlay.note_picker_selected.get_connections().size() == 0:
+                    overlay.note_picker_selected.connect(mod_main.sticky_note_manager.navigate_to_note)
+                overlay.show_note_picker(notes, mod_main.sticky_note_manager)
+    })
     
     registry.register({
         "id": "cmd_add_sticky_note",
         "title": "Add Sticky Note",
-        "category_path": ["Tools (Opt-in)"],
+        "category_path": ["Notes"],
         "keywords": ["note", "sticky", "sign", "label", "text", "comment", "annotation"],
         "hint": "Place a text note on the canvas to label areas",
         "icon_path": "res://textures/icons/star.png",
-        "badge": "NEW",
+        "badge": "SAFE",
         "run": func(ctx):
             if mod_main and mod_main.sticky_note_manager:
                 mod_main.sticky_note_manager.create_note_at_camera_center()
@@ -783,12 +824,12 @@ static func register_all(registry, refs: Dictionary) -> void:
     registry.register({
         "id": "cmd_clear_all_notes",
         "title": "Clear All Sticky Notes",
-        "category_path": ["Tools (Opt-in)"],
+        "category_path": ["Notes"],
         "keywords": ["note", "sticky", "clear", "delete", "remove", "all"],
         "hint": "Delete all sticky notes from the canvas",
         "icon_path": "res://textures/icons/trash.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled() and mod_main and mod_main.sticky_note_manager and mod_main.sticky_note_manager.get_note_count() > 0,
+        "badge": "SAFE",
+        "can_run": func(ctx): return mod_main and mod_main.sticky_note_manager and mod_main.sticky_note_manager.get_note_count() > 0,
         "run": func(ctx):
             if mod_main and mod_main.sticky_note_manager:
                 mod_main.sticky_note_manager.clear_all_notes()
