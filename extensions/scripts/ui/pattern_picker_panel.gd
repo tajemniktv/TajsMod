@@ -22,6 +22,9 @@ const PATTERN_NAMES = [
 ]
 const PATTERN_COUNT = 11
 
+# Preload dependencies (required for exported builds - class_name not reliable)
+const ColorPickerPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/color_picker_panel.gd")
+
 # Current state
 var _pattern_index: int = 0
 var _pattern_color: Color = Color(0, 0, 0, 1.0)
@@ -42,7 +45,7 @@ var _thickness_label: Label
 
 # Color picker reference
 var _color_picker_layer: CanvasLayer = null
-var _color_picker: ColorPickerPanel = null
+var _color_picker = null # ColorPickerPanel - no type hint to avoid class_name issues in exports
 
 # Dragging state for panel
 var _drag_offset = null
@@ -265,7 +268,7 @@ func _setup_color_picker():
     )
     _color_picker_layer.add_child(bg_overlay)
     
-    _color_picker = ColorPickerPanel.new()
+    _color_picker = ColorPickerPanelScript.new()
     _color_picker.name = "PatternColorPicker"
     _color_picker.set_color(_pattern_color)
     _color_picker.color_changed.connect(_on_color_picked)
