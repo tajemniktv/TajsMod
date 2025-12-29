@@ -1,4 +1,5 @@
 name: Release + Steam Workshop
+
 on:
   push:
     branches: ["master"]
@@ -12,8 +13,8 @@ jobs:
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       title: ${{ steps.meta.outputs.title }}
-      notes: ${{ steps.meta.outputs.notes }}
       version: ${{ steps.meta.outputs.version }}
+      changelog: ${{ steps.meta.outputs.changelog }}
     steps:
       - uses: actions/checkout@v6
 
@@ -22,7 +23,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Read manifest.json (metadata for tag/title)
+      - name: Read manifest.json + extract CHANGELOG entry
         id: meta
         shell: bash
         run: |
@@ -50,10 +51,45 @@ jobs:
           SAFE_ID="$(echo "$MOD_ID" | tr ' ' '-' | tr -cd '[:alnum:]._-' )"
           TAG="${SAFE_ID}-v${VER}"
 
-          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
-          echo "title=${MOD_ID} v${VER}" >> "$GITHUB_OUTPUT"
-          echo "notes=Auto release from commit ${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-          echo "version=$VER"     >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"                 >> "$GITHUB_OUTPUT"
+          echo "title=${MOD_ID} v${VER}"  >> "$GITHUB_OUTPUT"
+          echo "version=$VER"             >> "$GITHUB_OUTPUT"
+
+          # -------- CHANGELOG extraction --------
+          CHANGELOG_FILE="CHANGELOG.md"
+          CHANGELOG_NOTE=""
+
+          if [ -f "$CHANGELOG_FILE" ]; then
+            # Grab everything after "## [VER] - ..." until next "## [x.y.z]"
+            CHANGELOG_NOTE="$(awk -v ver="$VER" '
+              BEGIN {found=0}
+              $0 ~ "^##[[:space:]]*\\[" ver "\\][[:space:]]*-" {found=1; next}
+              found && $0 ~ "^##[[:space:]]*\\[[0-9]" {exit}
+              found {print}
+            ' "$CHANGELOG_FILE")"
+
+            # Trim leading/trailing blank lines
+            CHANGELOG_NOTE="$(printf "%s\n" "$CHANGELOG_NOTE" | sed -e 's/[[:space:]]\+$//' -e :a -e '/^\n*$/{$d;N;ba' -e '}' -e '1{/^$/d;}')"
+
+            # If still effectively empty -> fallback
+            if [ -z "$(printf "%s" "$CHANGELOG_NOTE" | tr -d '[:space:]')" ]; then
+              CHANGELOG_NOTE=""
+            fi
+          fi
+
+          if [ -z "$CHANGELOG_NOTE" ]; then
+            CHANGELOG_NOTE="Update v${VER}\n\n(No CHANGELOG entry found for this version.)"
+          fi
+
+          # Safety: keep it not-crazy-long for Steam change notes
+          CHANGELOG_NOTE="$(printf "%s" "$CHANGELOG_NOTE" | head -c 7000)"
+
+          # Multiline output for GitHub Actions
+          {
+            echo "changelog<<EOF"
+            echo "$CHANGELOG_NOTE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
   github_release:
     runs-on: ubuntu-latest
@@ -75,14 +111,17 @@ jobs:
 
           TAG="${{ needs.prep.outputs.tag }}"
           TITLE="${{ needs.prep.outputs.title }}"
-          NOTES="${{ needs.prep.outputs.notes }}"
           VER="${{ needs.prep.outputs.version }}"
+          NOTES="${{ needs.prep.outputs.changelog }}"
 
           ASSET_NAME="TajemnikTV-TajsModded-${VER}.zip"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release exists: $TAG -> upload asset (clobber)"
             gh release upload "$TAG" "${ZIP}#${ASSET_NAME}" --clobber
+
+            # Update release notes too (in case you changed CHANGELOG later)
+            gh release edit "$TAG" --notes "$NOTES" --title "$TITLE"
           else
             echo "Creating release: $TAG"
             gh release create "$TAG" "${ZIP}#${ASSET_NAME}" \
@@ -116,4 +155,4 @@ jobs:
           path: workshop_upload
           appId: "3606890"
           publishedFileId: "3628222709"
-          changeNote: ${{ needs.prep.outputs.title }}
+          changeNote: ${{ needs.prep.outputs.changelog }}
