@@ -172,6 +172,25 @@ static func register_all(registry, refs: Dictionary) -> void:
             _upgrade_nodes(Globals.selections if Globals else [])
     })
     
+    # Clear All Wires in Selection command
+    registry.register({
+        "id": "cmd_clear_wires_selection",
+        "title": "Clear All Wires in Selection",
+        "category_path": ["Nodes"],
+        "keywords": ["clear", "wires", "connections", "disconnect", "selection", "delete"],
+        "hint": "Disconnect all wires from selected nodes",
+        "icon_path": "res://textures/icons/connections.png",
+        "badge": "SAFE",
+        "can_run": func(ctx): return Globals and Globals.selections.size() > 0,
+        "run": func(ctx):
+            var result = _clear_wires_for_windows(Globals.selections if Globals else [])
+            if result.cleared > 0:
+                Sound.play("close")
+                Signals.notify.emit("check", "Cleared %d connections from %d nodes" % [result.cleared, result.nodes])
+            else:
+                Signals.notify.emit("exclamation", "No connections to clear")
+    })
+    
     # Upgrade All command (in root Nodes)
     registry.register({
         "id": "cmd_upgrade_all",
@@ -946,3 +965,50 @@ static func _get_method_arg_count(obj: Object, method_name: String) -> int:
             if method.name == method_name:
                 return method.args.size()
     return 1
+
+
+## Helper to clear all wires from a list of windows
+static func _clear_wires_for_windows(windows: Array) -> Dictionary:
+    var cleared := 0
+    var nodes_with_wires := 0
+    
+    for window in windows:
+        if not is_instance_valid(window):
+            continue
+        var containers := _find_resource_containers_in_window(window)
+        var had_wires := false
+        
+        for rc: ResourceContainer in containers:
+            if not is_instance_valid(rc):
+                continue
+            # Clear all output connections
+            var outputs: Array[String] = rc.outputs_id.duplicate()
+            for output_id in outputs:
+                Signals.delete_connection.emit(rc.id, output_id)
+                cleared += 1
+                had_wires = true
+            # Clear input connection
+            if not rc.input_id.is_empty():
+                Signals.delete_connection.emit(rc.input_id, rc.id)
+                cleared += 1
+                had_wires = true
+        
+        if had_wires:
+            nodes_with_wires += 1
+    
+    return {"cleared": cleared, "nodes": nodes_with_wires}
+
+
+## Find all ResourceContainers in a window
+static func _find_resource_containers_in_window(node: Node) -> Array[ResourceContainer]:
+    var containers: Array[ResourceContainer] = []
+    _collect_resource_containers(node, containers)
+    return containers
+
+
+## Recursively collect ResourceContainers
+static func _collect_resource_containers(node: Node, containers: Array[ResourceContainer]) -> void:
+    if node is ResourceContainer:
+        containers.append(node as ResourceContainer)
+    for child in node.get_children():
+        _collect_resource_containers(child, containers)
