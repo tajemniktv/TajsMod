@@ -112,9 +112,14 @@ func duplicate_note(note_id: String, new_position: Vector2):
     
     var new_note = create_note(new_position, original.size)
     if new_note:
-        new_note.set_title(data.get("title", ""))
-        new_note.set_body(data.get("body", ""))
-        new_note.set_note_color(Color.html(data.get("color", "#3a3a5080")))
+        # Prepare data for duplication (exclude unique fields)
+        var dup_data = data.duplicate()
+        dup_data.erase("id")
+        dup_data.erase("position")
+        
+        # Load properties
+        new_note.load_from_data(dup_data)
+        
         save_notes()
         Signals.notify.emit("check", "Note duplicated!")
     
