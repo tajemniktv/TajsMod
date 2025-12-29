@@ -13,7 +13,8 @@ const DEFAULT_CONFIG := {
 	"favorites": [],
 	"recents": [],
 	"tools_enabled": false,
-	"max_recents": 10
+	"max_recents": 10,
+	"palette_onboarded": false
 }
 
 var _config: Dictionary = {}
@@ -154,4 +155,15 @@ func are_tools_enabled() -> bool:
 
 func set_tools_enabled(enabled: bool) -> void:
 	_config["tools_enabled"] = enabled
+	save_config()
+
+
+# ============== Onboarding ==============
+
+func is_onboarded() -> bool:
+	return _config.get("palette_onboarded", false)
+
+
+func set_onboarded(value: bool) -> void:
+	_config["palette_onboarded"] = value
 	save_config()

@@ -33,6 +33,7 @@ var _result_items: Array[Control] = [] # UI item references
 var _debounce_timer: Timer
 var _history_back: Array = [] # Navigation history for back button
 var _history_forward: Array = [] # Navigation history for forward button
+var _onboarding_hint: Control # Onboarding hint panel
 
 # Node Picker Mode (for wire-drop feature)
 var _picker_mode: bool = false
@@ -153,6 +154,11 @@ func _build_ui() -> void:
 	no_results_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	no_results_label.add_theme_font_size_override("font_size", 18)
 	no_results_label.visible = false
+	
+	# Onboarding hint (shown first time)
+	_onboarding_hint = _create_onboarding_hint()
+	_onboarding_hint.visible = false
+	results_container.add_child(_onboarding_hint)
 	results_container.add_child(no_results_label)
 	
 	# Footer with breadcrumbs
@@ -236,6 +242,79 @@ func _create_footer() -> Control:
 	return footer
 
 
+func _create_onboarding_hint() -> Control:
+	var hint_panel = PanelContainer.new()
+	hint_panel.name = "OnboardingHint"
+	
+	var hint_style = StyleBoxFlat.new()
+	hint_style.bg_color = Color(0.15, 0.25, 0.35, 0.95)
+	hint_style.border_color = Color(0.4, 0.6, 0.8, 0.8)
+	hint_style.set_border_width_all(2)
+	hint_style.set_corner_radius_all(8)
+	hint_style.content_margin_left = 16
+	hint_style.content_margin_right = 16
+	hint_style.content_margin_top = 12
+	hint_style.content_margin_bottom = 12
+	hint_panel.add_theme_stylebox_override("panel", hint_style)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	hint_panel.add_child(vbox)
+	
+	# Title
+	var title = Label.new()
+	title.text = "✨ Welcome to the Command Palette!"
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", Color(0.9, 0.95, 1.0))
+	_apply_text_style(title, true)
+	vbox.add_child(title)
+	
+	# Hotkey tips
+	var tips = [
+		"• MMB (Middle Mouse): Open/close palette",
+		"• ↑↓: Navigate • Enter: Select • Esc: Close",
+		"• Ctrl+F: Toggle favorite on selected command",
+		"• Drop a wire on empty canvas → Node Picker!"
+	]
+	
+	for tip_text in tips:
+		var tip = Label.new()
+		tip.text = tip_text
+		tip.add_theme_font_size_override("font_size", 13)
+		tip.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+		vbox.add_child(tip)
+	
+	# Got it button
+	var btn_container = HBoxContainer.new()
+	btn_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	vbox.add_child(btn_container)
+	
+	var got_it_btn = Button.new()
+	got_it_btn.text = "Got it!"
+	got_it_btn.custom_minimum_size = Vector2(100, 32)
+	got_it_btn.pressed.connect(_dismiss_onboarding)
+	btn_container.add_child(got_it_btn)
+	
+	return hint_panel
+
+
+func _dismiss_onboarding() -> void:
+	if _onboarding_hint:
+		_onboarding_hint.visible = false
+	if palette_config:
+		palette_config.set_onboarded(true)
+	Sound.play("click")
+
+
+## Show the onboarding hint (called from Help command)
+func show_onboarding_hint() -> void:
+	if _onboarding_hint:
+		_onboarding_hint.visible = true
+		# Scroll to make it visible
+		await get_tree().process_frame
+		results_scroll.ensure_control_visible(_onboarding_hint)
+
+
 func _setup_debounce() -> void:
 	_debounce_timer = Timer.new()
 	_debounce_timer.one_shot = true
@@ -267,6 +346,14 @@ func show_palette() -> void:
 	# Show home screen
 	_show_home_screen()
 	_update_breadcrumbs()
+	
+	# Show onboarding hint on first open
+	if palette_config and not palette_config.is_onboarded():
+		if _onboarding_hint:
+			_onboarding_hint.visible = true
+	else:
+		if _onboarding_hint:
+			_onboarding_hint.visible = false
 	
 	# Focus search input
 	search_input.grab_focus()

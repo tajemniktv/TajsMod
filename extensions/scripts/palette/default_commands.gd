@@ -767,6 +767,21 @@ static func register_all(registry, refs: Dictionary) -> void:
             Signals.notify.emit("check", "Tools disabled in palette")
     })
     
+    registry.register({
+        "id": "cmd_palette_help",
+        "title": "Palette Help",
+        "category_path": ["Help & Links"],
+        "keywords": ["palette", "help", "onboarding", "tutorial", "hotkeys", "guide"],
+        "hint": "Show command palette help and hotkeys",
+        "icon_path": "res://textures/icons/question.png",
+        "badge": "SAFE",
+        "keep_open": true,
+        "run": func(ctx):
+            if controller and controller.overlay:
+                controller.overlay.show_onboarding_hint()
+                Signals.notify.emit("check", "Showing palette help")
+    })
+    
     ModLoaderLog.info("Registered %d default commands" % registry.get_count(), LOG_NAME)
 
 
