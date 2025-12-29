@@ -1,6 +1,6 @@
 # ==============================================================================
 # Taj's Mod - Upload Labs
-# Group Window Extension - Expanded color palette and patterns
+# Group Window Extension - Expanded color palette, patterns, and customization
 # Author: TajemnikTV
 # ==============================================================================
 extends "res://scenes/windows/window_group.gd"
@@ -11,74 +11,147 @@ const NEW_COLORS: Array[String] = [
     "BE4242", "FFA500", "FFFF00", "00FF00", "00FFFF", "0000FF", "800080", "FF00FF", "252525", "000000"
 ]
 
+# Pattern state
 var pattern_index: int = 0
+var pattern_color: Color = Color(0, 0, 0, 1.0)
+var pattern_alpha: float = 0.4
+var pattern_spacing: float = 20.0
+var pattern_thickness: float = 4.0
 var pattern_drawers: Array[Control] = []
-var custom_color: Color = Color.TRANSPARENT # Custom RGB color (TRANSPARENT = use preset)
-var color_picker_btn = null # ColorPickerPanel reference
-var locked: bool = false # Lock group to prevent movement
 
+# Other state
+var custom_color: Color = Color.TRANSPARENT # Custom RGB color for group background
+var color_picker_btn = null
+var locked: bool = false
+
+# Pattern picker overlay
+var _pattern_picker_layer: CanvasLayer = null
+var _pattern_picker: Control = null
+
+# ==============================================================================
+# PatternDrawer - Draws patterns on group panels (supports 11 patterns)
+# ==============================================================================
 class PatternDrawer extends Control:
     var pattern_type: int = 0
-    var color: Color = Color(0, 0, 0, 0.4) # Increased alpha
+    var color: Color = Color(0, 0, 0, 0.4)
+    var spacing: float = 20.0
+    var thickness: float = 4.0
 
     func _ready() -> void:
         resized.connect(queue_redraw)
-        clip_contents = true # Prevent drawing outside bounds
+        clip_contents = true
 
     func _draw() -> void:
         if pattern_type == 0: return
         
-        var size = get_size()
-        var step = 20.0 # Increased spacing
-        var width = 4.0 # Increased width
+        var s = get_size()
         
-        if pattern_type == 1: # Horizontal Stripes
-            var y = 0.0
-            while y < size.y:
-                draw_line(Vector2(0, y), Vector2(size.x, y), color, width)
-                y += step
-                
-        elif pattern_type == 2: # Vertical Stripes
+        match pattern_type:
+            1: _draw_horizontal(s)
+            2: _draw_vertical(s)
+            3: _draw_diagonal_slash(s)
+            4: _draw_diagonal_backslash(s)
+            5: _draw_grid(s)
+            6: _draw_diamond(s)
+            7: _draw_dots(s)
+            8: _draw_zigzag(s)
+            9: _draw_waves(s)
+            10: _draw_brick(s)
+    
+    func _draw_horizontal(s: Vector2):
+        var y = spacing / 2.0
+        while y < s.y:
+            draw_line(Vector2(0, y), Vector2(s.x, y), color, thickness)
+            y += spacing
+    
+    func _draw_vertical(s: Vector2):
+        var x = spacing / 2.0
+        while x < s.x:
+            draw_line(Vector2(x, 0), Vector2(x, s.y), color, thickness)
+            x += spacing
+    
+    func _draw_diagonal_slash(s: Vector2):
+        var x = -s.y
+        while x < s.x:
+            draw_line(Vector2(x, 0), Vector2(x + s.y, s.y), color, thickness)
+            x += spacing
+    
+    func _draw_diagonal_backslash(s: Vector2):
+        var x = 0.0
+        while x < s.x + s.y:
+            draw_line(Vector2(x, 0), Vector2(x - s.y, s.y), color, thickness)
+            x += spacing
+    
+    func _draw_grid(s: Vector2):
+        _draw_horizontal(s)
+        _draw_vertical(s)
+    
+    func _draw_diamond(s: Vector2):
+        _draw_diagonal_slash(s)
+        _draw_diagonal_backslash(s)
+    
+    func _draw_dots(s: Vector2):
+        var radius = max(thickness * 0.8, 2.0)
+        var x = spacing / 2.0
+        while x < s.x:
+            var y = spacing / 2.0
+            while y < s.y:
+                draw_circle(Vector2(x, y), radius, color)
+                y += spacing
+            x += spacing
+    
+    func _draw_zigzag(s: Vector2):
+        var y = spacing / 2.0
+        while y < s.y:
+            var points = PackedVector2Array()
             var x = 0.0
-            while x < size.x:
-                draw_line(Vector2(x, 0), Vector2(x, size.y), color, width)
-                x += step
-
-        elif pattern_type == 3: # Slash /
-            var x = - size.y
-            while x < size.x:
-                draw_line(Vector2(x, 0), Vector2(x + size.y, size.y), color, width)
-                x += step
-                
-        elif pattern_type == 4: # Backslash \
+            var up = true
+            while x <= s.x:
+                var py = y - spacing * 0.25 if up else y + spacing * 0.25
+                points.append(Vector2(x, py))
+                x += spacing * 0.5
+                up = !up
+            if points.size() >= 2:
+                draw_polyline(points, color, thickness)
+            y += spacing
+    
+    func _draw_waves(s: Vector2):
+        var y = spacing / 2.0
+        while y < s.y:
+            var points = PackedVector2Array()
             var x = 0.0
-            while x < size.x + size.y:
-                draw_line(Vector2(x, 0), Vector2(x - size.y, size.y), color, width)
-                x += step
-
-        elif pattern_type == 5: # Checkerboard (Grid)
-            var x = 0.0
-            while x < size.x:
-                draw_line(Vector2(x, 0), Vector2(x, size.y), color, width)
-                x += step
-            var y = 0.0
-            while y < size.y:
-                draw_line(Vector2(0, y), Vector2(size.x, y), color, width)
-                y += step
-                
-        elif pattern_type == 6: # Diamond (Crosshatch)
-            var x = - size.y
-            while x < size.x:
-                draw_line(Vector2(x, 0), Vector2(x + size.y, size.y), color, width)
-                x += step
-            x = 0.0
-            while x < size.x + size.y:
-                draw_line(Vector2(x, 0), Vector2(x - size.y, size.y), color, width)
-                x += step
+            while x <= s.x + spacing:
+                var wave_y = y + sin(x / spacing * PI) * spacing * 0.25
+                points.append(Vector2(x, wave_y))
+                x += 3.0
+            if points.size() >= 2:
+                draw_polyline(points, color, thickness)
+            y += spacing
+    
+    func _draw_brick(s: Vector2):
+        var y = 0.0
+        var row = 0
+        while y < s.y:
+            draw_line(Vector2(0, y), Vector2(s.x, y), color, thickness)
+            var offset = (spacing * 0.5) if row % 2 == 1 else 0.0
+            var x = offset
+            while x < s.x:
+                var next_y = min(y + spacing, s.y)
+                draw_line(Vector2(x, y), Vector2(x, next_y), color, thickness)
+                x += spacing
+            y += spacing
+            row += 1
     
     func set_pattern(p: int):
         pattern_type = p
         queue_redraw()
+    
+    func set_style(c: Color, a: float, sp: float, th: float):
+        color = Color(c.r, c.g, c.b, a)
+        spacing = sp
+        thickness = th
+        queue_redraw()
+
 
 func _ready() -> void:
     super._ready()
@@ -93,9 +166,9 @@ func _ready() -> void:
         title_panel.move_child(title_drawer, 0)
         pattern_drawers.append(title_drawer)
         
-        # Inject Pattern Button with PopupMenu into TitleContainer
         var title_container = title_panel.get_node_or_null("TitleContainer")
         if title_container:
+            # === Pattern Button (opens pattern picker) ===
             var pattern_btn = Button.new()
             pattern_btn.name = "PatternButton"
             pattern_btn.custom_minimum_size = Vector2(40, 40)
@@ -107,106 +180,18 @@ func _ready() -> void:
             pattern_btn.icon = load("res://textures/icons/grid.png")
             pattern_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
             pattern_btn.expand_icon = true
-            pattern_btn.tooltip_text = "Select Pattern"
-            
-            # Create PopupMenu for pattern selection
-            var pattern_popup = PopupMenu.new()
-            pattern_popup.name = "PatternPopup"
-            pattern_popup.add_item("None", 0)
-            pattern_popup.add_item("Horizontal Lines", 1)
-            pattern_popup.add_item("Vertical Lines", 2)
-            pattern_popup.add_item("Diagonal /", 3)
-            pattern_popup.add_item("Diagonal \\", 4)
-            pattern_popup.add_item("Grid", 5)
-            pattern_popup.add_item("Diamond", 6)
-            
-            # Style the popup to match game
-            var pattern_panel_style = StyleBoxFlat.new()
-            pattern_panel_style.bg_color = Color(0.08, 0.09, 0.12, 0.98)
-            pattern_panel_style.border_color = Color(0.2, 0.25, 0.35, 1.0)
-            pattern_panel_style.set_border_width_all(2)
-            pattern_panel_style.set_corner_radius_all(8)
-            pattern_panel_style.set_content_margin_all(8)
-            pattern_popup.add_theme_stylebox_override("panel", pattern_panel_style)
-            pattern_popup.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
-            pattern_popup.add_theme_color_override("font_hover_color", Color(1, 1, 1))
-            
-            pattern_popup.id_pressed.connect(_on_pattern_selected)
-            
-            pattern_btn.add_child(pattern_popup)
-            pattern_btn.pressed.connect(func():
-                pattern_popup.position = pattern_btn.global_position + Vector2(0, pattern_btn.size.y)
-                pattern_popup.popup()
-                Sound.play("click2")
-            )
+            pattern_btn.tooltip_text = "Pattern Settings"
+            pattern_btn.pressed.connect(_open_pattern_picker)
             
             title_container.add_child(pattern_btn)
             if title_container.get_child_count() >= 3:
                 title_container.move_child(pattern_btn, 3)
             
-            # Keep original ColorButton but rewire it to open our custom picker
+            # === Color Picker Setup ===
             var old_color_btn = title_container.get_node_or_null("ColorButton")
+            _setup_color_picker(old_color_btn)
             
-            # Create color picker overlay (click-outside-to-close + styled panel)
-            var picker_layer = CanvasLayer.new()
-            picker_layer.name = "ColorPickerLayer"
-            picker_layer.layer = 100
-            picker_layer.visible = false
-            get_tree().root.call_deferred("add_child", picker_layer)
-            
-            # Background overlay (semi-transparent, click to close)
-            var bg_overlay = ColorRect.new()
-            bg_overlay.name = "BackgroundOverlay"
-            bg_overlay.color = Color(0, 0, 0, 0.4) # Slightly darker for visibility
-            bg_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-            bg_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-            picker_layer.add_child(bg_overlay)
-            
-            # Create custom ColorPickerPanel
-            var custom_picker = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/color_picker_panel.gd").new()
-            custom_picker.name = "ColorPickerPanel"
-            
-            # Set initial color
-            if custom_color != Color.TRANSPARENT:
-                custom_picker.set_color(custom_color)
-            else:
-                custom_picker.set_color(Color(NEW_COLORS[color]))
-            
-            picker_layer.add_child(custom_picker)
-            
-            # Store reference for later access
-            color_picker_btn = custom_picker
-            
-            # Helper to show/hide the picker
-            var show_picker = func():
-                picker_layer.visible = true
-                # Center manually
-                custom_picker.position = (custom_picker.get_viewport_rect().size - custom_picker.size) / 2
-                Sound.play("click2")
-            
-            var hide_picker = func():
-                picker_layer.visible = false
-            
-            # Click overlay to close
-            bg_overlay.gui_input.connect(func(event):
-                if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-                    hide_picker.call()
-            )
-            
-            custom_picker.color_changed.connect(_on_color_picked)
-            custom_picker.color_committed.connect(func(c):
-                hide_picker.call()
-            )
-            
-            # Rewire original button to open the custom picker
-            if old_color_btn:
-                if old_color_btn.pressed.is_connected(_on_color_button_pressed):
-                    old_color_btn.pressed.disconnect(_on_color_button_pressed)
-                old_color_btn.pressed.connect(func():
-                    show_picker.call()
-                )
-            
-            # Inject Upgrade All Button
+            # === Upgrade All Button ===
             var upgrade_btn = Button.new()
             upgrade_btn.name = "UpgradeAllButton"
             upgrade_btn.custom_minimum_size = Vector2(40, 40)
@@ -219,12 +204,11 @@ func _ready() -> void:
             upgrade_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
             upgrade_btn.expand_icon = true
             upgrade_btn.tooltip_text = "Upgrade All Nodes in Group"
+            upgrade_btn.pressed.connect(upgrade_all_nodes)
             
             title_container.add_child(upgrade_btn)
             if title_container.get_child_count() >= 4:
                 title_container.move_child(upgrade_btn, 4)
-            
-            upgrade_btn.pressed.connect(upgrade_all_nodes)
 
     # Inject Pattern Drawer into PanelContainer (Content)
     var body_panel = get_node_or_null("PanelContainer")
@@ -236,8 +220,114 @@ func _ready() -> void:
         body_panel.move_child(body_drawer, 0)
         pattern_drawers.append(body_drawer)
 
-    # Apply initial pattern (e.g. from save)
+    # Apply initial pattern
     update_pattern()
+    
+    # Setup pattern picker overlay
+    _setup_pattern_picker()
+
+
+func _setup_color_picker(old_color_btn):
+    var picker_layer = CanvasLayer.new()
+    picker_layer.name = "ColorPickerLayer"
+    picker_layer.layer = 100
+    picker_layer.visible = false
+    get_tree().root.call_deferred("add_child", picker_layer)
+    
+    var bg_overlay = ColorRect.new()
+    bg_overlay.name = "BackgroundOverlay"
+    bg_overlay.color = Color(0, 0, 0, 0.4)
+    bg_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    bg_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+    picker_layer.add_child(bg_overlay)
+    
+    var custom_picker = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/color_picker_panel.gd").new()
+    custom_picker.name = "ColorPickerPanel"
+    
+    if custom_color != Color.TRANSPARENT:
+        custom_picker.set_color(custom_color)
+    else:
+        custom_picker.set_color(Color(NEW_COLORS[color]))
+    
+    picker_layer.add_child(custom_picker)
+    color_picker_btn = custom_picker
+    
+    var show_picker = func():
+        picker_layer.visible = true
+        custom_picker.position = (custom_picker.get_viewport_rect().size - custom_picker.size) / 2
+        Sound.play("click2")
+    
+    var hide_picker = func():
+        picker_layer.visible = false
+    
+    bg_overlay.gui_input.connect(func(event):
+        if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+            hide_picker.call()
+    )
+    
+    custom_picker.color_changed.connect(_on_color_picked)
+    custom_picker.color_committed.connect(func(c):
+        hide_picker.call()
+    )
+    
+    if old_color_btn:
+        if old_color_btn.pressed.is_connected(_on_color_button_pressed):
+            old_color_btn.pressed.disconnect(_on_color_button_pressed)
+        old_color_btn.pressed.connect(func():
+            show_picker.call()
+        )
+
+
+func _setup_pattern_picker():
+    _pattern_picker_layer = CanvasLayer.new()
+    _pattern_picker_layer.name = "PatternPickerLayer"
+    _pattern_picker_layer.layer = 101
+    _pattern_picker_layer.visible = false
+    
+    var bg_overlay = ColorRect.new()
+    bg_overlay.name = "BackgroundOverlay"
+    bg_overlay.color = Color(0, 0, 0, 0.4)
+    bg_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    bg_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+    bg_overlay.gui_input.connect(func(event):
+        if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+            _close_pattern_picker()
+    )
+    _pattern_picker_layer.add_child(bg_overlay)
+    
+    _pattern_picker = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/pattern_picker_panel.gd").new()
+    _pattern_picker.name = "PatternPickerPanel"
+    _pattern_picker.set_settings(pattern_index, pattern_color, pattern_alpha, pattern_spacing, pattern_thickness)
+    _pattern_picker.settings_changed.connect(_on_pattern_settings_changed)
+    _pattern_picker.settings_committed.connect(func(idx, c, a, sp, th):
+        _close_pattern_picker()
+    )
+    _pattern_picker_layer.add_child(_pattern_picker)
+    
+    get_tree().root.call_deferred("add_child", _pattern_picker_layer)
+
+
+func _open_pattern_picker():
+    if _pattern_picker_layer:
+        _pattern_picker.set_settings(pattern_index, pattern_color, pattern_alpha, pattern_spacing, pattern_thickness)
+        _pattern_picker_layer.visible = true
+        _pattern_picker.position = (_pattern_picker.get_viewport_rect().size - _pattern_picker.size) / 2
+        Sound.play("click2")
+
+
+func _close_pattern_picker():
+    if _pattern_picker_layer:
+        _pattern_picker_layer.visible = false
+
+
+func _on_pattern_settings_changed(idx: int, c: Color, a: float, sp: float, th: float):
+    pattern_index = idx
+    pattern_color = c
+    pattern_alpha = a
+    pattern_spacing = sp
+    pattern_thickness = th
+    update_pattern()
+
 
 func update_color() -> void:
     var use_color: Color
@@ -248,15 +338,13 @@ func update_color() -> void:
     $TitlePanel.self_modulate = use_color
     $PanelContainer.self_modulate = use_color
 
+
 func cycle_color() -> void:
-    # Called when color button is pressed - now we open color picker instead
     if color_picker_btn and color_picker_btn.get_parent():
-        # Trigger the color picker popup (parent is the PopupPanel)
         var popup = color_picker_btn.get_parent()
         if popup and popup.has_method("popup_centered"):
             popup.popup_centered()
     else:
-        # Fallback to old behavior
         color += 1
         if color >= NEW_COLORS.size():
             color = 0
@@ -264,30 +352,35 @@ func cycle_color() -> void:
         update_color()
         color_changed.emit()
 
+
 func _on_pattern_selected(id: int) -> void:
     pattern_index = id
     update_pattern()
     Sound.play("click2")
+
+
 func _on_color_picked(new_color: Color) -> void:
     custom_color = new_color
     update_color()
     color_changed.emit()
     Sound.play("click2")
 
+
 func cycle_pattern() -> void:
     pattern_index += 1
-    if pattern_index > 6:
+    if pattern_index > 10:
         pattern_index = 0
     update_pattern()
     Sound.play("click2")
 
+
 func update_pattern() -> void:
     for drawer in pattern_drawers:
         drawer.set_pattern(pattern_index)
+        drawer.set_style(pattern_color, pattern_alpha, pattern_spacing, pattern_thickness)
 
 
 func upgrade_all_nodes() -> void:
-    # Find all windows inside this group's bounds
     var upgraded_count = 0
     var skipped_count = 0
     var my_rect = get_rect()
@@ -298,32 +391,25 @@ func upgrade_all_nodes() -> void:
         if !my_rect.encloses(window.get_rect()):
             continue
         
-        # Check if window has upgrade capability
         if !window.has_method("upgrade"):
             continue
         
-        # Check if can afford the upgrade
         if window.has_method("can_upgrade"):
             if !window.can_upgrade():
                 skipped_count += 1
                 continue
-            # Windows with can_upgrade() usually handle their own cost deduction
-            # when _on_upgrade_button_pressed is called, so simulate that
             if window.has_method("_on_upgrade_button_pressed"):
                 window._on_upgrade_button_pressed()
                 upgraded_count += 1
                 continue
         
-        # For windows without can_upgrade, check cost manually
         var cost = window.get("cost")
         if cost != null and cost > 0:
             if cost > Globals.currencies.get("money", 0):
                 skipped_count += 1
                 continue
-            # Deduct cost
             Globals.currencies["money"] -= cost
         
-        # Call upgrade with appropriate arguments
         var arg_count = _get_method_arg_count(window, "upgrade")
         if arg_count == 0:
             window.upgrade()
@@ -331,7 +417,6 @@ func upgrade_all_nodes() -> void:
             window.upgrade(1)
         upgraded_count += 1
     
-    # Provide feedback
     if upgraded_count > 0:
         Sound.play("upgrade")
         var msg = "Upgraded " + str(upgraded_count) + " nodes"
@@ -347,40 +432,66 @@ func upgrade_all_nodes() -> void:
 
 
 func _get_method_arg_count(obj: Object, method_name: String) -> int:
-    # Get the number of arguments a method expects
     var script = obj.get_script()
     if script:
         for method in script.get_script_method_list():
             if method.name == method_name:
                 return method.args.size()
-    # Default: assume 1 argument
     return 1
 
-# Overrides for Persistence
+
+# ==============================================================================
+# Persistence - Save/Export/Load
+# ==============================================================================
 func save() -> Dictionary:
     var data = super.save()
     data["pattern_index"] = pattern_index
-    data["locked"] = locked
-    if custom_color != Color.TRANSPARENT:
-        data["custom_color"] = custom_color.to_html(true) # Include alpha
-    return data
-
-func export() -> Dictionary:
-    var data = super.export()
-    data["pattern_index"] = pattern_index
+    data["pattern_color"] = pattern_color.to_html(true)
+    data["pattern_alpha"] = pattern_alpha
+    data["pattern_spacing"] = pattern_spacing
+    data["pattern_thickness"] = pattern_thickness
     data["locked"] = locked
     if custom_color != Color.TRANSPARENT:
         data["custom_color"] = custom_color.to_html(true)
     return data
 
+
+func export() -> Dictionary:
+    var data = super.export()
+    data["pattern_index"] = pattern_index
+    data["pattern_color"] = pattern_color.to_html(true)
+    data["pattern_alpha"] = pattern_alpha
+    data["pattern_spacing"] = pattern_spacing
+    data["pattern_thickness"] = pattern_thickness
+    data["locked"] = locked
+    if custom_color != Color.TRANSPARENT:
+        data["custom_color"] = custom_color.to_html(true)
+    return data
+
+
 func _load_custom_data() -> void:
-    # Called after loading to restore custom color
+    # Restore custom color
     if has_meta("custom_color"):
         var color_str = get_meta("custom_color")
         custom_color = Color.html(color_str)
         update_color()
+    
+    # Restore pattern settings
+    if has_meta("pattern_color"):
+        pattern_color = Color.html(get_meta("pattern_color"))
+    if has_meta("pattern_alpha"):
+        pattern_alpha = get_meta("pattern_alpha")
+    if has_meta("pattern_spacing"):
+        pattern_spacing = get_meta("pattern_spacing")
+    if has_meta("pattern_thickness"):
+        pattern_thickness = get_meta("pattern_thickness")
+    
+    update_pattern()
 
+
+# ==============================================================================
 # Lock functionality
+# ==============================================================================
 func toggle_lock() -> void:
     locked = !locked
     if locked:
@@ -388,25 +499,26 @@ func toggle_lock() -> void:
     else:
         Signals.notify.emit("unlock", "Group unlocked")
 
+
 func is_locked() -> bool:
     return locked
 
-# Override grab to prevent dragging when locked
+
 func grab(g: bool) -> void:
     if locked and g:
         Sound.play("error")
-        return # Don't allow grabbing when locked
+        return
     super.grab(g)
 
-# Override movement to prevent moving when locked
+
 func _on_move_selection(to: Vector2) -> void:
     if locked:
-        return # Don't move when locked
+        return
     super._on_move_selection(to)
 
-# Override resizing to prevent when locked
+
 func set_resizing(l: bool, t: bool, r: bool, b: bool) -> void:
     if locked and (l or t or r or b):
         Sound.play("error")
-        return # Don't allow resizing when locked
+        return
     super.set_resizing(l, t, r, b)
