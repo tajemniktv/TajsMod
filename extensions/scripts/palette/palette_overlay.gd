@@ -41,6 +41,10 @@ var _picker_origin_info: Dictionary = {}
 var _picker_spawn_position: Vector2 = Vector2.ZERO
 var _picker_nodes: Array[Dictionary] = []
 
+# Group Picker Mode (for Jump to Group feature)
+var _group_picker_mode: bool = false
+var _group_picker_groups: Array = [] # Array of group node references
+
 # Styling
 const PANEL_WIDTH = 600
 const PANEL_HEIGHT = 500
@@ -59,6 +63,7 @@ const COLOR_TEXT_GLOW = Color(0.4, 0.65, 1.0, 0.5)
 
 signal command_executed(command_id: String)
 signal node_selected(window_id: String, spawn_pos: Vector2, origin_info: Dictionary)
+signal group_selected(group) # Emitted when a group is selected in group picker mode
 signal closed
 
 
@@ -372,6 +377,10 @@ func hide_palette() -> void:
 	_picker_origin_info.clear()
 	_picker_nodes.clear()
 	
+	# Reset group picker mode state
+	_group_picker_mode = false
+	_group_picker_groups.clear()
+	
 	closed.emit()
 	
 	if Engine.has_singleton("Sound"):
@@ -482,6 +491,133 @@ func _filter_picker_nodes(query: String) -> void:
 			filtered.append(node)
 	
 	_display_picker_nodes(filtered)
+
+
+# ==============================================================================
+# Group Picker Mode (for Jump to Group feature)
+# ==============================================================================
+
+## Show the group picker for Jump to Group feature
+## Displays all groups on the desktop for quick navigation
+func show_group_picker(groups: Array, goto_group_manager) -> void:
+	# Reset picker mode if active (not group picker - that's handled separately)
+	_picker_mode = false
+	_picker_origin_info.clear()
+	_picker_nodes.clear()
+	
+	_group_picker_mode = true
+	_group_picker_groups = groups.duplicate()
+	
+	# If already open, just transition; if not, open
+	if not _is_open:
+		_is_open = true
+		visible = true
+	
+	search_input.text = ""
+	search_input.placeholder_text = "Search groups to jump to..."
+	_selected_index = 0
+	_current_path = []
+	_history_back.clear()
+	_history_forward.clear()
+	
+	# Store the manager reference for later use
+	set_meta("goto_group_manager", goto_group_manager)
+	
+	# Display groups
+	_display_group_picker(_group_picker_groups)
+	_update_group_picker_breadcrumbs()
+	
+	# Focus search input
+	search_input.grab_focus()
+	
+	Sound.play("menu_open")
+
+
+## Display groups in the group picker mode
+func _display_group_picker(groups: Array) -> void:
+	# Clear existing items
+	for child in _result_items:
+		child.queue_free()
+	_result_items.clear()
+	
+	_displayed_items.clear()
+	_selected_index = 0
+	
+	var goto_manager = get_meta("goto_group_manager", null)
+	
+	# Convert group data to display format
+	for group in groups:
+		if not is_instance_valid(group):
+			continue
+		
+		var group_name := "Group"
+		if goto_manager and goto_manager.has_method("get_group_name"):
+			group_name = goto_manager.get_group_name(group)
+		elif group.has_method("get_window_name"):
+			group_name = group.get_window_name()
+		elif group.get("custom_name") and not group.custom_name.is_empty():
+			group_name = group.custom_name
+		
+		var icon_path := "res://textures/icons/window.png"
+		if goto_manager and goto_manager.has_method("get_group_icon_path"):
+			icon_path = goto_manager.get_group_icon_path(group)
+		
+		var item := {
+			"id": str(group.get_instance_id()),
+			"title": group_name,
+			"hint": "",
+			"category_path": [],
+			"icon_path": icon_path,
+			"is_category": false,
+			"badge": "SAFE",
+			"_group_ref": group
+		}
+		_displayed_items.append(item)
+	
+	no_results_label.visible = _displayed_items.is_empty()
+	if _displayed_items.is_empty():
+		no_results_label.text = "No groups found on desktop"
+	
+	for i in range(_displayed_items.size()):
+		var item = _displayed_items[i]
+		var row = _create_result_row(item, i)
+		results_container.add_child(row)
+		_result_items.append(row)
+	
+	_update_selection()
+
+
+## Update breadcrumbs for group picker mode
+func _update_group_picker_breadcrumbs() -> void:
+	breadcrumb_label.text = "📍 Jump to Group (%d groups)" % _group_picker_groups.size()
+
+
+## Filter group picker by search query
+func _filter_group_picker(query: String) -> void:
+	if query.is_empty():
+		_display_group_picker(_group_picker_groups)
+		return
+	
+	var filtered: Array = []
+	var query_lower := query.to_lower()
+	var goto_manager = get_meta("goto_group_manager", null)
+	
+	for group in _group_picker_groups:
+		if not is_instance_valid(group):
+			continue
+		
+		var group_name := ""
+		if goto_manager and goto_manager.has_method("get_group_name"):
+			group_name = goto_manager.get_group_name(group)
+		elif group.has_method("get_window_name"):
+			group_name = group.get_window_name()
+		elif group.get("custom_name") and not group.custom_name.is_empty():
+			group_name = group.custom_name
+		
+		if query_lower in group_name.to_lower():
+			filtered.append(group)
+	
+	_display_group_picker(filtered)
 
 
 # ==============================================================================
@@ -730,6 +866,11 @@ func _perform_search() -> void:
 		_filter_picker_nodes(query)
 		return
 	
+	# Handle group picker mode search
+	if _group_picker_mode:
+		_filter_group_picker(query)
+		return
+	
 	if query.is_empty():
 		if _current_path.is_empty():
 			_show_home_screen()
@@ -848,6 +989,11 @@ func _execute_selected() -> void:
 		_execute_picker_selection(item)
 		return
 	
+	# Handle group picker mode
+	if _group_picker_mode:
+		_execute_group_selection(item)
+		return
+	
 	# If it's a category, enter it
 	if item.get("is_category", false):
 		_enter_category()
@@ -880,6 +1026,22 @@ func _execute_picker_selection(item: Dictionary) -> void:
 	# IMPORTANT: Pass a duplicate because hide_palette() clears _picker_origin_info
 	# and spawn_and_connect uses await, so the dictionary would be cleared before use
 	node_selected.emit(node_id, _picker_spawn_position, _picker_origin_info.duplicate())
+	
+	Sound.play("click")
+	hide_palette()
+
+
+## Execute a group picker selection (navigate to group)
+func _execute_group_selection(item: Dictionary) -> void:
+	var group = item.get("_group_ref", null)
+	
+	if not is_instance_valid(group):
+		Signals.notify.emit("exclamation", "Group no longer exists")
+		hide_palette()
+		return
+	
+	# Emit signal for controller/caller to handle navigation
+	group_selected.emit(group)
 	
 	Sound.play("click")
 	hide_palette()

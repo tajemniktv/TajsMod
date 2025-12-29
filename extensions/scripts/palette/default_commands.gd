@@ -159,6 +159,39 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "SAFE"
     })
     
+    # Jump to Group command (opens group picker)
+    registry.register({
+        "id": "cmd_jump_to_group",
+        "title": "Jump to Group",
+        "category_path": ["Nodes", "Groups"],
+        "keywords": ["jump", "goto", "navigate", "group", "camera", "focus", "list"],
+        "hint": "Open palette picker to jump to any group",
+        "icon_path": "res://textures/icons/crosshair.png",
+        "badge": "SAFE",
+        "keep_open": true,
+        "run": func(ctx):
+            if not mod_main:
+                Signals.notify.emit("exclamation", "Mod not initialized")
+                return
+            
+            var goto_manager = mod_main.get("goto_group_manager")
+            if not goto_manager:
+                Signals.notify.emit("exclamation", "Group manager not found")
+                return
+            
+            var groups = goto_manager.get_all_groups()
+            if groups.is_empty():
+                Signals.notify.emit("exclamation", "No groups on desktop")
+                return
+            
+            if controller and controller.overlay:
+                var overlay = controller.overlay
+                # Connect the group_selected signal to navigate_to_group (one-shot)
+                if overlay.group_selected.get_connections().size() == 0:
+                    overlay.group_selected.connect(goto_manager.navigate_to_group)
+                overlay.show_group_picker(groups, goto_manager)
+    })
+    
     # Upgrade Selected command (in root Nodes)
     registry.register({
         "id": "cmd_upgrade_selected",
