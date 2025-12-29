@@ -69,7 +69,7 @@ func _inject_buy_max_button() -> void:
     buy_max_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
     buy_max_button.focus_mode = Control.FOCUS_NONE
     buy_max_button.theme_type_variation = "ButtonMenu"
-    buy_max_button.icon = load("res://textures/icons/upgrade.png") # Use upgrade icon if available
+    buy_max_button.icon = load("res://textures/icons/up_arrow.png") # Use upgrade icon if available
     buy_max_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     buy_max_button.expand_icon = true
     buy_max_button.visible = false
