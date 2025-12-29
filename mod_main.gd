@@ -389,7 +389,7 @@ func _setup_buy_max() -> void:
     
     # Initialize after a short delay to ensure UI is ready
     await get_tree().create_timer(0.1).timeout
-    buy_max_manager.setup(get_tree())
+    buy_max_manager.setup(get_tree(), config)
     
     ModLoaderLog.info("Buy Max feature initialized", LOG_NAME)
 

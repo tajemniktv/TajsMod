@@ -2,21 +2,54 @@
 # Buy Max Manager - Taj's Mod
 # Author: TajemnikTV
 # Description: Adds "Buy Max" button to upgrade tabs for batch purchasing
+#              with multiple selectable purchase strategies
 # ==============================================================================
 extends Node
 
 const LOG_NAME = "TajsModded:BuyMax"
 
+# Available purchase strategies
+enum Strategy {
+	ROUND_ROBIN, # Even distribution across all upgrades
+	CHEAPEST_FIRST, # Always buy the cheapest available upgrade
+	EXPENSIVE_FIRST, # Buy the most expensive you can afford
+	TOP_TO_BOTTOM # Buy first upgrade until maxed, then next
+}
+
+const STRATEGY_NAMES = {
+	Strategy.ROUND_ROBIN: "Round Robin",
+	Strategy.CHEAPEST_FIRST: "Cheapest First",
+	Strategy.EXPENSIVE_FIRST: "Most Expensive",
+	Strategy.TOP_TO_BOTTOM: "Top to Bottom"
+}
+
+const STRATEGY_DESCRIPTIONS = {
+	Strategy.ROUND_ROBIN: "Even distribution - buys 1 level of each upgrade in rotation",
+	Strategy.CHEAPEST_FIRST: "Always buys the cheapest available upgrade first",
+	Strategy.EXPENSIVE_FIRST: "Buys the most expensive upgrade you can afford",
+	Strategy.TOP_TO_BOTTOM: "Maxes out upgrades in order from top to bottom"
+}
+
+# Current selected strategy
+var current_strategy: int = Strategy.ROUND_ROBIN
+
 # Reference to the upgrades tab (VBoxContainer containing ButtonsPanel + TabContainer)
 var _upgrades_tab: VBoxContainer = null
-var _buy_max_button: Button = null
+var _buy_max_button: MenuButton = null # Changed to MenuButton for dropdown
 var _initialized := false
+var _config = null # Reference to config manager
 
 
 ## Initialize the Buy Max manager after HUD is ready
-func setup(tree: SceneTree) -> void:
+func setup(tree: SceneTree, config = null) -> void:
 	if _initialized:
 		return
+	
+	_config = config
+	
+	# Load saved strategy from config
+	if _config:
+		current_strategy = _config.get_value("buy_max_strategy", Strategy.ROUND_ROBIN)
 	
 	var main = tree.root.get_node_or_null("Main")
 	if not main:
@@ -38,7 +71,21 @@ func setup(tree: SceneTree) -> void:
 	
 	_inject_buy_max_button()
 	_initialized = true
-	ModLoaderLog.info("Buy Max manager initialized", LOG_NAME)
+	ModLoaderLog.info("Buy Max manager initialized with strategy: " + STRATEGY_NAMES[current_strategy], LOG_NAME)
+
+
+## Set the purchase strategy
+func set_strategy(strategy: int) -> void:
+	current_strategy = strategy
+	if _config:
+		_config.set_value("buy_max_strategy", strategy)
+	_update_button_label()
+	ModLoaderLog.info("Buy Max strategy set to: " + STRATEGY_NAMES[strategy], LOG_NAME)
+
+
+## Get current strategy for external use (e.g., options_bar)
+func get_strategy() -> int:
+	return current_strategy
 
 
 ## Recursively find the upgrades tab (VBoxContainer with ButtonsPanel/ButtonsContainer + TabContainer)
@@ -58,9 +105,8 @@ func _find_upgrades_tab(node: Node) -> VBoxContainer:
 	return null
 
 
-## Inject the Buy Max button into the ButtonsPanel
+## Inject the Buy Max button (MenuButton with strategy dropdown) into the ButtonsPanel
 func _inject_buy_max_button() -> void:
-	# Find the buttons container
 	var buttons_container = _upgrades_tab.get_node_or_null("ButtonsPanel/ButtonsContainer")
 	if not buttons_container:
 		ModLoaderLog.warning("ButtonsContainer not found in upgrades tab", LOG_NAME)
@@ -71,81 +117,146 @@ func _inject_buy_max_button() -> void:
 		_buy_max_button = buttons_container.get_node("BuyMaxButton")
 		return
 	
-	# Create the Buy Max button matching existing button styling
-	_buy_max_button = Button.new()
+	# Create MenuButton for dropdown strategy selection
+	_buy_max_button = MenuButton.new()
 	_buy_max_button.name = "BuyMaxButton"
-	_buy_max_button.text = "Buy Max"
-	_buy_max_button.tooltip_text = "Buys as many upgrades as possible on this page (excluding Tokens)"
+	_buy_max_button.flat = false
+	_update_button_label()
 	
-	# Match styling of other tab buttons (they use TabButton theme variation)
+	# Match styling of other tab buttons
 	_buy_max_button.theme_type_variation = "TabButton"
-	_buy_max_button.custom_minimum_size = Vector2(100, 50)
+	_buy_max_button.custom_minimum_size = Vector2(130, 50)
 	_buy_max_button.focus_mode = Control.FOCUS_NONE
 	
-	# Connect the pressed signal
-	_buy_max_button.pressed.connect(_on_buy_max_pressed)
+	# Setup popup menu with strategies
+	var popup = _buy_max_button.get_popup()
+	popup.clear()
 	
-	# Add to container (at the end, after existing buttons)
+	# Add "Buy Now" action at top
+	popup.add_item("▶ Buy Now", -1)
+	popup.add_separator()
+	
+	# Add strategy options
+	for strategy_id in STRATEGY_NAMES.keys():
+		var item_text = STRATEGY_NAMES[strategy_id]
+		if strategy_id == current_strategy:
+			item_text = "✓ " + item_text
+		popup.add_item(item_text, strategy_id)
+	
+	popup.id_pressed.connect(_on_menu_item_selected)
+	
+	# Add to container
 	buttons_container.add_child(_buy_max_button)
 	
 	ModLoaderLog.info("Buy Max button injected into upgrades tab", LOG_NAME)
 
 
-## Handler for Buy Max button press
-func _on_buy_max_pressed() -> void:
+## Update button label to show current strategy
+func _update_button_label() -> void:
+	if _buy_max_button:
+		_buy_max_button.text = "Buy Max ▼"
+		_buy_max_button.tooltip_text = "Strategy: %s\n%s\n\nClick to buy or change strategy" % [
+			STRATEGY_NAMES[current_strategy],
+			STRATEGY_DESCRIPTIONS[current_strategy]
+		]
+		
+		# Update checkmarks in popup
+		var popup = _buy_max_button.get_popup()
+		if popup:
+			for i in range(popup.item_count):
+				var item_id = popup.get_item_id(i)
+				if item_id >= 0 and item_id in STRATEGY_NAMES:
+					var base_text = STRATEGY_NAMES[item_id]
+					if item_id == current_strategy:
+						popup.set_item_text(i, "✓ " + base_text)
+					else:
+						popup.set_item_text(i, "  " + base_text)
+
+
+## Handle menu item selection
+func _on_menu_item_selected(id: int) -> void:
+	if id == -1:
+		# "Buy Now" selected
+		_execute_buy_max()
+	elif id in STRATEGY_NAMES:
+		# Strategy selected
+		set_strategy(id)
+		Sound.play("click_toggle2")
+
+
+## Execute the buy max with current strategy
+func _execute_buy_max() -> void:
 	Sound.play("click_toggle2")
 	var purchased = _do_buy_max()
 	
 	if purchased > 0:
-		Signals.notify.emit("check", "Bought %d upgrades" % purchased)
+		Signals.notify.emit("check", "Bought %d upgrades (%s)" % [purchased, STRATEGY_NAMES[current_strategy]])
 	else:
 		Signals.notify.emit("exclamation", "Nothing affordable on this page")
 
 
-## Main purchase algorithm - round-robin distribution per currency
+## Main purchase algorithm - dispatches to the selected strategy
 ## Returns total number of upgrades purchased
 func _do_buy_max() -> int:
 	var panels = _get_active_upgrade_panels()
 	if panels.is_empty():
 		return 0
 	
-	# Group upgrades by their currency/cost type
-	# Key format: "currency:money", "currency:research", "attribute:optimization", etc.
-	var by_currency: Dictionary = {}
-	
+	# Filter out token upgrades
+	var filtered_panels: Array = []
 	for panel in panels:
 		var currency_key = _get_currency_key(panel)
-		
-		# Skip token upgrades as per requirement
-		if currency_key == "currency:token":
-			continue
-		
-		if not by_currency.has(currency_key):
-			by_currency[currency_key] = []
-		by_currency[currency_key].append(panel)
+		if currency_key != "currency:token":
+			filtered_panels.append(panel)
 	
+	if filtered_panels.is_empty():
+		return 0
+	
+	# Dispatch to appropriate strategy
+	match current_strategy:
+		Strategy.ROUND_ROBIN:
+			return _buy_round_robin(filtered_panels)
+		Strategy.CHEAPEST_FIRST:
+			return _buy_cheapest_first(filtered_panels)
+		Strategy.EXPENSIVE_FIRST:
+			return _buy_expensive_first(filtered_panels)
+		Strategy.TOP_TO_BOTTOM:
+			return _buy_top_to_bottom(filtered_panels)
+	
+	return 0
+
+
+# ==============================================================================
+# PURCHASE STRATEGIES
+# ==============================================================================
+
+## Round-Robin: Even distribution - buy 1 level of each in rotation
+func _buy_round_robin(panels: Array) -> int:
 	var total_purchased = 0
 	
-	# Process each currency group with round-robin
+	# Group by currency for fair distribution per currency type
+	var by_currency: Dictionary = {}
+	for panel in panels:
+		var key = _get_currency_key(panel)
+		if not by_currency.has(key):
+			by_currency[key] = []
+		by_currency[key].append(panel)
+	
+	# Process each currency group
 	for currency_key in by_currency.keys():
 		var group = by_currency[currency_key]
 		var purchased_this_pass = true
 		
-		# Round-robin: keep looping while at least one purchase was made
 		while purchased_this_pass:
 			purchased_this_pass = false
-			
 			for panel in group:
-				# Refresh panel state (cost may have changed)
 				panel.update_all()
-				
-				# Try to buy one level
 				if panel.can_purchase():
 					panel._on_purchase_pressed()
 					purchased_this_pass = true
 					total_purchased += 1
 		
-		# Final pass: try one more time for any remaining affordable upgrades
+		# Final pass
 		for panel in group:
 			panel.update_all()
 			if panel.can_purchase():
@@ -154,6 +265,85 @@ func _do_buy_max() -> int:
 	
 	return total_purchased
 
+
+## Cheapest First: Always buy the cheapest available upgrade
+func _buy_cheapest_first(panels: Array) -> int:
+	var total_purchased = 0
+	var purchased_any = true
+	
+	while purchased_any:
+		purchased_any = false
+		
+		# Refresh all panels and find the cheapest purchasable one
+		var cheapest_panel = null
+		var cheapest_cost = INF
+		
+		for panel in panels:
+			panel.update_all()
+			if panel.can_purchase():
+				if panel.cost < cheapest_cost:
+					cheapest_cost = panel.cost
+					cheapest_panel = panel
+		
+		# Buy the cheapest one
+		if cheapest_panel:
+			cheapest_panel._on_purchase_pressed()
+			total_purchased += 1
+			purchased_any = true
+	
+	return total_purchased
+
+
+## Most Expensive First: Buy the most expensive upgrade you can afford
+func _buy_expensive_first(panels: Array) -> int:
+	var total_purchased = 0
+	var purchased_any = true
+	
+	while purchased_any:
+		purchased_any = false
+		
+		# Refresh all panels and find the most expensive purchasable one
+		var expensive_panel = null
+		var highest_cost = -1.0
+		
+		for panel in panels:
+			panel.update_all()
+			if panel.can_purchase():
+				if panel.cost > highest_cost:
+					highest_cost = panel.cost
+					expensive_panel = panel
+		
+		# Buy the most expensive one
+		if expensive_panel:
+			expensive_panel._on_purchase_pressed()
+			total_purchased += 1
+			purchased_any = true
+	
+	return total_purchased
+
+
+## Top-to-Bottom: Max out upgrades in order from top to bottom
+func _buy_top_to_bottom(panels: Array) -> int:
+	var total_purchased = 0
+	
+	# Process panels in order (they're already in UI order)
+	for panel in panels:
+		# Buy as many levels as possible for this upgrade
+		var purchased_this_panel = true
+		while purchased_this_panel:
+			panel.update_all()
+			if panel.can_purchase():
+				panel._on_purchase_pressed()
+				total_purchased += 1
+			else:
+				purchased_this_panel = false
+	
+	return total_purchased
+
+
+# ==============================================================================
+# HELPER FUNCTIONS
+# ==============================================================================
 
 ## Get all visible upgrade panels from the currently active tab
 func _get_active_upgrade_panels() -> Array:
@@ -169,8 +359,6 @@ func _get_active_upgrade_panels() -> Array:
 	if not current_tab:
 		return []
 	
-	# Find all upgrade panels in the current tab
-	# Panels are in various container structures depending on the tab
 	var panels: Array = []
 	_find_upgrade_panels(current_tab, panels)
 	
@@ -179,19 +367,15 @@ func _get_active_upgrade_panels() -> Array:
 
 ## Recursively find all upgrade_panel instances in a node tree
 func _find_upgrade_panels(node: Node, result: Array) -> void:
-	# Check if this is an upgrade panel (extends Panel, has can_purchase method)
 	if node is Panel and node.has_method("can_purchase") and node.has_method("update_all"):
-		# Only include visible panels that aren't maxed
 		if node.visible:
 			result.append(node)
 	
-	# Recurse into children
 	for child in node.get_children():
 		_find_upgrade_panels(child, result)
 
 
 ## Get the currency key for grouping upgrades
-## Returns: "currency:money", "currency:research", "attribute:optimization", etc.
 func _get_currency_key(panel: Panel) -> String:
 	var upgrade_name = panel.name
 	
@@ -201,14 +385,9 @@ func _get_currency_key(panel: Panel) -> String:
 	var upgrade_data = Data.upgrades[upgrade_name]
 	var cost_type = int(upgrade_data.cost_type)
 	
-	# INCREMENTAL (0) or FIXED (1) use currency
 	if cost_type == Utils.COST_TYPES.INCREMENTAL or cost_type == Utils.COST_TYPES.FIXED:
-		var currency = upgrade_data.currency
-		return "currency:" + currency
-	
-	# ATTRIBUTE (2) uses attribute_cost
+		return "currency:" + upgrade_data.currency
 	elif cost_type == Utils.COST_TYPES.ATTRIBUTE:
-		var attribute = upgrade_data.attribute_cost
-		return "attribute:" + attribute
+		return "attribute:" + upgrade_data.attribute_cost
 	
 	return "unknown"
