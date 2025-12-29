@@ -4,15 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.23.0] - 2025-12-TBD
+## [0.23.0] - 2025-12-29
 
 ### Added
 
--
+- **Settings Search** — Added search bar to settings menu
+- **Pattern Customization** — Added Dots, Zigzag, Waves, Brick patterns with customization controls
+- **Screenshot Selection** — Added command to screenshot only the current selection
+- **Jump to Group** — Added palette command to search and jump to groups
+- **Clear Wires** — Added command to clear wires from selected nodes
+- **Controller Support** — Added setting to disable controller input
+- **Palette Onboarding** — Added onboarding hints for Command Palette
+- **Settings Tooltips** — Added descriptions to setting options
+- **Requests Filter** — Fixed "Hide Completed" filter logic
+- **Modifier Upgrades** — Fixed Shift+Click selection conflict
+- **Node Highlighter** — Optimized performance and fixed visual glitches
+- **Sticky Notes** — Reorganized commands and added "Jump to Note" capability
 
 ### Changed
 
--
+- **Buy Max** — Redesigned button with split-dropdown for strategy selection
 
 ### Removed
 
@@ -20,7 +31,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
--
+- **Debug Logging** — Fixed debug setting persistence
 
 ## [0.22.0] - 2025-12-28
 
