@@ -26,6 +26,10 @@ var _restart_banner: Control = null
 var _restart_indicator: Control = null
 var _main_vbox: VBoxContainer = null # Reference to insert banner at top
 
+# Search Bar State
+var _search_field: LineEdit = null
+var _searchable_rows: Array = [] # [{row: Control, label: String, tab_index: int}]
+
 func _init(hud: Node, version: String):
     _hud_node = hud
     _mod_version = version
@@ -112,6 +116,9 @@ func _create_content_panel(parent: Control) -> void:
     var content_vbox := VBoxContainer.new()
     content_vbox.add_theme_constant_override("separation", 10)
     content_panel.add_child(content_vbox)
+    
+    # Search Field
+    _create_search_field(content_vbox)
     
     # Tab Container
     tab_container = TabContainer.new()
@@ -251,6 +258,9 @@ func set_visible(visible: bool) -> void:
     else:
         settings_panel.modulate.a = 1
         
+        # Clear search when closing
+        _clear_search()
+        
         _tween = settings_panel.create_tween()
         _tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
         _tween.set_parallel()
@@ -268,12 +278,68 @@ func is_visible() -> bool:
     return settings_panel.visible
 
 
+# --- Search Field ---
+
+func _create_search_field(parent: Control) -> void:
+    var search_container := PanelContainer.new()
+    search_container.theme_type_variation = "MenuPanelTitle"
+    search_container.custom_minimum_size = Vector2(0, 50)
+    parent.add_child(search_container)
+    
+    var search_margin := MarginContainer.new()
+    search_margin.add_theme_constant_override("margin_left", 15)
+    search_margin.add_theme_constant_override("margin_right", 15)
+    search_margin.add_theme_constant_override("margin_top", 8)
+    search_margin.add_theme_constant_override("margin_bottom", 8)
+    search_container.add_child(search_margin)
+    
+    _search_field = LineEdit.new()
+    _search_field.placeholder_text = "Search settings..."
+    _search_field.clear_button_enabled = true
+    _search_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _search_field.add_theme_font_size_override("font_size", 24)
+    _search_field.text_changed.connect(_filter_rows)
+    search_margin.add_child(_search_field)
+
+func _filter_rows(query: String) -> void:
+    var search_term := query.strip_edges().to_lower()
+    
+    for entry in _searchable_rows:
+        if not is_instance_valid(entry.row):
+            continue
+        
+        if search_term.is_empty():
+            entry.row.visible = true
+        else:
+            # Check if label contains the search term (case-insensitive)
+            var matches: bool = entry.label.to_lower().contains(search_term)
+            entry.row.visible = matches
+
+func _clear_search() -> void:
+    if _search_field and is_instance_valid(_search_field):
+        _search_field.text = ""
+        _filter_rows("")
+
+## Track a row for search filtering
+func _track_row(row: Control, label_text: String, tab_idx: int) -> void:
+    _searchable_rows.append({
+        "row": row,
+        "label": label_text,
+        "tab_index": tab_idx
+    })
+
+
 # --- Widget Builders ---
 
-func add_toggle(parent: Control, label_text: String, initial_val: bool, callback: Callable) -> CheckButton:
+func add_toggle(parent: Control, label_text: String, initial_val: bool, callback: Callable, tooltip: String = "") -> CheckButton:
     var row := HBoxContainer.new()
     row.custom_minimum_size = Vector2(0, 64)
+    if tooltip != "":
+        row.tooltip_text = tooltip
     parent.add_child(row)
+    
+    # Track row for search
+    _track_row(row, label_text, tab_container.get_child_count() - 1)
     
     var label := Label.new()
     label.text = label_text
@@ -296,6 +362,9 @@ func add_slider(parent: Control, label_text: String, start_val: float, min_val: 
     var container := VBoxContainer.new()
     container.add_theme_constant_override("separation", 5)
     parent.add_child(container)
+    
+    # Track container for search
+    _track_row(container, label_text, tab_container.get_child_count() - 1)
     
     var header := HBoxContainer.new()
     container.add_child(header)
@@ -350,6 +419,10 @@ func add_button(parent: Control, text: String, callback: Callable) -> Button:
     btn.focus_mode = Control.FOCUS_NONE
     btn.pressed.connect(callback)
     parent.add_child(btn)
+    
+    # Track button for search
+    _track_row(btn, text, tab_container.get_child_count() - 1)
+    
     return btn
 
 

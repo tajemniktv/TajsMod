@@ -402,64 +402,64 @@ func _build_settings_menu() -> void:
     _settings_toggles["wire_drop_menu_enabled"] = ui.add_toggle(gen_vbox, "Wire Drop Node Menu", config.get_value("wire_drop_menu_enabled"), func(v):
         config.set_value("wire_drop_menu_enabled", v)
         palette_controller.set_wire_drop_enabled(v)
-    )
+    , "Show a quick-add menu when dropping a wire onto the canvas.")
     
     # 6-Input Containers toggle (Issue #18) - requires restart
     _restart_original_values["six_input_containers"] = config.get_value("six_input_containers")
     _settings_toggles["six_input_containers"] = ui.add_toggle(gen_vbox, "6-Input Containers ⟳", config.get_value("six_input_containers"), func(v):
         config.set_value("six_input_containers", v)
         _check_restart_required()
-    )
+    , "Allow containers to have 6 inputs instead of 5. Requires restart.")
     
     # Command Palette toggle
     _settings_toggles["command_palette_enabled"] = ui.add_toggle(gen_vbox, "Command Palette (MMB)", config.get_value("command_palette_enabled"), func(v):
         config.set_value("command_palette_enabled", v)
         if palette_controller:
             palette_controller.set_palette_enabled(v)
-    )
+    , "Open a searchable command palette with Middle Mouse Button.")
     
     # Right-click Wire Clear toggle
     _settings_toggles["right_click_clear_enabled"] = ui.add_toggle(gen_vbox, "Right-click Wire Clear", config.get_value("right_click_clear_enabled"), func(v):
         config.set_value("right_click_clear_enabled", v)
         if wire_clear_handler:
             wire_clear_handler.set_enabled(v)
-    )
+    , "Right-click on output slots to disconnect wires.")
     
     # Select All (Ctrl+A) toggle
     _settings_toggles["select_all_enabled"] = ui.add_toggle(gen_vbox, "Ctrl+A Select All", config.get_value("select_all_enabled"), func(v):
         config.set_value("select_all_enabled", v)
         Globals.select_all_enabled = v
-    )
+    , "Use Ctrl+A to select all nodes on the board.")
     
     # Go To Group Panel toggle
     _settings_toggles["goto_group_enabled"] = ui.add_toggle(gen_vbox, "Go To Group Button", config.get_value("goto_group_enabled"), func(v):
         config.set_value("goto_group_enabled", v)
         _set_goto_group_visible(v)
-    )
+    , "Show a button to quickly jump to any Node Group on the board.")
     
     # Buy Max Button toggle
     _settings_toggles["buy_max_enabled"] = ui.add_toggle(gen_vbox, "Buy Max Button", config.get_value("buy_max_enabled"), func(v):
         config.set_value("buy_max_enabled", v)
         _set_buy_max_visible(v)
-    )
+    , "Add a button to buy the maximum affordable upgrades at once.")
     
     # Z-Order Fix toggle
     _settings_toggles["z_order_fix_enabled"] = ui.add_toggle(gen_vbox, "Group Z-Order Fix", config.get_value("z_order_fix_enabled"), func(v):
         config.set_value("z_order_fix_enabled", v)
         if node_group_z_fix:
             node_group_z_fix.set_enabled(v)
-    )
+    , "Nested node groups render on top of their containers.")
     
     # Disable Slider Scroll toggle
     _settings_toggles["disable_slider_scroll"] = ui.add_toggle(gen_vbox, "Disable Slider Scroll", config.get_value("disable_slider_scroll"), func(v):
         config.set_value("disable_slider_scroll", v)
-    )
+    , "Prevent mouse wheel from accidentally changing slider values.")
     
     # Toast History Panel toggle
     _settings_toggles["notification_log_enabled"] = ui.add_toggle(gen_vbox, "Toast History Panel", config.get_value("notification_log_enabled", true), func(v):
         config.set_value("notification_log_enabled", v)
         _set_notification_log_visible(v)
-    )
+    , "Show a bell icon to view recent notifications and messages.")
     
     # Node Info Label (Custom)
     var info_row = HBoxContainer.new()
@@ -481,7 +481,7 @@ func _build_settings_menu() -> void:
     var fh = focus_handler # Capture for closure
     _settings_toggles["mute_on_focus_loss"] = ui.add_toggle(gen_vbox, "Mute on Focus Loss", config.get_value("mute_on_focus_loss"), func(v):
         fh.set_enabled(v)
-    )
+    , "Automatically lower volume when the game window loses focus.")
     ui.add_slider(gen_vbox, "Background Volume", config.get_value("background_volume"), 0, 100, 5, "%", func(v):
         fh.set_background_volume(v)
     )
@@ -514,7 +514,7 @@ func _build_settings_menu() -> void:
         config.set_value("extra_glow", v)
         glow_sub.visible = v
         _apply_extra_glow(v)
-    )
+    , "Enable enhanced glow effects on the game board.")
     _extra_glow_sub = glow_sub
     
     glow_container.add_child(glow_sub)
@@ -568,13 +568,13 @@ func _build_settings_menu() -> void:
     _settings_toggles["custom_boot_screen"] = ui.add_toggle(debug_vbox, "Custom Boot Screen ⟳", config.get_value("custom_boot_screen", true), func(v):
         config.set_value("custom_boot_screen", v)
         _check_restart_required()
-    )
+    , "Show a custom boot screen with mod version info. Requires restart.")
     
     # Debug mode toggle
     var debug_toggle = ui.add_toggle(debug_vbox, "Enable Debug Logging", _debug_mode, func(v):
         _debug_mode = v
         _add_debug_log("Debug mode " + ("enabled" if v else "disabled"), true)
-    )
+    , "Log extra debug information to the console and debug tab.")
     
     # Debug info buttons
     ui.add_button(debug_vbox, "Log Debug Info", func():
@@ -623,7 +623,7 @@ func _add_wire_color_section(parent: Control) -> void:
         sub_ref.visible = v
         wc.set_enabled(v)
         self_ref._refresh_all_connectors()
-    )
+    , "Customize the colors of wires by resource type.")
     
     wire_container.add_child(wire_sub)
     
