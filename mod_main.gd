@@ -76,6 +76,8 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_group.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_bin.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_inventory.gd") # 6 inputs
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/request_panel.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/requests_tab.gd")
     
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
