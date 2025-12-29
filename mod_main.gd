@@ -25,6 +25,7 @@ const NodeGroupZOrderFixScript = preload("res://mods-unpacked/TajemnikTV-TajsMod
 const BuyMaxManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/buy_max_manager.gd")
 const CheatManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/cheat_manager.gd")
 const NotificationLogPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/notification_log_panel.gd")
+const DisconnectedNodeHighlighterScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/disconnected_node_highlighter.gd")
 
 # Components
 var config # ConfigManager instance
@@ -40,6 +41,7 @@ var node_group_z_fix # NodeGroupZOrderFix instance
 var buy_max_manager # BuyMaxManager instance
 var cheat_manager # CheatManager instance
 var notification_log_panel # NotificationLogPanel instance
+var disconnected_highlighter # DisconnectedNodeHighlighter instance
 
 # State
 var mod_dir_path: String = ""
@@ -296,6 +298,9 @@ func _setup_for_main(main_node: Node) -> void:
     # Initialize Notification Log (Toast History) panel
     _setup_notification_log(hud)
     
+    # Initialize Disconnected Node Highlighter
+    _setup_disconnected_highlighter()
+    
     # Apply initial visuals
     if config.get_value("extra_glow"):
         _apply_extra_glow(true)
@@ -311,6 +316,8 @@ func _setup_for_main(main_node: Node) -> void:
         call_deferred("_set_notification_log_visible", false)
     if node_group_z_fix and not config.get_value("z_order_fix_enabled", true):
         node_group_z_fix.set_enabled(false)
+    if disconnected_highlighter and not config.get_value("highlight_disconnected_enabled", true):
+        disconnected_highlighter.set_enabled(false)
 
 
 ## Setup Go To Node Group panel in the HUD
@@ -394,6 +401,24 @@ func _setup_buy_max() -> void:
     ModLoaderLog.info("Buy Max feature initialized", LOG_NAME)
 
 
+## Setup Disconnected Node Highlighter
+## Visually highlights nodes that are not connected to the main graph
+func _setup_disconnected_highlighter() -> void:
+    # Check if already set up
+    if disconnected_highlighter != null and is_instance_valid(disconnected_highlighter):
+        return
+    
+    # Create the highlighter
+    disconnected_highlighter = DisconnectedNodeHighlighterScript.new()
+    disconnected_highlighter.name = "DisconnectedNodeHighlighter"
+    add_child(disconnected_highlighter)
+    
+    # Initialize with config and tree (pass self for debug mode access)
+    disconnected_highlighter.setup(config, get_tree(), self)
+    
+    ModLoaderLog.info("Disconnected Node Highlighter initialized", LOG_NAME)
+
+
 func _build_settings_menu() -> void:
     # --- GENERAL ---
     var gen_vbox = ui.add_tab("General", "res://textures/icons/cog.png")
@@ -460,6 +485,9 @@ func _build_settings_menu() -> void:
         config.set_value("notification_log_enabled", v)
         _set_notification_log_visible(v)
     , "Show a bell icon to view recent notifications and messages.")
+    
+    # Highlight Disconnected Nodes section
+    _add_disconnected_highlight_section(gen_vbox)
     
     # Node Info Label (Custom)
     var info_row = HBoxContainer.new()
@@ -596,6 +624,71 @@ func _build_settings_menu() -> void:
     log_label.autowrap_mode = TextServer.AUTOWRAP_WORD
     debug_vbox.add_child(log_label)
     _debug_log_label = log_label
+
+
+func _add_disconnected_highlight_section(parent: Control) -> void:
+    var highlight_container = VBoxContainer.new()
+    highlight_container.add_theme_constant_override("separation", 10)
+    parent.add_child(highlight_container)
+    
+    # Sub-settings (shown when toggle is on)
+    var highlight_sub = MarginContainer.new()
+    highlight_sub.name = "highlight_disconnected_sub"
+    highlight_sub.add_theme_constant_override("margin_left", 20)
+    highlight_sub.visible = config.get_value("highlight_disconnected_enabled", true)
+    
+    var highlight_sub_vbox = VBoxContainer.new()
+    highlight_sub_vbox.add_theme_constant_override("separation", 8)
+    highlight_sub.add_child(highlight_sub_vbox)
+    
+    var sub_ref = highlight_sub
+    var highlighter_ref = disconnected_highlighter
+    
+    # Main toggle
+    _settings_toggles["highlight_disconnected_enabled"] = ui.add_toggle(highlight_container, "Highlight Disconnected Nodes", config.get_value("highlight_disconnected_enabled", true), func(v):
+        config.set_value("highlight_disconnected_enabled", v)
+        sub_ref.visible = v
+        if highlighter_ref:
+            highlighter_ref.set_enabled(v)
+            if v:
+                # Trigger immediate recomputation when enabled
+                highlighter_ref.recompute_disconnected()
+    , "Highlight nodes that are not connected to the main graph for their connection type.")
+    
+    highlight_container.add_child(highlight_sub)
+    
+    # Style dropdown
+    var style_row = HBoxContainer.new()
+    style_row.add_theme_constant_override("separation", 10)
+    highlight_sub_vbox.add_child(style_row)
+    
+    var style_label = Label.new()
+    style_label.text = "Highlight Style"
+    style_label.add_theme_font_size_override("font_size", 22)
+    style_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    style_row.add_child(style_label)
+    
+    var style_option = OptionButton.new()
+    style_option.add_item("Pulse Tint", 0)
+    style_option.add_item("Outline Tint", 1)
+    var current_style = config.get_value("highlight_disconnected_style", "pulse")
+    style_option.selected = 1 if current_style == "outline" else 0
+    style_option.custom_minimum_size = Vector2(150, 40)
+    style_option.item_selected.connect(func(idx):
+        var style = "outline" if idx == 1 else "pulse"
+        config.set_value("highlight_disconnected_style", style)
+        if highlighter_ref:
+            highlighter_ref.set_style(style)
+    )
+    style_row.add_child(style_option)
+    
+    # Intensity slider
+    ui.add_slider(highlight_sub_vbox, "Intensity", config.get_value("highlight_disconnected_intensity", 0.5) * 100, 0, 100, 5, "%", func(v):
+        var intensity = v / 100.0
+        config.set_value("highlight_disconnected_intensity", intensity)
+        if highlighter_ref:
+            highlighter_ref.set_intensity(intensity)
+    )
 
 
 func _add_wire_color_section(parent: Control) -> void:

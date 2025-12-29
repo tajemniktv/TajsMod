@@ -42,6 +42,13 @@ const DEFAULT_CONFIG := {
 	"ui_opacity": 100.0,
 	# Palette tab
 	"palette_tools_enabled": false,
+	# Highlight Disconnected Nodes
+	"highlight_disconnected_enabled": true,
+	"highlight_disconnected_style": "pulse", # "pulse" or "outline"
+	"highlight_disconnected_intensity": 0.5,
+	"highlight_disconnected_debug": false,
+	# Toast History / Notification Log
+	"notification_log_enabled": true,
 	# Debug tab
 	"custom_boot_screen": true,
 }

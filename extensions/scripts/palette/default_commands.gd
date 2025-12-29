@@ -466,6 +466,28 @@ static func register_all(registry, refs: Dictionary) -> void:
                 Signals.notify.emit("check", "Boot Screen: " + ("ON" if !current else "OFF") + " (restart to see)")
     })
     
+    # Highlight Disconnected Nodes toggle
+    registry.register({
+        "id": "cmd_toggle_disconnected_highlight",
+        "title": "Highlight Disconnected Nodes",
+        "get_title": func(): return "Highlight Disconnected Nodes " + ("[ON]" if mod_config.get_value("highlight_disconnected_enabled", true) else "[OFF]"),
+        "category_path": ["Taj's Mod", "Feature Toggles"],
+        "keywords": ["highlight", "disconnected", "nodes", "graph", "connectivity", "broken", "toggle"],
+        "hint": "Toggle highlighting of disconnected nodes",
+        "icon_path": "res://textures/icons/connections.png",
+        "badge": "SAFE",
+        "run": func(ctx):
+            if mod_config and mod_main and mod_main.disconnected_highlighter:
+                var current = mod_config.get_value("highlight_disconnected_enabled", true)
+                mod_config.set_value("highlight_disconnected_enabled", !current)
+                mod_main.disconnected_highlighter.set_enabled(!current)
+                if !current:
+                    # Trigger recomputation when enabled
+                    mod_main.disconnected_highlighter.recompute_disconnected()
+                mod_main.sync_settings_toggle("highlight_disconnected_enabled")
+                Signals.notify.emit("check", "Disconnected Highlight: " + ("ON" if !current else "OFF"))
+    })
+    
     # ==========================================
     # TAJ'S MOD - VISUALS
     # ==========================================
