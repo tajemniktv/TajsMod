@@ -35,7 +35,9 @@ var current_strategy: int = Strategy.ROUND_ROBIN
 
 # Reference to the upgrades tab (VBoxContainer containing ButtonsPanel + TabContainer)
 var _upgrades_tab: VBoxContainer = null
-var _buy_max_button: MenuButton = null # Changed to MenuButton for dropdown
+var _buy_max_container: HBoxContainer = null # Container for split button
+var _buy_max_button: Button = null # Main action button
+var _strategy_button: MenuButton = null # Small dropdown for strategy
 var _initialized := false
 var _config = null # Reference to config manager
 
@@ -79,7 +81,8 @@ func set_strategy(strategy: int) -> void:
 	current_strategy = strategy
 	if _config:
 		_config.set_value("buy_max_strategy", strategy)
-	_update_button_label()
+	_update_strategy_menu()
+	Signals.notify.emit("check", "Strategy: " + STRATEGY_NAMES[strategy])
 	ModLoaderLog.info("Buy Max strategy set to: " + STRATEGY_NAMES[strategy], LOG_NAME)
 
 
@@ -105,7 +108,7 @@ func _find_upgrades_tab(node: Node) -> VBoxContainer:
 	return null
 
 
-## Inject the Buy Max button (MenuButton with strategy dropdown) into the ButtonsPanel
+## Inject the Buy Max split button into the ButtonsPanel
 func _inject_buy_max_button() -> void:
 	var buttons_container = _upgrades_tab.get_node_or_null("ButtonsPanel/ButtonsContainer")
 	if not buttons_container:
@@ -113,73 +116,89 @@ func _inject_buy_max_button() -> void:
 		return
 	
 	# Check if already injected
-	if buttons_container.has_node("BuyMaxButton"):
-		_buy_max_button = buttons_container.get_node("BuyMaxButton")
+	if buttons_container.has_node("BuyMaxContainer"):
+		_buy_max_container = buttons_container.get_node("BuyMaxContainer")
 		return
 	
-	# Create MenuButton for dropdown strategy selection
-	_buy_max_button = MenuButton.new()
+	# Create container for split button layout - match game styling
+	_buy_max_container = HBoxContainer.new()
+	_buy_max_container.name = "BuyMaxContainer"
+	_buy_max_container.size_flags_horizontal = Control.SIZE_FILL
+	_buy_max_container.size_flags_vertical = Control.SIZE_FILL
+	_buy_max_container.add_theme_constant_override("separation", 0)
+	
+	# Main "Buy Max" button - matches game's TabButton style exactly
+	_buy_max_button = Button.new()
 	_buy_max_button.name = "BuyMaxButton"
-	_buy_max_button.flat = false
-	_update_button_label()
-	
-	# Match styling of other tab buttons
-	_buy_max_button.theme_type_variation = "TabButton"
-	_buy_max_button.custom_minimum_size = Vector2(130, 50)
+	_buy_max_button.text = "Buy Max"
+	_buy_max_button.size_flags_horizontal = Control.SIZE_FILL
+	_buy_max_button.size_flags_vertical = Control.SIZE_FILL
 	_buy_max_button.focus_mode = Control.FOCUS_NONE
+	_buy_max_button.theme_type_variation = "TabButton"
+	_buy_max_button.add_theme_font_size_override("font_size", 28)
+	_buy_max_button.pressed.connect(_execute_buy_max)
+	_update_main_button_tooltip()
 	
-	# Setup popup menu with strategies
-	var popup = _buy_max_button.get_popup()
+	# Small dropdown button for strategy selection - styled to match
+	_strategy_button = MenuButton.new()
+	_strategy_button.name = "StrategyButton"
+	_strategy_button.text = "▼"
+	_strategy_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_strategy_button.size_flags_vertical = Control.SIZE_FILL
+	_strategy_button.focus_mode = Control.FOCUS_NONE
+	_strategy_button.theme_type_variation = "TabButton"
+	_strategy_button.custom_minimum_size = Vector2(45, 0)
+	_strategy_button.tooltip_text = "Select purchase strategy"
+	
+	# Setup strategy popup menu
+	var popup = _strategy_button.get_popup()
 	popup.clear()
-	
-	# Add "Buy Now" action at top
-	popup.add_item("▶ Buy Now", -1)
-	popup.add_separator()
-	
-	# Add strategy options
 	for strategy_id in STRATEGY_NAMES.keys():
-		var item_text = STRATEGY_NAMES[strategy_id]
-		if strategy_id == current_strategy:
-			item_text = "✓ " + item_text
-		popup.add_item(item_text, strategy_id)
-	
-	popup.id_pressed.connect(_on_menu_item_selected)
+		popup.add_item(STRATEGY_NAMES[strategy_id], strategy_id)
+	popup.id_pressed.connect(_on_strategy_selected)
+	_update_strategy_menu()
 	
 	# Add to container
-	buttons_container.add_child(_buy_max_button)
+	_buy_max_container.add_child(_buy_max_button)
+	_buy_max_container.add_child(_strategy_button)
+	buttons_container.add_child(_buy_max_container)
 	
-	ModLoaderLog.info("Buy Max button injected into upgrades tab", LOG_NAME)
+	ModLoaderLog.info("Buy Max split button injected into upgrades tab", LOG_NAME)
 
 
-## Update button label to show current strategy
-func _update_button_label() -> void:
+## Update main button tooltip to show current strategy
+func _update_main_button_tooltip() -> void:
 	if _buy_max_button:
-		_buy_max_button.text = "Buy Max ▼"
-		_buy_max_button.tooltip_text = "Strategy: %s\n%s\n\nClick to buy or change strategy" % [
+		_buy_max_button.tooltip_text = "Buy upgrades using: %s\n%s" % [
 			STRATEGY_NAMES[current_strategy],
 			STRATEGY_DESCRIPTIONS[current_strategy]
 		]
-		
-		# Update checkmarks in popup
-		var popup = _buy_max_button.get_popup()
-		if popup:
-			for i in range(popup.item_count):
-				var item_id = popup.get_item_id(i)
-				if item_id >= 0 and item_id in STRATEGY_NAMES:
-					var base_text = STRATEGY_NAMES[item_id]
-					if item_id == current_strategy:
-						popup.set_item_text(i, "✓ " + base_text)
-					else:
-						popup.set_item_text(i, "  " + base_text)
 
 
-## Handle menu item selection
-func _on_menu_item_selected(id: int) -> void:
-	if id == -1:
-		# "Buy Now" selected
-		_execute_buy_max()
-	elif id in STRATEGY_NAMES:
-		# Strategy selected
+## Update strategy menu checkmarks
+func _update_strategy_menu() -> void:
+	if not _strategy_button:
+		return
+	
+	var popup = _strategy_button.get_popup()
+	if not popup:
+		return
+	
+	for i in range(popup.item_count):
+		var item_id = popup.get_item_id(i)
+		if item_id in STRATEGY_NAMES:
+			var base_text = STRATEGY_NAMES[item_id]
+			if item_id == current_strategy:
+				popup.set_item_text(i, "✓ " + base_text)
+			else:
+				popup.set_item_text(i, "   " + base_text)
+	
+	_update_main_button_tooltip()
+
+
+## Handle strategy selection from dropdown
+func _on_strategy_selected(id: int) -> void:
+	if id in STRATEGY_NAMES:
 		set_strategy(id)
 		Sound.play("click_toggle2")
 
