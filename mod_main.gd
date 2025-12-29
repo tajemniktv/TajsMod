@@ -49,7 +49,7 @@ var upgrade_manager # UpgradeManager instance
 
 # State
 var mod_dir_path: String = ""
-var mod_version: String = "0.20.0"
+var mod_version: String = "0.0.0"
 var _desktop_patched := false
 var _node_info_label: Label = null # Reference for updates
 var _debug_log_label: Label = null # Debug log display
