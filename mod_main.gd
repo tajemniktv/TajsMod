@@ -188,6 +188,12 @@ func _process(delta: float) -> void:
             Patcher.patch_boot_screen(boot, mod_version, mod_dir_path.path_join("icon.png"))
 
 func _input(event: InputEvent) -> void:
+    # Controller Input Blocking
+    if config.get_value("disable_controller_input", false):
+        if event is InputEventJoypadMotion or event is InputEventJoypadButton:
+            get_viewport().set_input_as_handled()
+            return
+
     # Global Slider Scroll Blocking (affects all sliders - mod and vanilla)
     if config.get_value("disable_slider_scroll", false):
         if event is InputEventMouseButton and event.pressed:
@@ -542,6 +548,11 @@ func _build_settings_menu() -> void:
     ui.add_slider(gen_vbox, "Background Volume", config.get_value("background_volume"), 0, 100, 5, "%", func(v):
         fh.set_background_volume(v)
     )
+
+    # Disable Controller Input toggle
+    _settings_toggles["disable_controller_input"] = ui.add_toggle(gen_vbox, "Disable Controller Input", config.get_value("disable_controller_input", false), func(v):
+        config.set_value("disable_controller_input", v)
+    , "Completely disable all controller/joypad inputs. Useful if you have a controller connected for another game.")
     
     # Note: Drag Dead Zone (Issue #13) cannot be implemented via script extension
     # due to class_name WindowContainer conflict. Would require game code change.
