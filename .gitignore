@@ -20,7 +20,7 @@
 
 *.import
 
-docs/*
+docs/private/*
 
 !docs/preview/
 
