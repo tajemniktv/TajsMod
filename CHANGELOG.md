@@ -162,7 +162,7 @@ Since this version we will finally be adhering to the semantic versioning standa
 - Fix tutorial
 - Fix CTRL+C/CTRL+V functionality
 - Add capture delay setting
-- Additional cheats
+- Additional cheats;
 
 ## [0.0.18] - 2025-12-24
 
@@ -172,7 +172,7 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 ### Changed
 
-- Improve cheats
+- Improve cheats;
 
 ### Removed
 
