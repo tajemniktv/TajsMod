@@ -203,24 +203,22 @@ func recompute_disconnected() -> void:
 				adjacency[id].append(out_id)
 				adjacency[out_id].append(id) # Bidirectional
 
-	# Add Internal Connections (Same Shape Only)
+	# Add Internal Connections (All Resources in Same Window)
 	for window in windows_container.get_children():
 		if window is WindowContainer:
 			var resources = _get_window_resources(window)
-			var by_shape = {}
+			var ids = []
 			for res in resources:
-				var shape = res.get_connection_shape()
-				if not by_shape.has(shape): by_shape[shape] = []
-				by_shape[shape].append(res.id)
+				if res.id and not res.id.is_empty():
+					ids.append(res.id)
 			
-			for shape in by_shape:
-				var ids = by_shape[shape]
-				for i in range(ids.size()):
-					for j in range(i + 1, ids.size()):
-						var id1 = ids[i]
-						var id2 = ids[j]
-						adjacency[id1].append(id2)
-						adjacency[id2].append(id1)
+			# Connect all resources within the same window to each other
+			for i in range(ids.size()):
+				for j in range(i + 1, ids.size()):
+					var id1 = ids[i]
+					var id2 = ids[j]
+					adjacency[id1].append(id2)
+					adjacency[id2].append(id1)
 
 	# 3. BFS to find Connected Components
 	var visited: Dictionary = {}
