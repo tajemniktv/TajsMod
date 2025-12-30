@@ -187,7 +187,7 @@ func _process(delta: float) -> void:
     if config.get_value("custom_boot_screen", true):
         var boot = get_tree().root.get_node_or_null("Boot")
         if is_instance_valid(boot):
-            Patcher.patch_boot_screen(boot, mod_version, mod_dir_path.path_join("icon.png"))
+            Patcher.patch_boot_screen(boot, mod_version, mod_dir_path.path_join("TajsModHeader.png"))
 
 func _input(event: InputEvent) -> void:
     # Controller Input Blocking
