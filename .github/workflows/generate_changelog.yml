@@ -66,10 +66,10 @@ jobs:
           SYS_INSTR=$'You are writing release notes for a game mod.\n\nReturn Markdown in EXACT structure:\n\n### Added\n- ...\n\n### Changed\n- ...\n\n### Removed\n- ...\n\n### Fixed\n- ...\n\nRules:\n- Only output that Markdown. No intro text.\n- User-facing wording, short bullets.\n- If a section has nothing, put "- (none)".\n- Ignore CI/build/refactor noise unless it affects players.'
 
           USER_TEXT="Version: ${VER}
-Date: ${TODAY}
+          Date: ${TODAY}
 
-Commits (newest first):
-$(printf "%s\n" "$COMMITS" | sed 's/^/- /')"
+          Commits (newest first):
+          $(printf "%s\n" "$COMMITS" | sed 's/^/- /')"
 
           PAYLOAD="$(jq -n \
             --arg sys "$SYS_INSTR" \
