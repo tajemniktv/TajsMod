@@ -1,4 +1,7 @@
-# Feature Ideas Backlog - Taj's Mod
+---
+title: Feature Ideas Backlog - Taj's Mod
+description: This document consolidates all mod ideas, feature backlog, roadmap, and technical context into a single reference.
+---
 
 ## HUD/UX and Settings
 

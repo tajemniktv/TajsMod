@@ -1,4 +1,7 @@
-# Upload Labs - Suggestions
+---
+title: Upload Labs - Suggestions
+description: Suggestions for Upload Labs modding.
+---
 
 ## 🔴 Major Pain Points
 
@@ -191,20 +194,20 @@ func set_currency(type: String, amount: float)
 
 ## Summary Table
 
-| Suggestion | Effort | Impact | Feature Affected |
-| ------------ | -------- | -------- | ------------------ |
-| Window metadata | Medium | High | Wire-drop menu, Command palette |
-| Connection signals | Low | High | Wire-drop menu |
-| Connector type expose | Low | High | Wire-drop menu |
-| Spawn helper | Medium | High | Wire-drop menu |
-| Selection API | Low | Medium | Command palette |
-| Camera access | Low | Medium | Screenshot |
-| Settings signal | Low | Medium | All settings |
-| Node count API | Low | Medium | Node limit feature |
-| Lifecycle signals | Low | Low | General modding |
-| Hook points | Medium | Medium | General modding |
-| UI layer access | Low | Low | Settings UI, Palette |
-| Currency API | Low | Low | Cheats tab |
+| Suggestion            | Effort | Impact | Feature Affected                |
+| --------------------- | ------ | ------ | ------------------------------- |
+| Window metadata       | Medium | High   | Wire-drop menu, Command palette |
+| Connection signals    | Low    | High   | Wire-drop menu                  |
+| Connector type expose | Low    | High   | Wire-drop menu                  |
+| Spawn helper          | Medium | High   | Wire-drop menu                  |
+| Selection API         | Low    | Medium | Command palette                 |
+| Camera access         | Low    | Medium | Screenshot                      |
+| Settings signal       | Low    | Medium | All settings                    |
+| Node count API        | Low    | Medium | Node limit feature              |
+| Lifecycle signals     | Low    | Low    | General modding                 |
+| Hook points           | Medium | Medium | General modding                 |
+| UI layer access       | Low    | Low    | Settings UI, Palette            |
+| Currency API          | Low    | Low    | Cheats tab                      |
 
 ---
 

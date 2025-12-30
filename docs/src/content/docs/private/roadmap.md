@@ -1,7 +1,6 @@
-# Taj's Mod - Combined Ideas & Roadmap
-
-> This document consolidates all mod ideas, feature backlog, roadmap, and technical context into a single reference.
-
+---
+title: Taj's Mod - Combined Ideas & Roadmap
+description: This document consolidates all mod ideas, feature backlog, roadmap, and technical context into a single reference.
 ---
 
 ## Table of Contents

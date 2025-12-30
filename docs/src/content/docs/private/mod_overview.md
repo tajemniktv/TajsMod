@@ -1,6 +1,7 @@
-# Mod Context Pack - Taj''s Mod for Upload Labs
-
-This document is grounded in the local mod repo at `mods-unpacked/TajemnikTV-TajsModded` and the base game sources at `D:\SteamLibrary\steamapps\common\Upload Labs\Upload Labs Source Files` (read-only).
+---
+title: Mod Context Pack - Taj''s Mod for Upload Labs
+description: This document
+---
 
 ## A) What the mod already does (feature inventory)
 

@@ -1,3 +1,8 @@
+---
+title: Command Palette Dev Guide
+description: Guide for adding new commands to the command palette.
+---
+
 # Command Palette Dev Guide
 
 ## Adding New Commands
