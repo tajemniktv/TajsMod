@@ -32,7 +32,7 @@ jobs:
 
           test -f CHANGELOG.md || (echo "Missing CHANGELOG.md" && exit 1)
 
-          # --- Determine SAFE_ID from manifest (for SAFE_ID-vX.Y.Z tags) ---
+          # --- SAFE_ID from manifest (for SAFE_ID-vX.Y.Z tags) ---
           MANIFEST="$(git ls-files | grep -E '(^|/)manifest\.json$' | head -n 1 || true)"
           test -n "$MANIFEST" || (echo "No manifest.json found in repo" && exit 1)
 
@@ -45,55 +45,51 @@ jobs:
 
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
-
-          # On the first commit on a new branch, "before" can be all zeros
           if [[ "$BEFORE" =~ ^0+$ ]]; then
             BEFORE="$(git rev-parse "${AFTER}~1")"
           fi
 
-          DIFF="$(git diff --unified=0 "$BEFORE" "$AFTER" -- CHANGELOG.md || true)"
+          # --- Detect affected versions using Python (no heredocs) ---
+          VERSIONS="$(python3 -c '
+import re, subprocess, sys
 
-          # --- Detect which versions were affected, even if headers weren't edited ---
-          VERSIONS="$(python3 - << 'PY'
-import re, sys
+before = sys.argv[1]; after = sys.argv[2]
 
-diff = sys.stdin.read()
+diff = subprocess.run(
+    ["git","diff","--unified=0", before, after, "--", "CHANGELOG.md"],
+    text=True, capture_output=True
+).stdout
 
-# Collect "new file" hunk ranges (+c,d) from unified diff headers
-ranges = []
-for m in re.finditer(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@', diff, re.M):
-    start = int(m.group(1))
-    count = int(m.group(2) or "1")
-    if count > 0:
-        ranges.append((start, start + count - 1))
+# Parse hunk ranges for the "new file" (+c,d)
+ranges=[]
+for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff, re.M):
+    start=int(m.group(1)); count=int(m.group(2) or "1")
+    if count>0:
+        ranges.append((start, start+count-1))
 
 if not ranges:
-    print("")
-    raise SystemExit(0)
+    sys.exit(0)
 
-# Map each line number in CHANGELOG.md to the latest version header above it
 with open("CHANGELOG.md", "r", encoding="utf-8") as f:
-    lines = f.readlines()
+    lines=f.readlines()
 
-hdr = re.compile(r'^##\s*\[([^\]]+)\]\s*-')
-line_to_ver = {}
-current = None
-for i, line in enumerate(lines, start=1):
-    m = hdr.match(line)
-    if m:
-        current = m.group(1).strip()
-    line_to_ver[i] = current
+hdr=re.compile(r"^##\s*\[([^\]]+)\]\s*-")
+current=None
+line_to_ver={}
+for i,line in enumerate(lines, start=1):
+    m=hdr.match(line)
+    if m: current=m.group(1).strip()
+    line_to_ver[i]=current
 
-vers = set()
-for a, b in ranges:
-    for ln in range(a, b + 1):
-        v = line_to_ver.get(ln)
-        if v:
-            vers.add(v)
+vers=set()
+for a,b in ranges:
+    for ln in range(a,b+1):
+        v=line_to_ver.get(ln)
+        if v: vers.add(v)
 
-print("\n".join(sorted(vers)))
-PY
-<<< "$DIFF")"
+for v in sorted(vers):
+    print(v)
+' "$BEFORE" "$AFTER")"
 
           if [ -z "$VERSIONS" ]; then
             echo "No affected versions detected; nothing to update."
@@ -103,7 +99,6 @@ PY
           echo "Versions to update:"
           echo "$VERSIONS"
 
-          # Helper: extract changelog section for a version
           extract_notes() {
             local ver="$1"
             awk -v ver="$ver" '
@@ -114,7 +109,6 @@ PY
             ' CHANGELOG.md
           }
 
-          # Helper: trim leading/trailing blank lines
           trim_notes() {
             awk '
               {a[NR]=$0}
@@ -135,7 +129,7 @@ PY
               continue
             fi
 
-            # Prefer tag = vX.Y.Z, fallback to SAFE_ID-vX.Y.Z
+            # Try tag styles: vX.Y.Z first, then SAFE_ID-vX.Y.Z
             CAND1="v${ver}"
             CAND2="${SAFE_ID}-v${ver}"
             TAG=""
@@ -145,7 +139,7 @@ PY
             elif gh release view "$CAND2" >/dev/null 2>&1; then
               TAG="$CAND2"
             else
-              # Last resort: find by release title (name)
+              # Fallback: find by release title
               FOUND_TAG="$(gh release list --limit 200 --json name,tagName --jq \
                 '.[] | select(.name=="v'"$ver"'" or .name=="'"$ver"'") | .tagName' | head -n 1 || true)"
               if [ -n "$FOUND_TAG" ]; then
@@ -161,7 +155,7 @@ PY
             tmp="$(mktemp)"
             printf "%s\n" "$NOTES" > "$tmp"
 
-            echo "[$TAG] Updating release notes from CHANGELOG.md..."
+            echo "[$TAG] Updating release notes..."
             gh release edit "$TAG" --notes-file "$tmp"
 
             rm -f "$tmp"
