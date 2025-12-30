@@ -6,6 +6,12 @@ import tailwind from '@astrojs/tailwind';
 export default defineConfig({
   site: 'https://TajemnikTV.github.io',
   base: '/TajsMod',
+  // Ensure consistent trailing slashes for all URLs
+  trailingSlash: 'always',
+  // Build options for GitHub Pages compatibility
+  build: {
+    format: 'directory',
+  },
   integrations: [
     tailwind({
       // Disable injecting base styles so we have full control
@@ -19,7 +25,7 @@ export default defineConfig({
         { icon: 'github', label: 'GitHub', href: 'https://github.com/TajemnikTV/TajsMod' },
       ],
       // Disable default Starlight homepage since we have custom index
-      disable404Route: false,
+      disable404Route: true,
       customCss: [
         './src/styles/starlight-custom.css',
       ],

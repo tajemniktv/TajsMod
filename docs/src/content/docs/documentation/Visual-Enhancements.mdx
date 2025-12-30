@@ -1,0 +1,640 @@
+---
+title: Visual Enhancements
+description: Visual customization options.
+---
+
+# Visual Enhancements
+
+> **Relevant source files**
+> * [CHANGELOG.md](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/CHANGELOG.md)
+> * [extensions/scenes/windows/window_group.gd](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd)
+> * [extensions/scripts/ui/pattern_picker_panel.gd](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/ui/pattern_picker_panel.gd)
+> * [mod_main.gd](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd)
+
+This page documents the visual customization features provided by TajsMod. These features modify the appearance of the game without affecting gameplay mechanics. For quality-of-life features that improve usability, see [5.2](/tajemniktv/TajsMod/5.2-quality-of-life-features). For UI improvements that add new interface elements, see [5.3](/tajemniktv/TajsMod/5.3-ui-improvements).
+
+Visual enhancements include:
+
+* **Extra Glow**: Advanced glow/bloom post-processing effects
+* **UI Opacity**: Global transparency control for UI elements
+* **Wire Colors**: Customizable colors for 50+ resource wire types
+* **Node Group Customization**: 17 color palette + 11 pattern types
+* **Custom Boot Screen**: Mod branding on game startup
+
+---
+
+## System Architecture
+
+The visual enhancement system consists of independent subsystems coordinated by `mod_main.gd`:
+
+```mermaid
+flowchart TD
+
+ModMain["mod_main.gd<br>Main Orchestrator"]
+GlowToggle["extra_glow toggle"]
+GlowSettings["glow_intensity<br>glow_strength<br>glow_bloom<br>glow_sensitivity"]
+WorldEnv["WorldEnvironment.environment<br>Environment resource"]
+WireColorOverrides["WireColorOverridesScript<br>wire_color_overrides.gd"]
+DataConnectors["Data.connectors<br>50+ wire types"]
+ConnectorButtons["OutputConnector/InputConnector<br>UI buttons"]
+ConnectorLines["Connector nodes<br>Wire geometry"]
+WindowGroup["window_group.gd<br>Extended group window"]
+PatternDrawer["PatternDrawer class<br>11 pattern types"]
+ColorPicker["ColorPickerPanel<br>RGB color selection"]
+PatternPicker["PatternPickerPanel<br>Pattern configuration"]
+NewColors["NEW_COLORS array<br>17 predefined colors"]
+OpacitySlider["ui_opacity slider<br>50-100%"]
+HUDMain["HUD/Main container<br>modulate property"]
+BootPatch["Patcher.patch_boot_screen"]
+BootNode["Boot node<br>Startup scene"]
+CustomIcon["mod icon.png"]
+
+ModMain --> GlowToggle
+ModMain --> WireColorOverrides
+ModMain --> ConnectorButtons
+ModMain --> WindowGroup
+ModMain --> OpacitySlider
+ModMain --> BootPatch
+
+subgraph subGraph4 ["Boot Screen"]
+    BootPatch
+    BootNode
+    CustomIcon
+    BootPatch --> BootNode
+    BootPatch --> CustomIcon
+end
+
+subgraph subGraph3 ["UI Opacity"]
+    OpacitySlider
+    HUDMain
+    OpacitySlider --> HUDMain
+end
+
+subgraph subGraph2 ["Group Customization"]
+    WindowGroup
+    PatternDrawer
+    ColorPicker
+    PatternPicker
+    NewColors
+    WindowGroup --> PatternDrawer
+    WindowGroup --> ColorPicker
+    WindowGroup --> PatternPicker
+    WindowGroup --> NewColors
+end
+
+subgraph subGraph1 ["Wire Color System"]
+    WireColorOverrides
+    DataConnectors
+    ConnectorButtons
+    ConnectorLines
+    WireColorOverrides --> DataConnectors
+    DataConnectors --> ConnectorButtons
+    DataConnectors --> ConnectorLines
+end
+
+subgraph subGraph0 ["Glow System"]
+    GlowToggle
+    GlowSettings
+    WorldEnv
+    GlowToggle --> GlowSettings
+    GlowSettings --> WorldEnv
+end
+```
+
+**Sources:** [mod_main.gd L1-L1613](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L1-L1613)
+
+ [extensions/scenes/windows/window_group.gd L1-L525](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L1-L525)
+
+---
+
+## Extra Glow System
+
+The Extra Glow system provides customizable post-processing bloom effects by modifying the `WorldEnvironment` node's `Environment` resource.
+
+### Configuration Parameters
+
+| Parameter | Type | Range | Default | Description |
+| --- | --- | --- | --- | --- |
+| `extra_glow` | bool | - | false | Master toggle for glow effects |
+| `glow_intensity` | float | 0.0 - 5.0 | 1.0 | Overall brightness multiplier |
+| `glow_strength` | float | 0.5 - 2.0 | 1.0 | Bloom spread/radius |
+| `glow_bloom` | float | 0.0 - 0.5 | 0.0 | Additional bloom amount |
+| `glow_sensitivity` | float | 0.0 - 1.0 | 0.0 | HDR threshold (lower = more glow) |
+
+### Implementation Flow
+
+```mermaid
+sequenceDiagram
+  participant Settings UI
+  participant Visuals Tab
+  participant ConfigManager
+  participant mod_main.gd
+  participant Scene Tree
+  participant Environment
+
+  Settings UI->>ConfigManager: set_value("extra_glow", true)
+  ConfigManager->>mod_main.gd: callback triggered
+  mod_main.gd->>mod_main.gd: _apply_extra_glow(true)
+  mod_main.gd->>Scene Tree: get_node("Main")
+  Scene Tree->>mod_main.gd: Main node reference
+  mod_main.gd->>Scene Tree: find_child("WorldEnvironment")
+  Scene Tree->>mod_main.gd: WorldEnvironment node
+  mod_main.gd->>Environment: environment.glow_enabled = true
+  mod_main.gd->>ConfigManager: get_value("glow_intensity")
+  ConfigManager->>mod_main.gd: 1.0
+  mod_main.gd->>Environment: environment.glow_intensity = 1.0
+  mod_main.gd->>Environment: Set strength, bloom, hdr_threshold
+  note over Settings UI,Environment: User adjusts intensity slider
+  Settings UI->>ConfigManager: set_value("glow_intensity", 2.5)
+  ConfigManager->>mod_main.gd: callback triggered
+  mod_main.gd->>mod_main.gd: _apply_extra_glow(true)
+  mod_main.gd->>Environment: environment.glow_intensity = 2.5
+```
+
+### Code Location
+
+The glow toggle and sub-settings UI are built in [mod_main.gd L580-L618](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L580-L618)
+
+ The apply function is implemented at [mod_main.gd L1050-L1068](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L1050-L1068)
+
+:
+
+```
+
+```
+
+**Sources:** [mod_main.gd L580-L618](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L580-L618)
+
+ [mod_main.gd L1050-L1068](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L1050-L1068)
+
+---
+
+## UI Opacity Control
+
+Allows users to adjust the transparency of the HUD overlay, making it less visually intrusive without hiding it completely.
+
+### Parameters
+
+| Setting | Range | Default | Unit |
+| --- | --- | --- | --- |
+| `ui_opacity` | 50 - 100 | 100 | % |
+
+### Implementation
+
+The opacity slider is added at [mod_main.gd L620-L623](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L620-L623)
+
+ and applies modulation to the HUD's main container:
+
+```
+
+```
+
+The opacity value is converted from percentage (50-100) to alpha (0.5-1.0) and applied to the `modulate` property, which affects all children recursively.
+
+**Sources:** [mod_main.gd L620-L623](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L620-L623)
+
+ [mod_main.gd L1069-L1077](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L1069-L1077)
+
+---
+
+## Wire Color Customization
+
+TajsMod allows customization of wire colors for 50+ resource types through the `WireColorOverrides` system.
+
+### Configurable Wire Types
+
+Wire colors are organized into 7 categories:
+
+| Category | Wire Types | Count |
+| --- | --- | --- |
+| ⚡ Speeds | download_speed, upload_speed, clock_speed, gpu_speed, code_speed, work_speed | 6 |
+| 💰 Resources | money, research, token, power, research_power, contribution | 6 |
+| 🔓 Hacking | hack_power, hack_experience, virus, trojan, infected_computer | 5 |
+| 📊 Data Types | bool, char, int, float, bitflag, bigint, decimal, string, vector | 9 |
+| 🧠 AI / Neural | ai, neuron_text, neuron_image, neuron_sound, neuron_video, neuron_program, neuron_game | 7 |
+| 🚀 Boosts | boost_component, boost_research, boost_hack, boost_code, overclock | 5 |
+| 📦 Other | heat, vulnerability, storage, corporation_data, government_data, litecoin, bitcoin, ethereum | 8 |
+
+### Architecture
+
+```mermaid
+flowchart TD
+
+WireToggle["custom_wire_colors toggle"]
+Categories["7 collapsible categories"]
+ColorButtons["50+ color picker buttons"]
+ApplyBtn["Apply Colors button"]
+WCO["WireColorOverrides instance"]
+ConfigColors["config: wire_color_*"]
+DataColors["Data.connectors[id].color"]
+OriginalColors["Original color backup"]
+ConnectorBtn["OutputConnector buttons"]
+ConnectorLine["Connector wire geometry"]
+Pivot["Pivot node modulation"]
+
+WireToggle --> WCO
+ColorButtons --> WCO
+ApplyBtn --> ConnectorBtn
+ApplyBtn --> ConnectorLine
+DataColors --> ConnectorBtn
+DataColors --> ConnectorLine
+
+subgraph subGraph2 ["Visual Updates"]
+    ConnectorBtn
+    ConnectorLine
+    Pivot
+    ConnectorLine --> Pivot
+end
+
+subgraph subGraph1 ["Color Management"]
+    WCO
+    ConfigColors
+    DataColors
+    OriginalColors
+    WCO --> ConfigColors
+    WCO --> DataColors
+    WCO --> OriginalColors
+end
+
+subgraph subGraph0 ["Settings UI"]
+    WireToggle
+    Categories
+    ColorButtons
+    ApplyBtn
+end
+```
+
+### Wire Color Section UI
+
+The settings UI builds a collapsible category system at [mod_main.gd L756-L811](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L756-L811)
+
+:
+
+```
+
+```
+
+Each category creates a collapsible section with color picker buttons at [mod_main.gd L813-L847](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L813-L847)
+
+### Color Picker Integration
+
+Individual wire colors use a shared color picker overlay created in [mod_main.gd L115-L177](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L115-L177)
+
+:
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Wire Color Button
+  participant mod_main.gd
+  participant shared_color_picker
+  participant WireColorOverrides
+
+  User->>Wire Color Button: Click color button
+  Wire Color Button->>mod_main.gd: _open_color_picker(current_color, callback)
+  mod_main.gd->>shared_color_picker: set_color(current_color)
+  mod_main.gd->>mod_main.gd: picker_canvas.visible = true
+  loop [User adjusts color]
+    User->>shared_color_picker: Drag hue/saturation
+    shared_color_picker->>mod_main.gd: color_changed signal
+    mod_main.gd->>WireColorOverrides: set_color_from_rgb(resource_id, new_color)
+    WireColorOverrides->>WireColorOverrides: Update config storage
+    note over WireColorOverrides: Color saved but not applied to scene yet
+  end
+  User->>shared_color_picker: Click outside or commit
+  shared_color_picker->>mod_main.gd: Close picker
+  User->>mod_main.gd: Click "Apply Colors"
+  mod_main.gd->>mod_main.gd: _refresh_all_connectors()
+  mod_main.gd->>WireColorOverrides: Read updated colors from Data.connectors
+  mod_main.gd->>Wire Color Button: Update visual appearance
+```
+
+### Connector Refresh Process
+
+The `_refresh_all_connectors()` function at [mod_main.gd L913-L941](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L913-L941)
+
+ updates all visible wires:
+
+1. **Update wire geometry** - Iterate `connector` group nodes, read color from `output.OutputConnector`, apply to line and pivot
+2. **Update connector buttons** - Iterate `window` group nodes, find all connector buttons, call `update_connector_button()`
+
+**Sources:** [mod_main.gd L756-L950](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L756-L950)
+
+ [extensions/scripts/utilities/wire_color_overrides.gd](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/utilities/wire_color_overrides.gd)
+
+---
+
+## Node Group Visual Customization
+
+Node Groups (container windows) support extensive visual customization through colors and patterns.
+
+### Color System
+
+Groups support 17 predefined colors plus custom RGB selection:
+
+```mermaid
+flowchart TD
+
+Preset["NEW_COLORS array<br>17 hex strings"]
+Custom["custom_color property<br>Color.TRANSPARENT default"]
+CycleBtn["Color Button<br>Cycles presets"]
+PickerBtn["Custom Picker<br>RGB selection"]
+UpdateColor["update_color()"]
+TitlePanel["TitlePanel.self_modulate"]
+BodyPanel["PanelContainer.self_modulate"]
+
+Preset --> CycleBtn
+Custom --> PickerBtn
+CycleBtn --> UpdateColor
+PickerBtn --> UpdateColor
+
+subgraph Application ["Application"]
+    UpdateColor
+    TitlePanel
+    BodyPanel
+    UpdateColor --> TitlePanel
+    UpdateColor --> BodyPanel
+end
+
+subgraph subGraph1 ["Selection UI"]
+    CycleBtn
+    PickerBtn
+end
+
+subgraph subGraph0 ["Color Sources"]
+    Preset
+    Custom
+end
+```
+
+The `NEW_COLORS` array is defined at [extensions/scenes/windows/window_group.gd L9-L12](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L9-L12)
+
+:
+
+```
+
+```
+
+Color selection logic at [extensions/scenes/windows/window_group.gd L332-L353](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L332-L353)
+
+:
+
+```
+
+```
+
+### Pattern System
+
+Groups support 11 pattern types with customizable appearance:
+
+| Pattern ID | Name | Description |
+| --- | --- | --- |
+| 0 | None | No pattern overlay |
+| 1 | Horizontal | Horizontal parallel lines |
+| 2 | Vertical | Vertical parallel lines |
+| 3 | Diagonal / | Diagonal lines (slope +1) |
+| 4 | Diagonal \ | Diagonal lines (slope -1) |
+| 5 | Grid | Horizontal + vertical lines |
+| 6 | Diamond | Both diagonal directions |
+| 7 | Dots | Regular dot grid |
+| 8 | Zigzag | Zigzag wave pattern |
+| 9 | Waves | Sine wave pattern |
+| 10 | Brick | Brick wall pattern |
+
+### Pattern Configuration
+
+Each pattern has 4 customizable parameters:
+
+| Parameter | Type | Range | Default | Description |
+| --- | --- | --- | --- | --- |
+| `pattern_index` | int | 0-10 | 0 | Pattern type selection |
+| `pattern_color` | Color | RGB | Black | Base color before alpha |
+| `pattern_alpha` | float | 0.0-1.0 | 0.4 | Transparency level |
+| `pattern_spacing` | float | 8.0-50.0 px | 20.0 | Distance between elements |
+| `pattern_thickness` | float | 1.0-10.0 px | 4.0 | Line/dot thickness |
+
+### PatternDrawer Class
+
+The `PatternDrawer` class at [extensions/scenes/windows/window_group.gd L34-L154](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L34-L154)
+
+ renders patterns using Godot's 2D drawing API:
+
+```mermaid
+classDiagram
+    class PatternDrawer {
+        +int pattern_type
+        +Color color
+        +float spacing
+        +float thickness
+        +_ready() : void
+        +_draw() : void
+        +set_pattern(int) : void
+        +set_style(Color, float, float, float) : void
+        -_draw_horizontal(Vector2) : void
+        -_draw_vertical(Vector2) : void
+        -_draw_diagonal_slash(Vector2) : void
+        -_draw_diagonal_backslash(Vector2) : void
+        -_draw_grid(Vector2) : void
+        -_draw_diamond(Vector2) : void
+        -_draw_dots(Vector2) : void
+        -_draw_zigzag(Vector2) : void
+        -_draw_waves(Vector2) : void
+        -_draw_brick(Vector2) : void
+    }
+    class Control {
+    }
+    Control <|-- PatternDrawer
+```
+
+Each pattern type is drawn using primitive operations:
+
+* **Lines**: `draw_line(from, to, color, width)`
+* **Dots**: `draw_circle(position, radius, color)`
+* **Complex**: `draw_polyline(points, color, width)`
+
+Example implementation for Grid pattern at [extensions/scenes/windows/window_group.gd L85-L87](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L85-L87)
+
+:
+
+```
+
+```
+
+### Pattern Picker UI
+
+The pattern picker is a modal overlay defined in [extensions/scripts/ui/pattern_picker_panel.gd L1-L524](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/ui/pattern_picker_panel.gd#L1-L524)
+
+:
+
+```mermaid
+flowchart TD
+
+Header["Header<br>Title + Close button"]
+Grid["6x2 Pattern Grid<br>11 preview buttons"]
+ColorRow["Color Selection<br>Preview + Picker button"]
+AlphaSlider["Opacity Slider<br>0-100%"]
+SpacingSlider["Spacing Slider<br>8-50px"]
+ThicknessSlider["Thickness Slider<br>1-10px"]
+PreviewBtn["Button + PatternPreview"]
+MiniDrawer["PatternPreview class<br>Scaled drawing"]
+
+Grid --> PreviewBtn
+
+subgraph subGraph1 ["Preview System"]
+    PreviewBtn
+    MiniDrawer
+    PreviewBtn --> MiniDrawer
+end
+
+subgraph subGraph0 ["Pattern Picker Layout"]
+    Header
+    Grid
+    ColorRow
+    AlphaSlider
+    SpacingSlider
+    ThicknessSlider
+    Header --> Grid
+    Grid --> ColorRow
+    ColorRow --> AlphaSlider
+    AlphaSlider --> SpacingSlider
+    SpacingSlider --> ThicknessSlider
+end
+```
+
+The picker emits signals when settings change:
+
+* `settings_changed(pattern_index, color, alpha, spacing, thickness)` - Real-time updates
+* `settings_committed(pattern_index, color, alpha, spacing, thickness)` - User closes picker
+
+### Integration with Group Windows
+
+Pattern system integration at [extensions/scenes/windows/window_group.gd L156-L228](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L156-L228)
+
+:
+
+1. **Inject PatternDrawers**: Two drawers are added (title + body) at [window_group.gd L160-L221](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/window_group.gd#L160-L221)
+2. **Add Pattern Button**: Pattern settings button at [window_group.gd L172-L186](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/window_group.gd#L172-L186)
+3. **Setup Picker Overlay**: Modal picker layer at [window_group.gd L281-L308](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/window_group.gd#L281-L308)
+4. **Connect Signals**: Real-time updates at [window_group.gd L323-L329](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/window_group.gd#L323-L329)
+
+**Sources:** [extensions/scenes/windows/window_group.gd L1-L525](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L1-L525)
+
+ [extensions/scripts/ui/pattern_picker_panel.gd L1-L524](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/ui/pattern_picker_panel.gd#L1-L524)
+
+---
+
+## Custom Boot Screen
+
+TajsMod can display a custom boot screen showing mod branding and version information during game startup.
+
+### Configuration
+
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `custom_boot_screen` | bool | true | Enable custom boot screen (requires restart) |
+
+### Implementation
+
+The boot screen is patched continuously in the `_process()` loop at [mod_main.gd L186-L190](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L186-L190)
+
+:
+
+```
+
+```
+
+The patcher modifies:
+
+1. Boot scene text labels to show mod name and version
+2. Replaces default icon with mod icon (`icon.png`)
+3. Adjusts layout/styling to match mod branding
+
+This runs on every frame until the Boot node is detected and patched, ensuring it works even if the boot screen appears after mod initialization.
+
+**Sources:** [mod_main.gd L186-L190](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L186-L190)
+
+ [mod_main.gd L648-L652](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L648-L652)
+
+---
+
+## Persistence
+
+All visual settings are persisted through the `ConfigManager` system.
+
+### Saved Settings
+
+**Extra Glow:**
+
+* `extra_glow`: bool
+* `glow_intensity`: float
+* `glow_strength`: float
+* `glow_bloom`: float
+* `glow_sensitivity`: float
+
+**UI:**
+
+* `ui_opacity`: float (50-100)
+* `custom_boot_screen`: bool
+
+**Wire Colors:**
+
+* `custom_wire_colors`: bool (master toggle)
+* `wire_color_<resource_id>`: string (hex format, e.g., "FF0000")
+
+**Group Settings (per-group in save file):**
+
+* `color`: int (preset index)
+* `custom_color`: string (hex format)
+* `pattern_index`: int (0-10)
+* `pattern_color`: string (hex format)
+* `pattern_alpha`: float
+* `pattern_spacing`: float
+* `pattern_thickness`: float
+* `locked`: bool (lock state)
+
+Group settings are saved via the extended `save()` and `export()` methods at [extensions/scenes/windows/window_group.gd L446-L470](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L446-L470)
+
+ and restored in `_load_custom_data()` at [window_group.gd L472-L490](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/window_group.gd#L472-L490)
+
+**Sources:** [extensions/scenes/windows/window_group.gd L446-L490](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scenes/windows/window_group.gd#L446-L490)
+
+ [mod_main.gd L88-L96](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L88-L96)
+
+---
+
+## Configuration Flow
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Settings UI
+  participant Visuals Tab
+  participant ConfigManager
+  participant mod_main.gd
+  participant Scene Tree
+
+  note over User,Scene Tree: Initial Load
+  mod_main.gd->>ConfigManager: load_config()
+  ConfigManager->>mod_main.gd: Return saved values
+  mod_main.gd->>mod_main.gd: _apply_extra_glow()
+  mod_main.gd->>mod_main.gd: _apply_ui_opacity()
+  mod_main.gd->>mod_main.gd: wire_colors.apply_overrides()
+  note over User,Scene Tree: User Changes Setting
+  User->>Settings UI: Adjust glow intensity slider
+  Settings UI->>ConfigManager: set_value("glow_intensity", 2.5)
+  ConfigManager->>ConfigManager: Save to disk
+  ConfigManager->>mod_main.gd: Trigger callback
+  mod_main.gd->>Scene Tree: Update WorldEnvironment
+  note over User,Scene Tree: User Changes Wire Color
+  User->>Settings UI: Pick new wire color
+  Settings UI->>mod_main.gd: set_color_from_rgb()
+  mod_main.gd->>ConfigManager: set_value("wire_color_money", "FFD700")
+  ConfigManager->>ConfigManager: Save to disk
+  User->>Settings UI: Click "Apply Colors"
+  Settings UI->>mod_main.gd: _refresh_all_connectors()
+  mod_main.gd->>Scene Tree: Update all Connector nodes
+```
+
+**Sources:** [mod_main.gd L88-L163](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L88-L163)
+
+ [mod_main.gd L462-L688](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/mod_main.gd#L462-L688)

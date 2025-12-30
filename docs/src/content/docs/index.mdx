@@ -1,40 +1,51 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Taj's Mod Documentation
+description: Complete documentation for Taj's Mod - a QoL and visual enhancement mod for Upload Labs.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
+  tagline: Complete documentation for Taj's Mod
   image:
     file: ../../assets/houston.webp
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Getting Started
+      link: /TajsMod/docs/documentation/installation-and-configuration/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
+    - text: Feature Reference
+      link: /TajsMod/docs/documentation/feature-reference/
+      icon: document
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid } from "@astrojs/starlight/components";
 
-## Next steps
+## Documentation
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
-	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
-	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
-	</Card>
+  <Card title="Overview" icon="open-book">
+    [High-level overview](/TajsMod/docs/documentation/overview/) of what Taj's
+    Mod offers.
+  </Card>
+  <Card title="Installation" icon="rocket">
+    [Installation
+    guide](/TajsMod/docs/documentation/installation-and-configuration/) to get
+    started.
+  </Card>
+  <Card title="Features" icon="star">
+    [Complete feature reference](/TajsMod/docs/documentation/feature-reference/)
+    with all options.
+  </Card>
+  <Card title="Command Palette" icon="laptop">
+    [Command Palette
+    documentation](/TajsMod/docs/documentation/command-palette-system/) for
+    power users.
+  </Card>
+  <Card title="Configuration" icon="setting">
+    [Configuration system](/TajsMod/docs/documentation/configuration-system/)
+    for customization.
+  </Card>
+  <Card title="Contributing" icon="github">
+    [Contributing
+    guidelines](/TajsMod/docs/documentation/contributing-guidelines/) for
+    developers.
+  </Card>
 </CardGrid>
