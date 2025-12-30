@@ -1,0 +1,52 @@
+---
+import type { Feature } from "../data/features";
+import { categories } from "../data/features";
+
+interface Props {
+  feature: Feature;
+}
+
+const { feature } = Astro.props;
+const category = categories[feature.category];
+---
+
+<div class="card-interactive group">
+  <div class="flex items-start gap-4">
+    <!-- Icon -->
+    <div
+      class="text-3xl flex-shrink-0 group-hover:scale-110 transition-transform"
+    >
+      {feature.icon}
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-2 mb-2 flex-wrap">
+        <h3 class="font-semibold text-lg text-gray-900 dark:text-white">
+          {feature.title}
+        </h3>
+        {
+          feature.highlight && (
+            <span class="px-2 py-0.5 text-xs font-medium bg-accent-500/10 text-accent-600 dark:text-accent-400 rounded-full">
+              Popular
+            </span>
+          )
+        }
+      </div>
+
+      <p class="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
+        {feature.description}
+      </p>
+
+      <!-- Category Badge -->
+      <div class="flex items-center gap-2">
+        <span
+          class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400"
+        >
+          <span>{category.icon}</span>
+          {category.name}
+        </span>
+      </div>
+    </div>
+  </div>
+</div>

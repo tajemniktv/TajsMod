@@ -1,0 +1,8 @@
+/* Custom styles for Starlight integration */
+/* This file ensures Starlight pages get some Tailwind compatibility */
+
+:root {
+  --sl-color-accent: 249 115 22; /* accent-500 */
+  --sl-color-accent-high: 194 65 12; /* accent-700 */
+  --sl-color-accent-low: 254 215 170; /* accent-200 */
+}

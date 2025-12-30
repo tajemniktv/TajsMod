@@ -1,0 +1,63 @@
+---
+interface Props {
+  title: string;
+  description: string;
+  href: string;
+  icon: string;
+  external?: boolean;
+}
+
+const { title, description, href, icon, external = false } = Astro.props;
+---
+
+<a
+  href={href}
+  target={external ? "_blank" : undefined}
+  rel={external ? "noopener noreferrer" : undefined}
+  class="card-interactive flex items-start gap-4 group"
+>
+  <div
+    class="flex-shrink-0 w-12 h-12 rounded-xl bg-accent-500/10 flex items-center justify-center text-2xl group-hover:bg-accent-500/20 transition-colors"
+  >
+    {icon}
+  </div>
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-2">
+      <h3 class="font-semibold text-lg text-gray-900 dark:text-white">
+        {title}
+      </h3>
+      {
+        external && (
+          <svg
+            class="w-4 h-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+            />
+          </svg>
+        )
+      }
+    </div>
+    <p class="text-gray-600 dark:text-gray-400 text-sm">
+      {description}
+    </p>
+  </div>
+  <svg
+    class="w-5 h-5 text-gray-400 group-hover:text-accent-500 transition-colors flex-shrink-0"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      d="M9 5l7 7-7 7"></path>
+  </svg>
+</a>

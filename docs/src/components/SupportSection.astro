@@ -1,0 +1,70 @@
+---
+// Support Section Component
+---
+
+<section
+  class="section bg-gradient-to-br from-accent-500 to-accent-700 text-white"
+>
+  <div class="container-wide">
+    <div class="max-w-4xl mx-auto text-center">
+      <h2 class="text-3xl md:text-4xl font-bold mb-4">Support the Project</h2>
+      <p class="text-accent-100 text-lg mb-8 max-w-2xl mx-auto">
+        Taj's Mod is and will always be free. Your support helps keep
+        development going and enables new features.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left">
+          <div class="text-3xl mb-4">⭐</div>
+          <h3 class="font-semibold text-lg mb-2">Rate & Review</h3>
+          <p class="text-accent-100 text-sm">
+            Leave a rating on the Steam Workshop. It helps others discover the
+            mod.
+          </p>
+        </div>
+
+        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left">
+          <div class="text-3xl mb-4">🐛</div>
+          <h3 class="font-semibold text-lg mb-2">Report Issues</h3>
+          <p class="text-accent-100 text-sm">
+            Found a bug? Report it on GitHub so it can be fixed in the next
+            update.
+          </p>
+        </div>
+
+        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-left">
+          <div class="text-3xl mb-4">💡</div>
+          <h3 class="font-semibold text-lg mb-2">Suggest Features</h3>
+          <p class="text-accent-100 text-sm">
+            Have an idea? Share it! Many features came from community
+            suggestions.
+          </p>
+        </div>
+      </div>
+
+      <div
+        class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 md:p-8 text-left max-w-2xl mx-auto mb-8"
+      >
+        <div class="flex items-start gap-4">
+          <div class="text-3xl">🔒</div>
+          <div>
+            <h3 class="font-semibold text-lg mb-2">Token Transparency</h3>
+            <p class="text-accent-100 text-sm">
+              This mod doesn't affect your gameplay tokens or progression in any
+              hidden way. All gameplay-affecting features are clearly labeled as
+              opt-in and require explicit action to enable. Your save file stays
+              clean.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <a
+        href={`${import.meta.env.BASE_URL}/support/`}
+        class="btn-secondary bg-white/20 hover:bg-white/30 text-white border-white/20 text-lg px-8 py-4"
+      >
+        Learn More About Supporting
+      </a>
+    </div>
+  </div>
+</section>

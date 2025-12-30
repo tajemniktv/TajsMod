@@ -1,0 +1,65 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FAQAccordion from "../components/FAQAccordion.astro";
+import { faq, faqCategories } from "../data/faq";
+---
+
+<BaseLayout
+  title="FAQ"
+  description="Frequently asked questions about Taj's Mod for Upload Labs. Find answers to common installation, troubleshooting, and feature questions."
+>
+  <!-- Header -->
+  <section
+    class="bg-gradient-to-b from-gray-100 to-gray-50 dark:from-dark-900 dark:to-dark-950 pt-12 pb-8"
+  >
+    <div class="container-wide text-center">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">
+        Frequently Asked Questions
+      </h1>
+      <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+        Find answers to the most common questions about installation,
+        troubleshooting, and features.
+      </p>
+    </div>
+  </section>
+
+  <!-- FAQ Content -->
+  <section class="section">
+    <div class="container-narrow">
+      <FAQAccordion items={faq} showSearch={true} />
+
+      <!-- Still need help? -->
+      <div
+        class="mt-16 text-center p-8 bg-gray-100 dark:bg-dark-800 rounded-2xl"
+      >
+        <h3 class="text-xl font-semibold mb-4">Still have questions?</h3>
+        <p class="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+          Can't find what you're looking for? Reach out to the community or
+          report an issue.
+        </p>
+        <div
+          class="flex flex-col sm:flex-row items-center justify-center gap-4"
+        >
+          <a
+            href="https://discord.gg/enigmadev"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-secondary"
+          >
+            <span>💬</span>
+            Ask on Discord
+          </a>
+          <a
+            href="https://github.com/TajemnikTV/TajsMod/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-secondary"
+          >
+            <span>🐛</span>
+            Report an Issue
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

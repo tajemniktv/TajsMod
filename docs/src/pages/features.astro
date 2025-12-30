@@ -1,0 +1,25 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FeatureExplorer from "../components/FeatureExplorer.astro";
+---
+
+<BaseLayout
+  title="Features"
+  description="Explore all features of Taj's Mod for Upload Labs. Search and filter through QoL, visuals, tools, and gameplay enhancements."
+>
+  <!-- Header -->
+  <section
+    class="bg-gradient-to-b from-gray-100 to-gray-50 dark:from-dark-900 dark:to-dark-950 pt-12 pb-8"
+  >
+    <div class="container-wide text-center">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">All Features</h1>
+      <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+        Discover everything Taj's Mod has to offer. Use the search and filters
+        below to find exactly what you need.
+      </p>
+    </div>
+  </section>
+
+  <!-- Feature Explorer -->
+  <FeatureExplorer />
+</BaseLayout>

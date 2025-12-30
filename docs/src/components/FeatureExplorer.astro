@@ -1,0 +1,183 @@
+---
+import FeatureCard from "./FeatureCard.astro";
+import { features, categories } from "../data/features";
+
+interface Props {
+  compact?: boolean;
+}
+
+const { compact = false } = Astro.props;
+const displayFeatures = compact ? features.slice(0, 6) : features;
+---
+
+<section class="section" id="feature-explorer">
+  <div class="container-wide">
+    {
+      !compact && (
+        <div class="text-center mb-12">
+          <h2 class="text-3xl md:text-4xl font-bold mb-4">Feature Explorer</h2>
+          <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+            Search and filter through all available features
+          </p>
+        </div>
+      )
+    }
+
+    <!-- Search & Filters -->
+    <div class="mb-8 space-y-4">
+      <!-- Search -->
+      <div class="relative max-w-xl mx-auto">
+        <input
+          type="text"
+          id="feature-search"
+          placeholder="Search features..."
+          class="w-full px-4 py-3 pl-12 rounded-xl border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-800 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:border-transparent transition-all"
+        />
+        <svg
+          class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+        </svg>
+      </div>
+
+      <!-- Category Filters -->
+      <div class="flex flex-wrap justify-center gap-2" id="category-filters">
+        <button class="chip chip-active" data-category="all"> All </button>
+        {
+          Object.entries(categories).map(([key, cat]) => (
+            <button class="chip" data-category={key}>
+              <span>{cat.icon}</span>
+              {cat.name}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+
+    <!-- Features Grid -->
+    <div
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      id="features-grid"
+    >
+      {
+        displayFeatures.map((feature) => (
+          <div
+            data-feature-id={feature.id}
+            data-category={feature.category}
+            data-tags={feature.tags.join(",")}
+          >
+            <FeatureCard feature={feature} />
+          </div>
+        ))
+      }
+    </div>
+
+    <!-- No results message -->
+    <div id="no-results" class="hidden text-center py-12">
+      <p class="text-gray-500 dark:text-gray-400 text-lg">
+        No features found matching your search.
+      </p>
+    </div>
+
+    {
+      compact && (
+        <div class="text-center mt-10">
+          <a
+            href={`${import.meta.env.BASE_URL}/features/`}
+            class="btn-secondary inline-flex items-center gap-2"
+          >
+            Explore All Features
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17 8l4 4m0 0l-4 4m4-4H3"
+              />
+            </svg>
+          </a>
+        </div>
+      )
+    }
+  </div>
+</section>
+
+<script>
+  function initFeatureExplorer() {
+    const searchInput = document.getElementById(
+      "feature-search"
+    ) as HTMLInputElement;
+    const categoryFilters = document.getElementById("category-filters");
+    const grid = document.getElementById("features-grid");
+    const noResults = document.getElementById("no-results");
+
+    if (!searchInput || !categoryFilters || !grid) return;
+
+    let activeCategory = "all";
+
+    function filterFeatures() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const items = grid.querySelectorAll("[data-feature-id]");
+      let visibleCount = 0;
+
+      items.forEach((item) => {
+        const el = item as HTMLElement;
+        const category = el.dataset.category || "";
+        const tags = el.dataset.tags || "";
+        const text = el.textContent?.toLowerCase() || "";
+
+        const matchesCategory =
+          activeCategory === "all" || category === activeCategory;
+        const matchesSearch =
+          !searchTerm ||
+          text.includes(searchTerm) ||
+          tags.toLowerCase().includes(searchTerm);
+
+        if (matchesCategory && matchesSearch) {
+          el.style.display = "";
+          visibleCount++;
+        } else {
+          el.style.display = "none";
+        }
+      });
+
+      if (noResults) {
+        noResults.classList.toggle("hidden", visibleCount > 0);
+      }
+    }
+
+    // Search input handler
+    searchInput.addEventListener("input", filterFeatures);
+
+    // Category filter handlers
+    categoryFilters.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        // Update active state
+        categoryFilters.querySelectorAll("button").forEach((b) => {
+          b.classList.remove("chip-active");
+          b.classList.add("chip");
+        });
+        btn.classList.remove("chip");
+        btn.classList.add("chip-active");
+
+        activeCategory = btn.dataset.category || "all";
+        filterFeatures();
+      });
+    });
+  }
+
+  document.addEventListener("astro:page-load", initFeatureExplorer);
+  initFeatureExplorer();
+</script>

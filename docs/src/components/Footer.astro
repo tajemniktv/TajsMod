@@ -1,0 +1,133 @@
+---
+import { links } from "../data/links";
+
+const footerLinks = [
+  { name: "Home", href: `${import.meta.env.BASE_URL}/` },
+  { name: "Features", href: `${import.meta.env.BASE_URL}/features/` },
+  { name: "Docs", href: `${import.meta.env.BASE_URL}/docs/` },
+  { name: "FAQ", href: `${import.meta.env.BASE_URL}/faq/` },
+  { name: "Changelog", href: `${import.meta.env.BASE_URL}/changelog/` },
+  { name: "Roadmap", href: `${import.meta.env.BASE_URL}/roadmap/` },
+  { name: "Support", href: `${import.meta.env.BASE_URL}/support/` },
+];
+
+const externalLinks = links.slice(0, 4);
+---
+
+<footer
+  class="bg-gray-100 dark:bg-dark-900 border-t border-gray-200 dark:border-dark-800"
+>
+  <div class="container-wide py-12 md:py-16">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+      <!-- Brand -->
+      <div class="lg:col-span-1">
+        <a
+          href={`${import.meta.env.BASE_URL}/`}
+          class="flex items-center gap-3 mb-4"
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}/brand/TajsModLogo.png`}
+            alt="Taj's Mod Logo"
+            class="h-12 w-12 rounded-xl shadow-sm"
+          />
+          <div>
+            <span class="font-bold text-xl block">Taj's Mod</span>
+            <span class="text-sm text-gray-500 dark:text-gray-400"
+              >for Upload Labs</span
+            >
+          </div>
+        </a>
+        <p class="text-sm text-gray-600 dark:text-gray-400 max-w-xs">
+          A growing collection of Utility / QoL + Visual Tweaks, without
+          overhauling the core gameplay loop.
+        </p>
+      </div>
+
+      <!-- Navigation -->
+      <div>
+        <h3
+          class="font-semibold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4"
+        >
+          Navigation
+        </h3>
+        <ul class="space-y-2">
+          {
+            footerLinks.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  class="text-gray-600 dark:text-gray-300 hover:text-accent-500 dark:hover:text-accent-400 transition-colors"
+                >
+                  {link.name}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <!-- External Links -->
+      <div>
+        <h3
+          class="font-semibold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4"
+        >
+          Links
+        </h3>
+        <ul class="space-y-2">
+          {
+            externalLinks.map((link) => (
+              <li>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-gray-600 dark:text-gray-300 hover:text-accent-500 dark:hover:text-accent-400 transition-colors inline-flex items-center gap-2"
+                >
+                  <span>{link.icon}</span>
+                  {link.name}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <!-- Subscribe CTA -->
+      <div>
+        <h3
+          class="font-semibold text-sm uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-4"
+        >
+          Get Started
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          Subscribe on Steam Workshop for automatic updates.
+        </p>
+        <a
+          href="https://steamcommunity.com/sharedfiles/filedetails/?id=3628222709"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-primary text-sm"
+        >
+          Subscribe Now
+        </a>
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div
+      class="mt-12 pt-8 border-t border-gray-200 dark:border-dark-700 flex flex-col sm:flex-row justify-between items-center gap-4"
+    >
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        © {new Date().getFullYear()} Taj's Mod by <a
+          href="https://github.com/tajemniktv"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="hover:text-accent-500 transition-colors">TajemnikTV</a
+        >
+      </p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">
+        Made with ❤️ for the Upload Labs community
+      </p>
+    </div>
+  </div>
+</footer>

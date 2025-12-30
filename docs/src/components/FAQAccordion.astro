@@ -1,0 +1,177 @@
+---
+import type { FAQItem } from "../data/faq";
+
+interface Props {
+  items: FAQItem[];
+  showSearch?: boolean;
+}
+
+const { items, showSearch = false } = Astro.props;
+---
+
+<div class="space-y-4" id="faq-accordion">
+  {
+    showSearch && (
+      <div class="relative max-w-xl mx-auto mb-8">
+        <input
+          type="text"
+          id="faq-search"
+          placeholder="Search FAQ..."
+          class="w-full px-4 py-3 pl-12 rounded-xl border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-800 focus:outline-none focus:ring-2 focus:ring-accent-400 focus:border-transparent transition-all"
+        />
+        <svg
+          class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      </div>
+    )
+  }
+
+  <div class="space-y-3" id="faq-list">
+    {
+      items.map((item) => (
+        <div
+          class="card p-0 overflow-hidden faq-item"
+          data-question={item.question.toLowerCase()}
+          data-answer={item.answer.toLowerCase()}
+        >
+          <button
+            class="w-full px-6 py-4 flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent-400 rounded-2xl"
+            aria-expanded="false"
+            aria-controls={`faq-${item.id}`}
+          >
+            <span class="font-medium text-gray-900 dark:text-white pr-4">
+              {item.question}
+            </span>
+            <svg
+              class="w-5 h-5 text-gray-500 transition-transform flex-shrink-0 faq-icon"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+          <div
+            id={`faq-${item.id}`}
+            class="hidden px-6 pb-4 text-gray-600 dark:text-gray-400"
+          >
+            <p>{item.answer}</p>
+          </div>
+        </div>
+      ))
+    }
+  </div>
+
+  <div id="faq-no-results" class="hidden text-center py-8">
+    <p class="text-gray-500 dark:text-gray-400">No matching questions found.</p>
+  </div>
+</div>
+
+<script>
+  function initFAQAccordion() {
+    const accordion = document.getElementById("faq-accordion");
+    const searchInput = document.getElementById(
+      "faq-search"
+    ) as HTMLInputElement;
+    const faqList = document.getElementById("faq-list");
+    const noResults = document.getElementById("faq-no-results");
+
+    if (!accordion) return;
+
+    // Accordion toggle functionality
+    accordion.querySelectorAll("button[aria-expanded]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const expanded = btn.getAttribute("aria-expanded") === "true";
+        const targetId = btn.getAttribute("aria-controls");
+        const target = targetId ? document.getElementById(targetId) : null;
+        const icon = btn.querySelector(".faq-icon");
+
+        // Close all others
+        accordion
+          .querySelectorAll('button[aria-expanded="true"]')
+          .forEach((otherBtn) => {
+            if (otherBtn !== btn) {
+              otherBtn.setAttribute("aria-expanded", "false");
+              const otherId = otherBtn.getAttribute("aria-controls");
+              const otherTarget = otherId
+                ? document.getElementById(otherId)
+                : null;
+              const otherIcon = otherBtn.querySelector(".faq-icon");
+              otherTarget?.classList.add("hidden");
+              otherIcon?.classList.remove("rotate-180");
+            }
+          });
+
+        // Toggle current
+        btn.setAttribute("aria-expanded", (!expanded).toString());
+        target?.classList.toggle("hidden", expanded);
+        icon?.classList.toggle("rotate-180", !expanded);
+      });
+    });
+
+    // Keyboard navigation
+    accordion.addEventListener("keydown", (e) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName !== "BUTTON") return;
+
+      const buttons = Array.from(
+        accordion.querySelectorAll("button[aria-expanded]")
+      );
+      const index = buttons.indexOf(target);
+
+      if (e.key === "ArrowDown" && index < buttons.length - 1) {
+        e.preventDefault();
+        (buttons[index + 1] as HTMLElement).focus();
+      } else if (e.key === "ArrowUp" && index > 0) {
+        e.preventDefault();
+        (buttons[index - 1] as HTMLElement).focus();
+      }
+    });
+
+    // Search functionality
+    if (searchInput && faqList) {
+      searchInput.addEventListener("input", () => {
+        const searchTerm = searchInput.value.toLowerCase();
+        const items = faqList.querySelectorAll(".faq-item");
+        let visibleCount = 0;
+
+        items.forEach((item) => {
+          const el = item as HTMLElement;
+          const question = el.dataset.question || "";
+          const answer = el.dataset.answer || "";
+
+          if (
+            !searchTerm ||
+            question.includes(searchTerm) ||
+            answer.includes(searchTerm)
+          ) {
+            el.style.display = "";
+            visibleCount++;
+          } else {
+            el.style.display = "none";
+          }
+        });
+
+        noResults?.classList.toggle("hidden", visibleCount > 0);
+      });
+    }
+  }
+
+  document.addEventListener("astro:page-load", initFAQAccordion);
+  initFAQAccordion();
+</script>
