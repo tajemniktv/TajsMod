@@ -87,7 +87,13 @@ static func patch_boot_screen(boot_node: Node, mod_version: String, icon_path: S
 			
 		var logo_rect = boot_node.get_node_or_null("LogoContainer/Logo")
 		if logo_rect and !logo_rect.has_node("TajsModIcon"):
-			var custom_icon_tex = load(icon_path)
+			# Load explicitly from file to support exported zips where .import might be missing/invalid
+			var custom_icon_tex: Texture2D = null
+			if FileAccess.file_exists(icon_path):
+				var image = Image.load_from_file(icon_path)
+				if image:
+					custom_icon_tex = ImageTexture.create_from_image(image)
+			
 			if custom_icon_tex:
 				var new_icon = TextureRect.new()
 				new_icon.name = "TajsModIcon"
@@ -95,8 +101,8 @@ static func patch_boot_screen(boot_node: Node, mod_version: String, icon_path: S
 				new_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 				new_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				
-				var target_width = 360
-				var target_height = 90
+				var target_width = 500
+				var target_height = 125
 				
 				new_icon.custom_minimum_size = Vector2(target_width, target_height)
 				new_icon.size = Vector2(target_width, target_height)
