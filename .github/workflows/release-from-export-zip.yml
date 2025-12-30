@@ -1,4 +1,4 @@
-name: Release + Steam Workshop + Changelog
+name: Release + Steam Workshop
 
 on:
   push:
@@ -9,24 +9,23 @@ on:
 
 jobs:
   prep:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
       title: ${{ steps.meta.outputs.title }}
       version: ${{ steps.meta.outputs.version }}
-      changelog: ${{ steps.chlog.outputs.changelog }}
-      steam_note: ${{ steps.chlog.outputs.steam_note }}
+      changelog: ${{ steps.meta.outputs.changelog }}
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Install jq
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Read manifest.json (metadata for tag/title)
+      - name: Read manifest.json + extract CHANGELOG entry
         id: meta
         shell: bash
         run: |
@@ -54,238 +53,45 @@ jobs:
           SAFE_ID="$(echo "$MOD_ID" | tr ' ' '-' | tr -cd '[:alnum:]._-' )"
           TAG="${SAFE_ID}-v${VER}"
 
-          echo "tag=$TAG"             >> "$GITHUB_OUTPUT"
-          echo "title=v${VER}"        >> "$GITHUB_OUTPUT"   # tylko wersja jako tytuł releasu
-          echo "version=$VER"         >> "$GITHUB_OUTPUT"
-          echo "safe_id=$SAFE_ID"     >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"                 >> "$GITHUB_OUTPUT"
+          echo "title=v${VER}"            >> "$GITHUB_OUTPUT"
+          echo "version=$VER"             >> "$GITHUB_OUTPUT"
 
-      - name: Fetch tags
-        run: git fetch --tags --force
+          # -------- CHANGELOG extraction --------
+          CHANGELOG_FILE="CHANGELOG.md"
+          CHANGELOG_NOTE=""
 
-      - name: Ensure CHANGELOG.md exists
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f CHANGELOG.md || (echo "Missing CHANGELOG.md" && exit 1)
+          if [ -f "$CHANGELOG_FILE" ]; then
+            # Grab everything after "## [VER] - ..." until next "## [x.y.z]"
+            CHANGELOG_NOTE="$(awk -v ver="$VER" '
+              BEGIN {found=0}
+              $0 ~ "^##[[:space:]]*\\[" ver "\\][[:space:]]*-" {found=1; next}
+              found && $0 ~ "^##[[:space:]]*\\[[0-9]" {exit}
+              found {print}
+            ' "$CHANGELOG_FILE")"
 
-      - name: Generate/Update CHANGELOG entry via LLM (only if missing/blank)
-        id: chlog
-        env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_API_URL: ${{ secrets.LLM_API_URL }}
-          LLM_MODEL: ${{ secrets.LLM_MODEL }}
-        shell: bash
-        run: |
-          set -euo pipefail
+            # Trim leading/trailing blank lines
+            CHANGELOG_NOTE="$(printf "%s\n" "$CHANGELOG_NOTE" | sed -e 's/[[:space:]]\+$//' -e :a -e '/^\n*$/{$d;N;ba' -e '}' -e '1{/^$/d;}')"
 
-          VER="${{ steps.meta.outputs.version }}"
-          TAG="${{ steps.meta.outputs.tag }}"
-          SAFE_ID="${{ steps.meta.outputs.safe_id }}"
-
-          # Defaults (OpenAI-compatible Chat Completions)
-          LLM_API_URL="${LLM_API_URL:-https://api.openai.com/v1/chat/completions}"
-          LLM_MODEL="${LLM_MODEL:-gpt-4o-mini}"
-
-          if [ -z "${LLM_API_KEY:-}" ]; then
-            echo "LLM_API_KEY missing -> cannot auto-generate changelog."
-            exit 1
-          fi
-
-          # Extract existing section for this version (if present)
-          EXISTING="$(awk -v ver="$VER" '
-            BEGIN {found=0}
-            $0 ~ "^##[[:space:]]*\\[" ver "\\][[:space:]]*-" {found=1; next}
-            found && $0 ~ "^##[[:space:]]*\\[[0-9]" {exit}
-            found {print}
-          ' CHANGELOG.md || true)"
-
-          # Detect "blank template": after removing headers, do we have any real bullet content?
-          NONEMPTY="$(printf "%s\n" "$EXISTING" \
-            | grep -vE '^[[:space:]]*###' \
-            | sed '/^[[:space:]]*$/d' \
-            | sed -E 's/^- *//' \
-            | sed '/^[[:space:]]*$/d' \
-            | head -n 1 || true)"
-
-          NEEDS_GEN="false"
-          if ! grep -qE "^##[[:space:]]*\\[$VER\\][[:space:]]*-" CHANGELOG.md; then
-            NEEDS_GEN="true"
-          elif [ -z "$NONEMPTY" ]; then
-            NEEDS_GEN="true"
-          fi
-
-          # Determine previous tag (same SAFE_ID scheme)
-          PREV_TAG="$(git tag -l "${SAFE_ID}-v*" --sort=-v:refname | grep -v "^${TAG}$" | head -n 1 || true)"
-
-          if [ "$NEEDS_GEN" = "true" ]; then
-            echo "CHANGELOG for [$VER] missing/blank -> generating via LLM..."
-
-            if [ -n "$PREV_TAG" ]; then
-              RANGE="${PREV_TAG}..HEAD"
-            else
-              RANGE="HEAD"
+            # If still effectively empty -> fallback
+            if [ -z "$(printf "%s" "$CHANGELOG_NOTE" | tr -d '[:space:]')" ]; then
+              CHANGELOG_NOTE=""
             fi
-
-            # Collect commit subjects, filter some noise
-            COMMITS="$(git log --no-merges --pretty=format:'%s' $RANGE \
-              | grep -vE '^\s*$' \
-              | grep -vE '^\[skip ci\]' \
-              | grep -vE '^(docs:|chore:|ci:|build:|style:|test:)\b' \
-              | head -n 120 || true)"
-
-            if [ -z "$COMMITS" ]; then
-              COMMITS="(No meaningful commits detected; maybe only meta commits.)"
-            fi
-
-            PROMPT="$(cat <<'PROMPT'
-You are writing a changelog entry for a game mod release.
-
-Your job:
-- Read the commit list and produce a Markdown section in THIS EXACT STRUCTURE:
-
-### Added
-- ...
-
-### Changed
-- ...
-
-### Removed
-- ...
-
-### Fixed
-- ...
-
-Rules:
-- Only output that Markdown (no intro, no code fences).
-- Use short bullets, user-facing wording (not dev-internal).
-- If a section has nothing, put: "- (none)".
-- Skip noise like CI, formatting, minor refactors unless they affect users.
-PROMPT
-)"
-            FULL_PROMPT="$PROMPT
-
-Version: $VER
-Previous tag: ${PREV_TAG:-none}
-Commits:
-$(printf "%s\n" "$COMMITS" | sed 's/^/- /')
-"
-
-            PAYLOAD="$(jq -n \
-              --arg model "$LLM_MODEL" \
-              --arg content "$FULL_PROMPT" \
-              '{
-                model: $model,
-                messages: [
-                  {role:"user", content:$content}
-                ],
-                temperature: 0.2
-              }')"
-
-            RESP="$(curl -sS \
-              -H "Authorization: Bearer ${LLM_API_KEY}" \
-              -H "Content-Type: application/json" \
-              -d "$PAYLOAD" \
-              "$LLM_API_URL")"
-
-            NOTES="$(printf "%s" "$RESP" | jq -r '.choices[0].message.content // empty')"
-            if [ -z "$(printf "%s" "$NOTES" | tr -d '[:space:]')" ]; then
-              echo "LLM returned empty content. Response:"
-              echo "$RESP"
-              exit 1
-            fi
-
-            # Update/insert section into CHANGELOG.md (also update date if TBD)
-            python3 - <<'PY'
-import re, datetime
-
-ver = r"""__VER__"""
-notes = r"""__NOTES__"""
-path = "CHANGELOG.md"
-
-with open(path, "r", encoding="utf-8") as f:
-    txt = f.read()
-
-today = datetime.date.today().isoformat()
-
-hdr_re = re.compile(rf"^##\s*\[{re.escape(ver)}\]\s*-\s*(.*)$", re.M)
-all_hdr = re.compile(r"^##\s*\[[0-9][^\]]*\]\s*-.*$", re.M)
-
-m = hdr_re.search(txt)
-
-def normalize_notes(n: str) -> str:
-    n = n.strip("\n")
-    return n + "\n"
-
-notes_block = normalize_notes(notes)
-
-if m:
-    # Replace content until next version header
-    start = m.end()
-    next_m = all_hdr.search(txt, start)
-    end = next_m.start() if next_m else len(txt)
-
-    # If date contains TBD -> replace with today
-    line = m.group(0)
-    if "TBD" in line:
-        new_line = re.sub(r"-\s*.*$", f"- {today}", line)
-        txt = txt[:m.start()] + new_line + txt[m.end():]
-        # recompute start because header line length changed
-        m = hdr_re.search(txt)
-        start = m.end()
-        next_m = all_hdr.search(txt, start)
-        end = next_m.start() if next_m else len(txt)
-
-    # Ensure spacing: header -> blank line -> notes -> blank line
-    prefix = txt[:start]
-    suffix = txt[end:]
-    prefix = re.sub(r"[ \t]+\n", "\n", prefix)
-    new_mid = "\n\n" + notes_block + "\n"
-    txt = prefix + new_mid + suffix.lstrip("\n")
-else:
-    # Insert new entry near top (before first version header if possible)
-    new_header = f"## [{ver}] - {today}\n\n"
-    new_entry = new_header + notes_block + "\n"
-
-    first = all_hdr.search(txt)
-    if first:
-        txt = txt[:first.start()] + new_entry + txt[first.start():]
-    else:
-        txt = txt.rstrip() + "\n\n" + new_entry
-
-with open(path, "w", encoding="utf-8") as f:
-    f.write(txt)
-PY
-            # inject vars safely (python heredoc replacement)
-            # NOTE: we do this after the heredoc to keep YAML stable
-            perl -0777 -i -pe 's/__VER__/\Q'"$VER"'\E/g; s/__NOTES__/\Q'"$(printf "%s" "$NOTES" | sed 's/\\/\\\\/g; s/\$/\\$/g')"'\E/g' CHANGELOG.md
-
-          else
-            echo "CHANGELOG for [$VER] already has content -> using existing."
-            NOTES="$EXISTING"
           fi
 
-          # Prepare outputs for GitHub + Steam
-          NOTES="$(printf "%s\n" "$NOTES" | sed -e 's/[[:space:]]\+$//' )"
-          if [ -z "$(printf "%s" "$NOTES" | tr -d '[:space:]')" ]; then
-            NOTES="### Added\n- (none)\n\n### Changed\n- (none)\n\n### Removed\n- (none)\n\n### Fixed\n- (none)\n"
+          if [ -z "$CHANGELOG_NOTE" ]; then
+            CHANGELOG_NOTE="Update v${VER}\n\n(No CHANGELOG entry found for this version.)"
           fi
 
-          STEAM_NOTE="$(printf "%s" "$NOTES" | head -c 7000)"
+          # Safety: keep it not-crazy-long for Steam change notes
+          CHANGELOG_NOTE="$(printf "%s" "$CHANGELOG_NOTE" | head -c 7000)"
 
+          # Multiline output for GitHub Actions
           {
             echo "changelog<<EOF"
-            printf "%b\n" "$NOTES"
-            echo "EOF"
-            echo "steam_note<<EOF"
-            printf "%b\n" "$STEAM_NOTE"
+            echo "$CHANGELOG_NOTE"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Commit CHANGELOG.md (if changed)
-        uses: stefanzweifel/git-auto-commit-action@v7
-        with:
-          commit_message: "docs: update CHANGELOG.md for ${{ steps.meta.outputs.title }} [skip ci]"
-          file_pattern: CHANGELOG.md
 
   github_release:
     runs-on: ubuntu-latest
@@ -313,9 +119,13 @@ PY
           ASSET_NAME="TajemnikTV-TajsModded-${VER}.zip"
 
           if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release exists: $TAG -> upload asset (clobber)"
             gh release upload "$TAG" "${ZIP}#${ASSET_NAME}" --clobber
+
+            # Update release notes too (in case you changed CHANGELOG later)
             gh release edit "$TAG" --notes "$NOTES" --title "$TITLE"
           else
+            echo "Creating release: $TAG"
             gh release create "$TAG" "${ZIP}#${ASSET_NAME}" \
               --title "$TITLE" \
               --notes "$NOTES" \
@@ -347,4 +157,4 @@ PY
           path: workshop_upload
           appId: "3606890"
           publishedFileId: "3628222709"
-          changeNote: ${{ needs.prep.outputs.steam_note }}
+          changeNote: ${{ needs.prep.outputs.changelog }}
