@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.0.25] - 2025-12-TBD
+## [0.0.26] - 2025-12-TBD
 
 ### Added
 
@@ -21,6 +21,24 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 -
+
+## [0.0.25] - 2025-12-30
+
+### Added
+
+-
+
+### Changed
+
+-
+
+### Removed
+
+-
+
+### Fixed
+
+- Highlighting nodes works for all nodes, including factory
 
 ## [0.0.24] - 2025-12-29
 
