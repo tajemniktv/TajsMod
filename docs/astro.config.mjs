@@ -6,7 +6,7 @@ import astroMermaid from 'astro-mermaid';
 
 export default defineConfig({
   site: 'https://TajemnikTV.github.io',
-  base: '/TajsMod',
+  base: 'TajsMod',
   // Ensure consistent trailing slashes for all URLs
   trailingSlash: 'always',
   // Build options for GitHub Pages compatibility
