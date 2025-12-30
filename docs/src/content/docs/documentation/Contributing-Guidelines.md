@@ -1,6 +1,6 @@
 ---
-title: Building and Distribution
-description: How to build the mod and publish/distribute it.
+title: Contributing Guidelines
+description: Best practices and conventions for contributing code, documentation, or issue reports to Taj's Mod.
 ---
 
 # Contributing Guidelines

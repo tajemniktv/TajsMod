@@ -1,9 +1,7 @@
 ---
-title: Building and Distribution
-description: How to build the mod and publish/distribute it.
+title: Buy Max Manager
+description: A
 ---
-
-# Building and Distribution
 
 ...
 

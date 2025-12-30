@@ -1,6 +1,6 @@
 ---
-title: Building and Distribution
-description: How to build the mod and publish/distribute it.
+title: Command Palette System
+description: A keyboard-driven, fuzzy-searchable interface for executing mod commands and actions.
 ---
 
 # Command Palette System

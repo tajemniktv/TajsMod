@@ -1,6 +1,6 @@
 ---
-title: Building and Distribution
-description: How to build the mod and publish/distribute it.
+title: Core Architecture
+description: A high-level overview of TajsMod's architecture and design patterns.
 ---
 
 # Core Architecture

@@ -1,6 +1,6 @@
 ---
-title: Building and Distribution
-description: How to build the mod and publish/distribute it.
+title: Configuration System
+description: A centralized system for managing persistent user settings.
 ---
 
 # Configuration System

@@ -1,12 +1,13 @@
 ---
-title: Building and Distribution
-description: How to build the mod and publish/distribute it.
+title: Command Definitions and Registry
+description: A detailed explanation of the command definition system that powers the Command Palette.
 ---
 
 # Command Definitions and Registry
 
 > **Relevant source files**
-> * [extensions/scripts/palette/default_commands.gd](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd)
+>
+> - [extensions/scripts/palette/default_commands.gd](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd)
 
 ## Purpose and Scope
 
@@ -18,28 +19,28 @@ This document explains the command definition system that powers the Command Pal
 
 Each command in the registry is represented as a Dictionary with standardized properties. The `TajsModDefaultCommands` class in [extensions/scripts/palette/default_commands.gd L1-L1102](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L1-L1102)
 
- defines and registers all default commands using this structure.
+defines and registers all default commands using this structure.
 
 ### Command Property Reference
 
-| Property | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | String | Yes | Unique identifier for the command (e.g., `"cmd_select_all_nodes"`) |
-| `title` | String | Yes* | Display name shown in the palette |
-| `get_title` | Callable | No | Dynamic title function (overrides `title` if present) |
-| `category_path` | Array[String] | Yes | Hierarchy path (e.g., `["Nodes", "Groups"]`) |
-| `keywords` | Array[String] | Yes | Search terms for fuzzy matching |
-| `hint` | String | Yes | Description/tooltip text |
-| `icon_path` | String | No | Path to texture icon (e.g., `"res://textures/icons/..."`) |
-| `badge` | String | No | Visual indicator: `"SAFE"`, `"OPT-IN"`, or `"NEW"` |
-| `is_category` | bool | No | `true` if this is a category, not an executable command |
-| `run` | Callable | Conditional** | Function executed when command is selected |
-| `can_run` | Callable | No | Function returning `bool` to enable/disable command |
-| `keep_open` | bool | No | If `true`, palette stays open after execution |
+| Property        | Type          | Required        | Description                                                        |
+| --------------- | ------------- | --------------- | ------------------------------------------------------------------ |
+| `id`            | String        | Yes             | Unique identifier for the command (e.g., `"cmd_select_all_nodes"`) |
+| `title`         | String        | Yes\*           | Display name shown in the palette                                  |
+| `get_title`     | Callable      | No              | Dynamic title function (overrides `title` if present)              |
+| `category_path` | Array[String] | Yes             | Hierarchy path (e.g., `["Nodes", "Groups"]`)                       |
+| `keywords`      | Array[String] | Yes             | Search terms for fuzzy matching                                    |
+| `hint`          | String        | Yes             | Description/tooltip text                                           |
+| `icon_path`     | String        | No              | Path to texture icon (e.g., `"res://textures/icons/..."`)          |
+| `badge`         | String        | No              | Visual indicator: `"SAFE"`, `"OPT-IN"`, or `"NEW"`                 |
+| `is_category`   | bool          | No              | `true` if this is a category, not an executable command            |
+| `run`           | Callable      | Conditional\*\* | Function executed when command is selected                         |
+| `can_run`       | Callable      | No              | Function returning `bool` to enable/disable command                |
+| `keep_open`     | bool          | No              | If `true`, palette stays open after execution                      |
 
-* Either `title` or `get_title` must be provided.  
+- Either `title` or `get_title` must be provided.
 
-** Required for non-category commands.
+\*\* Required for non-category commands.
 
 ### Command Structure Diagram
 
@@ -100,7 +101,7 @@ end
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L26-L69](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L26-L69)
 
- [extensions/scripts/palette/default_commands.gd L76-L131](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L76-L131)
+[extensions/scripts/palette/default_commands.gd L76-L131](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L76-L131)
 
 ---
 
@@ -169,27 +170,27 @@ end
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L22-L69](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L22-L69)
 
- [extensions/scripts/palette/default_commands.gd L136-L160](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L136-L160)
+[extensions/scripts/palette/default_commands.gd L136-L160](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L136-L160)
 
- [extensions/scripts/palette/default_commands.gd L281-L556](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L281-L556)
+[extensions/scripts/palette/default_commands.gd L281-L556](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L281-L556)
 
 ### Category Path Examples
 
 The `category_path` property defines a command's location in the hierarchy:
 
-| Command | `category_path` | Result in Palette |
-| --- | --- | --- |
-| Select All Nodes | `["Nodes"]` | Nodes > Select All Nodes |
-| Select All Network | `["Nodes", "Network"]` | Nodes > Network > Select All Network |
-| Wire Drop Menu | `["Taj's Mod", "Feature Toggles"]` | Taj's Mod > Feature Toggles > Wire Drop Menu |
-| Toggle Extra Glow | `["Taj's Mod", "Visuals"]` | Taj's Mod > Visuals > Toggle Extra Glow |
-| Money +10% | `["Tools (Opt-in)"]` | Tools (Opt-in) > Money +10% |
+| Command            | `category_path`                    | Result in Palette                            |
+| ------------------ | ---------------------------------- | -------------------------------------------- |
+| Select All Nodes   | `["Nodes"]`                        | Nodes > Select All Nodes                     |
+| Select All Network | `["Nodes", "Network"]`             | Nodes > Network > Select All Network         |
+| Wire Drop Menu     | `["Taj's Mod", "Feature Toggles"]` | Taj's Mod > Feature Toggles > Wire Drop Menu |
+| Toggle Extra Glow  | `["Taj's Mod", "Visuals"]`         | Taj's Mod > Visuals > Toggle Extra Glow      |
+| Money +10%         | `["Tools (Opt-in)"]`               | Tools (Opt-in) > Money +10%                  |
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L76-L95](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L76-L95)
 
- [extensions/scripts/palette/default_commands.gd L293-L308](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L293-L308)
+[extensions/scripts/palette/default_commands.gd L293-L308](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L293-L308)
 
- [extensions/scripts/palette/default_commands.gd L506-L519](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L506-L519)
+[extensions/scripts/palette/default_commands.gd L506-L519](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L506-L519)
 
 ---
 
@@ -199,11 +200,11 @@ Badges provide visual indicators about command safety and availability. They app
 
 ### Badge Types
 
-| Badge | Meaning | Usage | Example Commands |
-| --- | --- | --- | --- |
-| `SAFE` | Default QoL feature, no gameplay impact | Most commands | Select All, Center View, Open Settings |
-| `OPT-IN` | Gameplay-affecting, requires explicit enablement | Cheat commands, gameplay modifiers | Money +10%, Set Unlimited Nodes |
-| `NEW` | Recently added feature | New commands in recent versions | Add Sticky Note |
+| Badge    | Meaning                                          | Usage                              | Example Commands                       |
+| -------- | ------------------------------------------------ | ---------------------------------- | -------------------------------------- |
+| `SAFE`   | Default QoL feature, no gameplay impact          | Most commands                      | Select All, Center View, Open Settings |
+| `OPT-IN` | Gameplay-affecting, requires explicit enablement | Cheat commands, gameplay modifiers | Money +10%, Set Unlimited Nodes        |
+| `NEW`    | Recently added feature                           | New commands in recent versions    | Add Sticky Note                        |
 
 ### Badge Enforcement
 
@@ -217,9 +218,9 @@ This prevents execution unless the user has explicitly enabled tools via the "En
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L34-L57](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L34-L57)
 
- [extensions/scripts/palette/default_commands.gd L606-L617](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L606-L617)
+[extensions/scripts/palette/default_commands.gd L606-L617](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L606-L617)
 
- [extensions/scripts/palette/default_commands.gd L768-L781](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L768-L781)
+[extensions/scripts/palette/default_commands.gd L768-L781](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L768-L781)
 
 ---
 
@@ -227,13 +228,13 @@ This prevents execution unless the user has explicitly enabled tools via the "En
 
 ### Command Count by Category
 
-| Category | Subcategories | Commands | Badge |
-| --- | --- | --- | --- |
-| Nodes | 9 (Network, CPU, GPU, etc.) | ~30 | SAFE |
-| Taj's Mod | 3 (Toggles, Visuals, Screenshots) | ~20 | SAFE |
-| Tools (Opt-in) | 0 | ~15 | OPT-IN |
-| Help & Links | 0 | 8 | SAFE |
-| **Total** | **12** | **~65** | - |
+| Category       | Subcategories                     | Commands | Badge  |
+| -------------- | --------------------------------- | -------- | ------ |
+| Nodes          | 9 (Network, CPU, GPU, etc.)       | ~30      | SAFE   |
+| Taj's Mod      | 3 (Toggles, Visuals, Screenshots) | ~20      | SAFE   |
+| Tools (Opt-in) | 0                                 | ~15      | OPT-IN |
+| Help & Links   | 0                                 | 8        | SAFE   |
+| **Total**      | **12**                            | **~65**  | -      |
 
 **Note:** Dynamic node category commands (Select All X, Upgrade X) are generated programmatically for each node type.
 
@@ -241,54 +242,54 @@ This prevents execution unless the user has explicitly enabled tools via the "En
 
 #### Nodes Category Commands
 
-| Command ID | Title | Description |
-| --- | --- | --- |
-| `cmd_select_all_nodes` | Select All Nodes | Select all nodes on desktop |
-| `cmd_deselect_all` | Deselect All | Clear current selection |
-| `cmd_center_view` | Center View on Selection | Move camera to selected nodes |
-| `cmd_jump_to_group` | Jump to Group | Open group picker for navigation |
-| `cmd_upgrade_selected` | Upgrade Selected | Upgrade all selected nodes (if affordable) |
-| `cmd_upgrade_all` | Upgrade All | Upgrade all nodes on desktop |
-| `cmd_clear_wires_selection` | Clear All Wires in Selection | Disconnect all wires from selected nodes |
+| Command ID                  | Title                        | Description                                |
+| --------------------------- | ---------------------------- | ------------------------------------------ |
+| `cmd_select_all_nodes`      | Select All Nodes             | Select all nodes on desktop                |
+| `cmd_deselect_all`          | Deselect All                 | Clear current selection                    |
+| `cmd_center_view`           | Center View on Selection     | Move camera to selected nodes              |
+| `cmd_jump_to_group`         | Jump to Group                | Open group picker for navigation           |
+| `cmd_upgrade_selected`      | Upgrade Selected             | Upgrade all selected nodes (if affordable) |
+| `cmd_upgrade_all`           | Upgrade All                  | Upgrade all nodes on desktop               |
+| `cmd_clear_wires_selection` | Clear All Wires in Selection | Disconnect all wires from selected nodes   |
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L76-L225](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L76-L225)
 
 #### Taj's Mod Category Commands
 
-| Command ID | Title | Description |
-| --- | --- | --- |
-| `cmd_open_settings` | Open Settings | Open mod settings panel |
-| `cmd_toggle_wire_drop` | Wire Drop Menu [ON]/[OFF] | Toggle wire drop node spawning menu |
-| `cmd_toggle_palette` | Command Palette [ON]/[OFF] | Toggle command palette (MMB) |
-| `cmd_toggle_select_all` | Ctrl+A Select All [ON]/[OFF] | Toggle Ctrl+A select all nodes |
-| `cmd_toggle_glow` | Toggle Extra Glow | Toggle extra glow effect |
-| `cmd_cycle_opacity` | Cycle UI Opacity | Cycle through 100% → 75% → 50% |
-| `cmd_take_screenshot` | Take Screenshot | Capture full desktop screenshot |
+| Command ID              | Title                        | Description                         |
+| ----------------------- | ---------------------------- | ----------------------------------- |
+| `cmd_open_settings`     | Open Settings                | Open mod settings panel             |
+| `cmd_toggle_wire_drop`  | Wire Drop Menu [ON]/[OFF]    | Toggle wire drop node spawning menu |
+| `cmd_toggle_palette`    | Command Palette [ON]/[OFF]   | Toggle command palette (MMB)        |
+| `cmd_toggle_select_all` | Ctrl+A Select All [ON]/[OFF] | Toggle Ctrl+A select all nodes      |
+| `cmd_toggle_glow`       | Toggle Extra Glow            | Toggle extra glow effect            |
+| `cmd_cycle_opacity`     | Cycle UI Opacity             | Cycle through 100% → 75% → 50%      |
+| `cmd_take_screenshot`   | Take Screenshot              | Capture full desktop screenshot     |
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L251-L582](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L251-L582)
 
 #### Tools (Opt-in) Category Commands
 
-| Command ID | Title | Description |
-| --- | --- | --- |
-| `cmd_money_add` | Money +10% | Increase money by 10% |
-| `cmd_money_add_50` | Money +50% | Increase money by 50% |
-| `cmd_research_add` | Research +10% | Increase research by 10% |
-| `cmd_node_limit_unlimited` | Set Unlimited Nodes | Remove node limit (set to ∞) |
-| `cmd_node_limit_default` | Reset Node Limit | Reset node limit to 400 |
-| `cmd_add_sticky_note` | Add Sticky Note | Place text note at camera center |
-| `cmd_clear_all_notes` | Clear All Sticky Notes | Delete all sticky notes |
+| Command ID                 | Title                  | Description                      |
+| -------------------------- | ---------------------- | -------------------------------- |
+| `cmd_money_add`            | Money +10%             | Increase money by 10%            |
+| `cmd_money_add_50`         | Money +50%             | Increase money by 50%            |
+| `cmd_research_add`         | Research +10%          | Increase research by 10%         |
+| `cmd_node_limit_unlimited` | Set Unlimited Nodes    | Remove node limit (set to ∞)     |
+| `cmd_node_limit_default`   | Reset Node Limit       | Reset node limit to 400          |
+| `cmd_add_sticky_note`      | Add Sticky Note        | Place text note at camera center |
+| `cmd_clear_all_notes`      | Clear All Sticky Notes | Delete all sticky notes          |
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L606-L795](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L606-L795)
 
 #### Help & Links Category Commands
 
-| Command ID | Title | Description |
-| --- | --- | --- |
-| `cmd_show_about` | About Taj's Mod | Show mod version and info |
-| `cmd_copy_workshop` | Copy Workshop Link | Copy Steam Workshop link to clipboard |
-| `cmd_enable_tools` | Enable Tools in Palette | Enable opt-in tools and gameplay commands |
-| `cmd_palette_help` | Palette Help | Show command palette help and hotkeys |
+| Command ID          | Title                   | Description                               |
+| ------------------- | ----------------------- | ----------------------------------------- |
+| `cmd_show_about`    | About Taj's Mod         | Show mod version and info                 |
+| `cmd_copy_workshop` | Copy Workshop Link      | Copy Steam Workshop link to clipboard     |
+| `cmd_enable_tools`  | Enable Tools in Palette | Enable opt-in tools and gameplay commands |
+| `cmd_palette_help`  | Palette Help            | Show command palette help and hotkeys     |
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L801-L890](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L801-L890)
 
@@ -333,15 +334,15 @@ sequenceDiagram
 
 The `refs` Dictionary passed to `register_all()` contains references to key system components:
 
-| Key | Type | Usage |
-| --- | --- | --- |
-| `mod_config` | ConfigManager | Read/write settings values |
-| `mod_ui` | SettingsUI | Show/hide settings panel |
-| `mod_main` | ModMain | Access managers and core functionality |
-| `context` | CommandContext | Check if tools enabled, provide runtime info |
-| `palette_config` | PaletteConfig | Manage palette-specific settings |
-| `controller` | PaletteController | Access overlay, control palette state |
-| `registry` | CommandRegistry | Register additional commands |
+| Key              | Type              | Usage                                        |
+| ---------------- | ----------------- | -------------------------------------------- |
+| `mod_config`     | ConfigManager     | Read/write settings values                   |
+| `mod_ui`         | SettingsUI        | Show/hide settings panel                     |
+| `mod_main`       | ModMain           | Access managers and core functionality       |
+| `context`        | CommandContext    | Check if tools enabled, provide runtime info |
+| `palette_config` | PaletteConfig     | Manage palette-specific settings             |
+| `controller`     | PaletteController | Access overlay, control palette state        |
+| `registry`       | CommandRegistry   | Register additional commands                 |
 
 These references enable command `run` functions to interact with the mod's systems.
 
@@ -353,7 +354,7 @@ These references enable command `run` functions to interact with the mod's syste
 
 The `TajsModDefaultCommands` class provides several static helper functions used by multiple commands.
 
-### _upgrade_nodes
+### \_upgrade_nodes
 
 ```mermaid
 flowchart TD
@@ -394,21 +395,21 @@ Count2 --> Feedback
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L993-L1046](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L993-L1046)
 
-### _clear_wires_for_windows
+### \_clear_wires_for_windows
 
 **Purpose:** Disconnect all wire connections from a list of windows.
 
 **Logic:**
 
 1. Find all `ResourceContainer` nodes within each window
-2. For each container: * Emit `Signals.delete_connection` for all output connections * Emit `Signals.delete_connection` for input connection if present
+2. For each container: _ Emit `Signals.delete_connection` for all output connections _ Emit `Signals.delete_connection` for input connection if present
 3. Return Dictionary with `{"cleared": int, "nodes": int}` for feedback
 
 **Used by:** `cmd_clear_wires_selection` command
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L1058-L1102](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L1058-L1102)
 
-### _modify_currency
+### \_modify_currency
 
 **Purpose:** Add or subtract a percentage of a currency (money, research, token).
 
@@ -425,15 +426,15 @@ Count2 --> Feedback
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L895-L924](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L895-L924)
 
-### _register_node_category
+### \_register_node_category
 
 **Purpose:** Programmatically register a node category with "Select All" and "Upgrade" commands.
 
 **Parameters:**
 
-* `cat_id`: String identifier (e.g., `"network"`, `"cpu"`)
-* `cat_title`: Display name (e.g., `"Network"`, `"CPU"`)
-* `icon`: Icon filename (e.g., `"connections"`, `"bits"`)
+- `cat_id`: String identifier (e.g., `"network"`, `"cpu"`)
+- `cat_title`: Display name (e.g., `"Network"`, `"CPU"`)
+- `icon`: Icon filename (e.g., `"connections"`, `"bits"`)
 
 **Generated Commands:**
 
@@ -475,7 +476,7 @@ Use `get_title` to create commands with state-dependent titles (e.g., ON/OFF tog
 registry.register({
     "id": "cmd_my_toggle",
     "title": "My Feature",
-    "get_title": func(): 
+    "get_title": func():
         var enabled = mod_config.get_value("my_feature_enabled", false)
         return "My Feature " + ("[ON]" if enabled else "[OFF]"),
     "run": func(ctx):
@@ -493,7 +494,7 @@ Use `can_run` to disable commands based on runtime conditions:
 registry.register({
     "id": "cmd_require_selection",
     "title": "Process Selection",
-    "can_run": func(ctx): 
+    "can_run": func(ctx):
         return Globals and Globals.selections.size() > 0,
     "run": func(ctx):
         # Process selected nodes...
@@ -516,7 +517,7 @@ registry.register({
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L163-L193](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L163-L193)
 
- [extensions/scripts/palette/default_commands.gd L293-L308](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L293-L308)
+[extensions/scripts/palette/default_commands.gd L293-L308](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L293-L308)
 
 ---
 
@@ -524,16 +525,16 @@ registry.register({
 
 Commands receive a `CommandContext` object (`ctx` parameter) that provides:
 
-| Method | Returns | Description |
-| --- | --- | --- |
-| `ctx.are_tools_enabled()` | bool | Check if opt-in tools are available |
-| `ctx.set_tools_enabled(bool)` | void | Enable/disable tools in palette |
+| Method                        | Returns | Description                         |
+| ----------------------------- | ------- | ----------------------------------- |
+| `ctx.are_tools_enabled()`     | bool    | Check if opt-in tools are available |
+| `ctx.set_tools_enabled(bool)` | void    | Enable/disable tools in palette     |
 
 This context is used primarily for conditional availability of opt-in commands.
 
 **Sources:** [extensions/scripts/palette/default_commands.gd L57-L58](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L57-L58)
 
- [extensions/scripts/palette/default_commands.gd L614-L617](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L614-L617)
+[extensions/scripts/palette/default_commands.gd L614-L617](https://github.com/tajemniktv/TajsMod/blob/5f1e656a/extensions/scripts/palette/default_commands.gd#L614-L617)
 
 ---
 
@@ -541,12 +542,12 @@ This context is used primarily for conditional availability of opt-in commands.
 
 The command definition system provides a flexible, declarative approach to registering palette commands:
 
-* **Structured Properties**: Commands use a standardized Dictionary format with 12 possible properties
-* **Hierarchical Organization**: Four root categories with subcategories enable intuitive navigation
-* **Badge System**: Visual indicators distinguish safe QoL features from gameplay-affecting tools
-* **60+ Default Commands**: Comprehensive set covering node management, mod settings, cheats, and help
-* **Helper Utilities**: Shared logic for upgrades, wire clearing, and currency modification
-* **Extensibility**: Simple registration API for adding custom commands with dynamic titles and conditional availability
+- **Structured Properties**: Commands use a standardized Dictionary format with 12 possible properties
+- **Hierarchical Organization**: Four root categories with subcategories enable intuitive navigation
+- **Badge System**: Visual indicators distinguish safe QoL features from gameplay-affecting tools
+- **60+ Default Commands**: Comprehensive set covering node management, mod settings, cheats, and help
+- **Helper Utilities**: Shared logic for upgrades, wire clearing, and currency modification
+- **Extensibility**: Simple registration API for adding custom commands with dynamic titles and conditional availability
 
 The registry acts as the single source of truth for all palette functionality, consumed by the `PaletteOverlay` UI layer (see [Palette Overlay UI](/tajemniktv/TajsMod/4.2-palette-overlay-ui)).
 
