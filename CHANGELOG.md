@@ -4,11 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.0.26] - 2025-12-TBD
+## [0.1.1] - 2025-12-30
+
+Since this version we will finally be adhering to the semantic versioning standard (to my best ability at least).
 
 ### Added
 
--
+- **Calculator** — Added a calculator to the command palette
 
 ### Changed
 
@@ -20,7 +22,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
--
+- Boot logo not working in shipped build
 
 ## [0.0.25] - 2025-12-30
 
