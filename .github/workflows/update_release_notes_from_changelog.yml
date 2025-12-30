@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # potrzebne do git diff między before/after
+          fetch-depth: 0
 
       - name: Install jq
         run: |
@@ -30,7 +30,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # --- wylicz SAFE_ID z manifestu (żeby znać format tagów) ---
+          test -f CHANGELOG.md || (echo "Missing CHANGELOG.md" && exit 1)
+
+          # --- SAFE_ID from manifest (for SAFE_ID-vX.Y.Z tags) ---
           MANIFEST="$(git ls-files | grep -E '(^|/)manifest\.json$' | head -n 1 || true)"
           test -n "$MANIFEST" || (echo "No manifest.json found in repo" && exit 1)
 
@@ -38,68 +40,122 @@ jobs:
           NAME="$(jq -r '.name // empty' "$MANIFEST")"
           test -n "$NAME" || (echo "manifest.json: missing .name" && exit 1)
 
-          if [ -n "$NAMESPACE" ]; then
-            MOD_ID="${NAMESPACE}-${NAME}"
-          else
-            MOD_ID="${NAME}"
-          fi
-
+          if [ -n "$NAMESPACE" ]; then MOD_ID="${NAMESPACE}-${NAME}"; else MOD_ID="${NAME}"; fi
           SAFE_ID="$(echo "$MOD_ID" | tr ' ' '-' | tr -cd '[:alnum:]._-' )"
 
-          # --- wykryj które wersje w CHANGELOG.md zostały dotknięte w tym pushu ---
           BEFORE="${{ github.event.before }}"
           AFTER="${{ github.sha }}"
-
-          # na pierwszym commicie w branchu BEFORE bywa zerowe
           if [[ "$BEFORE" =~ ^0+$ ]]; then
             BEFORE="$(git rev-parse "${AFTER}~1")"
           fi
 
-          DIFF="$(git diff --unified=0 "$BEFORE" "$AFTER" -- CHANGELOG.md || true)"
+          # --- Detect affected versions using Python (no heredocs) ---
+          VERSIONS="$(python3 -c '
+import re, subprocess, sys
 
-          # wersje z nagłówków, które pojawiły się / zostały zmienione (linia +## albo -##)
-          VERSIONS="$(printf "%s\n" "$DIFF" \
-            | grep -E '^[+-]##[[:space:]]*\[[0-9]' \
-            | sed -E 's/^[+-]##[[:space:]]*\[([^]]+)\].*/\1/' \
-            | sort -u)"
+before = sys.argv[1]; after = sys.argv[2]
+
+diff = subprocess.run(
+    ["git","diff","--unified=0", before, after, "--", "CHANGELOG.md"],
+    text=True, capture_output=True
+).stdout
+
+# Parse hunk ranges for the "new file" (+c,d)
+ranges=[]
+for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff, re.M):
+    start=int(m.group(1)); count=int(m.group(2) or "1")
+    if count>0:
+        ranges.append((start, start+count-1))
+
+if not ranges:
+    sys.exit(0)
+
+with open("CHANGELOG.md", "r", encoding="utf-8") as f:
+    lines=f.readlines()
+
+hdr=re.compile(r"^##\s*\[([^\]]+)\]\s*-")
+current=None
+line_to_ver={}
+for i,line in enumerate(lines, start=1):
+    m=hdr.match(line)
+    if m: current=m.group(1).strip()
+    line_to_ver[i]=current
+
+vers=set()
+for a,b in ranges:
+    for ln in range(a,b+1):
+        v=line_to_ver.get(ln)
+        if v: vers.add(v)
+
+for v in sorted(vers):
+    print(v)
+' "$BEFORE" "$AFTER")"
 
           if [ -z "$VERSIONS" ]; then
-            echo "No version headers detected in diff; nothing to update."
+            echo "No affected versions detected; nothing to update."
             exit 0
           fi
 
           echo "Versions to update:"
           echo "$VERSIONS"
 
-          for ver in $VERSIONS; do
-            TAG="${SAFE_ID}-v${ver}"
-
-            # wyciągnij sekcję dla tej wersji
-            NOTES="$(awk -v ver="$ver" '
+          extract_notes() {
+            local ver="$1"
+            awk -v ver="$ver" '
               BEGIN {found=0}
               $0 ~ "^##[[:space:]]*\\[" ver "\\][[:space:]]*-" {found=1; next}
               found && $0 ~ "^##[[:space:]]*\\[[0-9]" {exit}
               found {print}
-            ' CHANGELOG.md)"
+            ' CHANGELOG.md
+          }
 
-            # trim pustych linii na początku/końcu
-            NOTES="$(printf "%s\n" "$NOTES" | sed -e 's/[[:space:]]\+$//' -e :a -e '/^\n*$/{$d;N;ba' -e '}' -e '1{/^$/d;}')"
+          trim_notes() {
+            awk '
+              {a[NR]=$0}
+              END{
+                i=1
+                while (i<=NR && a[i] ~ /^[[:space:]]*$/) i++
+                j=NR
+                while (j>=1 && a[j] ~ /^[[:space:]]*$/) j--
+                for (k=i; k<=j; k++) print a[k]
+              }'
+          }
+
+          for ver in $VERSIONS; do
+            NOTES="$(extract_notes "$ver" | trim_notes)"
 
             if [ -z "$(printf "%s" "$NOTES" | tr -d '[:space:]')" ]; then
-              echo "[$TAG] CHANGELOG section is empty -> skipping"
+              echo "[v$ver] CHANGELOG section is empty -> skipping"
               continue
             fi
 
-            # sprawdź czy release istnieje
-            if ! gh release view "$TAG" >/dev/null 2>&1; then
-              echo "[$TAG] Release not found -> skipping"
+            # Try tag styles: vX.Y.Z first, then SAFE_ID-vX.Y.Z
+            CAND1="v${ver}"
+            CAND2="${SAFE_ID}-v${ver}"
+            TAG=""
+
+            if gh release view "$CAND1" >/dev/null 2>&1; then
+              TAG="$CAND1"
+            elif gh release view "$CAND2" >/dev/null 2>&1; then
+              TAG="$CAND2"
+            else
+              # Fallback: find by release title
+              FOUND_TAG="$(gh release list --limit 200 --json name,tagName --jq \
+                '.[] | select(.name=="v'"$ver"'" or .name=="'"$ver"'") | .tagName' | head -n 1 || true)"
+              if [ -n "$FOUND_TAG" ]; then
+                TAG="$FOUND_TAG"
+              fi
+            fi
+
+            if [ -z "$TAG" ]; then
+              echo "[v$ver] Release not found (no matching tag/title) -> skipping"
               continue
             fi
 
             tmp="$(mktemp)"
             printf "%s\n" "$NOTES" > "$tmp"
 
-            echo "[$TAG] Updating release notes from CHANGELOG.md..."
+            echo "[$TAG] Updating release notes..."
             gh release edit "$TAG" --notes-file "$tmp"
 
             rm -f "$tmp"
