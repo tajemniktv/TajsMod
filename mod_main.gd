@@ -28,6 +28,7 @@ const NotificationLogPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsM
 const DisconnectedNodeHighlighterScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/disconnected_node_highlighter.gd")
 const UpgradeManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/upgrade_manager.gd")
 const StickyNoteManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/sticky_note_manager.gd")
+const SmoothScrollManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/smooth_scroll_manager.gd")
 
 # Components
 var config # ConfigManager instance
@@ -46,6 +47,7 @@ var notification_log_panel # NotificationLogPanel instance
 var disconnected_highlighter # DisconnectedNodeHighlighter instance
 var sticky_note_manager # StickyNoteManager instance
 var upgrade_manager # UpgradeManager instance
+var smooth_scroll_manager # SmoothScrollManager instance
 
 # State
 var mod_dir_path: String = ""
@@ -108,6 +110,12 @@ func _init() -> void:
     focus_handler = FocusHandlerScript.new()
     focus_handler.setup(config)
     add_child(focus_handler)
+    
+    # Init Smooth Scroll Manager
+    smooth_scroll_manager = SmoothScrollManagerScript.new()
+    smooth_scroll_manager.name = "SmoothScrollManager"
+    add_child(smooth_scroll_manager)
+    smooth_scroll_manager.setup(config)
     
     # Init Wire Color Overrides (applied in _ready when Data is loaded)
     wire_colors = WireColorOverridesScript.new()
@@ -337,6 +345,8 @@ func _setup_for_main(main_node: Node) -> void:
         node_group_z_fix.set_enabled(false)
     if disconnected_highlighter and not config.get_value("highlight_disconnected_enabled", true):
         disconnected_highlighter.set_enabled(false)
+        
+    smooth_scroll_manager.set_enabled(config.get_value("smooth_scroll_enabled", false))
 
 
 ## Setup Go To Node Group panel in the HUD
@@ -527,6 +537,12 @@ func _build_settings_menu() -> void:
     _settings_toggles["disable_slider_scroll"] = ui.add_toggle(gen_vbox, "Disable Slider Scroll", config.get_value("disable_slider_scroll"), func(v):
         config.set_value("disable_slider_scroll", v)
     , "Prevent mouse wheel from accidentally changing slider values.")
+    
+    # Smooth Scroll toggle
+    _settings_toggles["smooth_scroll_enabled"] = ui.add_toggle(gen_vbox, "Smooth Scrolling", config.get_value("smooth_scroll_enabled", false), func(v):
+        config.set_value("smooth_scroll_enabled", v)
+        smooth_scroll_manager.set_enabled(v)
+    , "Enable smooth scrolling for all scrollable containers (vanilla and modded).")
     
     # Toast History Panel toggle
     _settings_toggles["notification_log_enabled"] = ui.add_toggle(gen_vbox, "Toast History Panel", config.get_value("notification_log_enabled", true), func(v):
