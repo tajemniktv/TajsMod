@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-12-30
+
+### Added
+
+- **Smooth Scrolling** — Added a new manager and UI toggle for smooth scrolling
+
+### Changed
+
+- Change sticky note resizing handlers color to #ff8500
+
+### Removed
+
+-
+
+### Fixed
+
+- Fixed issue where Sticky Notes could be selected through other overlapping UI elements
+
 ## [0.1.1] - 2025-12-30
 
 Since this version we will finally be adhering to the semantic versioning standard (to my best ability at least).
