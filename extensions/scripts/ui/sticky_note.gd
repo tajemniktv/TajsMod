@@ -74,8 +74,8 @@ var _manager = null
 # Visual Constants
 const HANDLE_SIZE = 8.0 # Radius
 const HANDLE_OFFSET = 10.0 # Further offset
-const HANDLE_COLOR = Color("ff6a00") # Deeper Orange
-const OUTLINE_COLOR = Color("ff6a00")
+const HANDLE_COLOR = Color("ff8500")
+const OUTLINE_COLOR = Color("ff8500")
 const OUTLINE_WIDTH = 2.0
 
 func _init() -> void:
@@ -357,6 +357,7 @@ func _create_header_button(icon_name: String, tooltip: String) -> Button:
     btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
     btn.expand_icon = true
     btn.tooltip_text = tooltip
+    btn.pressed.connect(func(): _set_selected(true))
     return btn
 
 func _setup_pickers() -> void:
@@ -466,6 +467,13 @@ func _get_cursor_for_dir(dir: Vector2) -> CursorShape:
 
 # === Input Handling ===
 # Global input only for click-outside
+# Handle selection when clicking the note background (margins)
+func _gui_input(event: InputEvent) -> void:
+    if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+        _set_selected(true)
+        accept_event()
+
+# Global input only for click-outside
 func _input(event: InputEvent) -> void:
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
         if _is_selected:
@@ -480,10 +488,6 @@ func _input(event: InputEvent) -> void:
             
             if not get_global_rect().has_point(get_global_mouse_position()) and not on_handle:
                 _set_selected(false)
-        else:
-            # If not selected, click inside selects
-            if get_global_rect().has_point(get_global_mouse_position()):
-                _set_selected(true)
 
 # Handle GUI Input (Blocks Camera!)
 func _on_handle_gui_input(event: InputEvent, dir: Vector2) -> void:
@@ -549,6 +553,7 @@ func _on_pattern_settings_changed(idx: int, c: Color, a: float, sp: float, th: f
     _emit_changed()
 
 func _start_title_edit() -> void:
+    _set_selected(true)
     _is_editing_title = true
     _title_button.visible = false
     _title_edit.visible = true
