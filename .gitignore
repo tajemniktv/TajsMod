@@ -45,3 +45,4 @@ docs/private/*
 /docs/.DS_Store
 
 
+.vscode/
