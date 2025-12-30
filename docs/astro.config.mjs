@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import tailwind from '@astrojs/tailwind';
+import astroMermaid from 'astro-mermaid';
 
 export default defineConfig({
   site: 'https://TajemnikTV.github.io',
@@ -13,6 +14,7 @@ export default defineConfig({
     format: 'directory',
   },
   integrations: [
+    astroMermaid(),
     tailwind({
       // Disable injecting base styles so we have full control
       applyBaseStyles: false,
