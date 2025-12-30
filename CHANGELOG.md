@@ -32,11 +32,11 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 ### Changed
 
--
+- N/A
 
 ### Removed
 
--
+- N/A
 
 ### Fixed
 
@@ -46,15 +46,15 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 ### Added
 
--
+- N/A
 
 ### Changed
 
--
+- N/A
 
 ### Removed
 
--
+- N/A
 
 ### Fixed
 
@@ -89,7 +89,7 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 ### Removed
 
--
+- N/A
 
 ### Fixed
 
@@ -106,25 +106,33 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 ### Changed
 
--
+- N/A
 
 ### Removed
 
--
+- N/A
 
 ### Fixed
 
--
+- N/A
 
 ## [0.0.21] - 2025-12-TBD
 
 ### Added
 
-- X
+- N/A
+
+### Changed
+
+- N/A
+
+### Removed
+
+- N/A
 
 ### Fixed
 
-- X
+- N/A
 
 ## [0.0.20] - 2025-12-27
 
@@ -132,6 +140,14 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 - **Buy Max** — Added a button to purchase maximum affordable levels for upgrades
 - **Boot Screen** — Added option to toggle custom boot screen in Debug settings
+
+### Changed
+
+- N/A
+
+### Removed
+
+- N/A
 
 ### Fixed
 
@@ -150,9 +166,25 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 ## [0.0.18] - 2025-12-24
 
+### Added
+
+- N/A
+
+### Changed
+
 - Improve cheats
 
+### Removed
+
+- N/A
+
+### Fixed
+
+- N/A
+
 ## [0.0.17] - 2025-12-23
+
+### Added
 
 - Change wiring color
 - Open screenshot folder
