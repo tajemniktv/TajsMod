@@ -9,6 +9,8 @@ on:
 
 jobs:
   prep:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.meta.outputs.tag }}
