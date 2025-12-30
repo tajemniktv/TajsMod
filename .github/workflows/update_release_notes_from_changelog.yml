@@ -23,7 +23,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq
 
-      - name: Update release notes for changed versions
+      - name: Update release notes for affected versions
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
@@ -49,47 +49,40 @@ jobs:
             BEFORE="$(git rev-parse "${AFTER}~1")"
           fi
 
-          # --- Detect affected versions using Python (no heredocs) ---
-          VERSIONS="$(python3 -c '
-import re, subprocess, sys
+          DIFF_FILE="$(mktemp)"
+          git diff --unified=0 "$BEFORE" "$AFTER" -- CHANGELOG.md > "$DIFF_FILE" || true
 
-before = sys.argv[1]; after = sys.argv[2]
+          CHANGED_LINES="$(mktemp)"
+          # Extract "new file" (+c,d) line ranges from unified diff hunks -> list of changed line numbers in new file
+          awk '
+            match($0,/^@@ -[0-9]+(,[0-9]+)? \+([0-9]+)(,([0-9]+))? @@/,m) {
+              start=m[2]
+              count=(m[4] ? m[4] : 1)
+              for (i=0; i<count; i++) print start+i
+            }
+          ' "$DIFF_FILE" | sort -n | uniq > "$CHANGED_LINES"
 
-diff = subprocess.run(
-    ["git","diff","--unified=0", before, after, "--", "CHANGELOG.md"],
-    text=True, capture_output=True
-).stdout
+          if [ ! -s "$CHANGED_LINES" ]; then
+            echo "No changed line ranges detected; nothing to update."
+            exit 0
+          fi
 
-# Parse hunk ranges for the "new file" (+c,d)
-ranges=[]
-for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", diff, re.M):
-    start=int(m.group(1)); count=int(m.group(2) or "1")
-    if count>0:
-        ranges.append((start, start+count-1))
-
-if not ranges:
-    sys.exit(0)
-
-with open("CHANGELOG.md", "r", encoding="utf-8") as f:
-    lines=f.readlines()
-
-hdr=re.compile(r"^##\s*\[([^\]]+)\]\s*-")
-current=None
-line_to_ver={}
-for i,line in enumerate(lines, start=1):
-    m=hdr.match(line)
-    if m: current=m.group(1).strip()
-    line_to_ver[i]=current
-
-vers=set()
-for a,b in ranges:
-    for ln in range(a,b+1):
-        v=line_to_ver.get(ln)
-        if v: vers.add(v)
-
-for v in sorted(vers):
-    print(v)
-' "$BEFORE" "$AFTER")"
+          # Map changed line numbers -> closest version header above in CHANGELOG.md
+          VERSIONS="$(
+            awk -v lines_file="$CHANGED_LINES" '
+              BEGIN {
+                while ((getline l < lines_file) > 0) changed[l]=1
+                cur=""
+              }
+              {
+                if (match($0, /^##[[:space:]]*\[([^]]+)\][[:space:]]*-/ , m)) {
+                  cur=m[1]
+                }
+                if (cur != "" && changed[NR]) vers[cur]=1
+              }
+              END { for (v in vers) print v }
+            ' CHANGELOG.md | sort -u
+          )"
 
           if [ -z "$VERSIONS" ]; then
             echo "No affected versions detected; nothing to update."
@@ -129,7 +122,9 @@ for v in sorted(vers):
               continue
             fi
 
-            # Try tag styles: vX.Y.Z first, then SAFE_ID-vX.Y.Z
+            # Support both tag styles:
+            # 1) vX.Y.Z
+            # 2) SAFE_ID-vX.Y.Z
             CAND1="v${ver}"
             CAND2="${SAFE_ID}-v${ver}"
             TAG=""
@@ -139,7 +134,7 @@ for v in sorted(vers):
             elif gh release view "$CAND2" >/dev/null 2>&1; then
               TAG="$CAND2"
             else
-              # Fallback: find by release title
+              # Fallback: find by release title (name)
               FOUND_TAG="$(gh release list --limit 200 --json name,tagName --jq \
                 '.[] | select(.name=="v'"$ver"'" or .name=="'"$ver"'") | .tagName' | head -n 1 || true)"
               if [ -n "$FOUND_TAG" ]; then
@@ -160,3 +155,5 @@ for v in sorted(vers):
 
             rm -f "$tmp"
           done
+
+          rm -f "$DIFF_FILE" "$CHANGED_LINES"
