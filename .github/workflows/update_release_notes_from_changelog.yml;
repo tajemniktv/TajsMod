@@ -1,0 +1,106 @@
+name: Update GitHub Release Notes from CHANGELOG
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - "CHANGELOG.md"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update_notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # potrzebne do git diff między before/after
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Update release notes for changed versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # --- wylicz SAFE_ID z manifestu (żeby znać format tagów) ---
+          MANIFEST="$(git ls-files | grep -E '(^|/)manifest\.json$' | head -n 1 || true)"
+          test -n "$MANIFEST" || (echo "No manifest.json found in repo" && exit 1)
+
+          NAMESPACE="$(jq -r '.namespace // empty' "$MANIFEST")"
+          NAME="$(jq -r '.name // empty' "$MANIFEST")"
+          test -n "$NAME" || (echo "manifest.json: missing .name" && exit 1)
+
+          if [ -n "$NAMESPACE" ]; then
+            MOD_ID="${NAMESPACE}-${NAME}"
+          else
+            MOD_ID="${NAME}"
+          fi
+
+          SAFE_ID="$(echo "$MOD_ID" | tr ' ' '-' | tr -cd '[:alnum:]._-' )"
+
+          # --- wykryj które wersje w CHANGELOG.md zostały dotknięte w tym pushu ---
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          # na pierwszym commicie w branchu BEFORE bywa zerowe
+          if [[ "$BEFORE" =~ ^0+$ ]]; then
+            BEFORE="$(git rev-parse "${AFTER}~1")"
+          fi
+
+          DIFF="$(git diff --unified=0 "$BEFORE" "$AFTER" -- CHANGELOG.md || true)"
+
+          # wersje z nagłówków, które pojawiły się / zostały zmienione (linia +## albo -##)
+          VERSIONS="$(printf "%s\n" "$DIFF" \
+            | grep -E '^[+-]##[[:space:]]*\[[0-9]' \
+            | sed -E 's/^[+-]##[[:space:]]*\[([^]]+)\].*/\1/' \
+            | sort -u)"
+
+          if [ -z "$VERSIONS" ]; then
+            echo "No version headers detected in diff; nothing to update."
+            exit 0
+          fi
+
+          echo "Versions to update:"
+          echo "$VERSIONS"
+
+          for ver in $VERSIONS; do
+            TAG="${SAFE_ID}-v${ver}"
+
+            # wyciągnij sekcję dla tej wersji
+            NOTES="$(awk -v ver="$ver" '
+              BEGIN {found=0}
+              $0 ~ "^##[[:space:]]*\\[" ver "\\][[:space:]]*-" {found=1; next}
+              found && $0 ~ "^##[[:space:]]*\\[[0-9]" {exit}
+              found {print}
+            ' CHANGELOG.md)"
+
+            # trim pustych linii na początku/końcu
+            NOTES="$(printf "%s\n" "$NOTES" | sed -e 's/[[:space:]]\+$//' -e :a -e '/^\n*$/{$d;N;ba' -e '}' -e '1{/^$/d;}')"
+
+            if [ -z "$(printf "%s" "$NOTES" | tr -d '[:space:]')" ]; then
+              echo "[$TAG] CHANGELOG section is empty -> skipping"
+              continue
+            fi
+
+            # sprawdź czy release istnieje
+            if ! gh release view "$TAG" >/dev/null 2>&1; then
+              echo "[$TAG] Release not found -> skipping"
+              continue
+            fi
+
+            tmp="$(mktemp)"
+            printf "%s\n" "$NOTES" > "$tmp"
+
+            echo "[$TAG] Updating release notes from CHANGELOG.md..."
+            gh release edit "$TAG" --notes-file "$tmp"
+
+            rm -f "$tmp"
+          done

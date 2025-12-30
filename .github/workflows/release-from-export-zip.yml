@@ -52,7 +52,7 @@ jobs:
           TAG="${SAFE_ID}-v${VER}"
 
           echo "tag=$TAG"                 >> "$GITHUB_OUTPUT"
-          echo "title=${MOD_ID} v${VER}"  >> "$GITHUB_OUTPUT"
+          echo "title=v${VER}"            >> "$GITHUB_OUTPUT"
           echo "version=$VER"             >> "$GITHUB_OUTPUT"
 
           # -------- CHANGELOG extraction --------
