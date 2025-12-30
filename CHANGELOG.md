@@ -22,6 +22,8 @@ All notable changes to this project will be documented in this file.
 
 - Fixed issue where Sticky Notes could be selected through other overlapping UI elements
 
+---
+
 ## [0.1.1] - 2025-12-30
 
 Since this version we will finally be adhering to the semantic versioning standard (to my best ability at least).
@@ -42,6 +44,8 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 - Boot logo not working in shipped build
 
+---
+
 ## [0.0.25] - 2025-12-30
 
 ### Added
@@ -60,11 +64,27 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 - Highlighting nodes works for all nodes, including factory
 
+---
+
 ## [0.0.24] - 2025-12-29
+
+### Added
+
+- N/A
+
+### Changed
+
+- N/A
+
+### Removed
+
+- N/A
 
 ### Fixed
 
 - Fix crash while opening Pattern Picker
+
+---
 
 ## [0.0.23] - 2025-12-29
 
@@ -95,6 +115,8 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 - **Debug Logging** — Fixed debug setting persistence
 
+---
+
 ## [0.0.22] - 2025-12-28
 
 ### Added
@@ -116,6 +138,8 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 - N/A
 
+---
+
 ## [0.0.21] - 2025-12-TBD
 
 ### Added
@@ -133,6 +157,8 @@ Since this version we will finally be adhering to the semantic versioning standa
 ### Fixed
 
 - N/A
+
+---
 
 ## [0.0.20] - 2025-12-27
 
@@ -155,14 +181,31 @@ Since this version we will finally be adhering to the semantic versioning standa
 - **Wire Drop** — Fixed custom node limit not being enforced when dropping wires
 - **Markdown Tables** — Fixed styling compliance for documentation tables
 
+---
+
 ## [0.0.19] - 2025-12-26
 
-- Node group Z-order fix
+### Added
+
 - 6-input containers setting
+- Add capture delay setting
+- Additional cheats
+
+### Changed
+
+- N/A
+
+### Removed
+
+- N/A
+
+### Fixed
+
 - Fix tutorial
 - Fix CTRL+C/CTRL+V functionality
-- Add capture delay setting
-- Additional cheats;
+- Node group Z-order fix
+
+---
 
 ## [0.0.18] - 2025-12-24
 
@@ -182,6 +225,8 @@ Since this version we will finally be adhering to the semantic versioning standa
 
 - N/A
 
+---
+
 ## [0.0.17] - 2025-12-23
 
 ### Added
@@ -189,6 +234,20 @@ Since this version we will finally be adhering to the semantic versioning standa
 - Change wiring color
 - Open screenshot folder
 - Change screenshot folder
+
+### Changed
+
+- N/A
+
+### Removed
+
+- N/A
+
+### Fixed
+
+- N/A
+
+---
 
 ## [0.0.14] - 2025-12-22
 
@@ -234,6 +293,8 @@ Since this version we will finally be adhering to the semantic versioning standa
 ### Fixed
 
 - Critical hotfix for connections crashing the game
+
+---
 
 ## [0.0.3] - 2025-12-21
 
