@@ -1,0 +1,76 @@
+---
+/**
+ * Video/Trailer section for embedding mod showcase
+ */
+interface Props {
+  videoUrl?: string;
+  title?: string;
+}
+
+// YouTube embed URL (replace VIDEO_ID with actual video when available)
+const { 
+  videoUrl = '', // Set to empty for placeholder mode
+  title = 'Mod Showcase' 
+} = Astro.props;
+
+// Extract YouTube video ID if it's a YouTube URL
+const youtubeMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
+const youtubeId = youtubeMatch?.[1];
+---
+
+<section class="section bg-gray-50 dark:bg-dark-900">
+  <div class="container-wide">
+    <div class="text-center mb-8">
+      <h2 class="text-3xl md:text-4xl font-bold mb-4">See it in Action</h2>
+      <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+        Watch a quick overview of what Taj's Mod can do
+      </p>
+    </div>
+    
+    <div class="max-w-4xl mx-auto">
+      <div class="relative aspect-video rounded-2xl overflow-hidden shadow-xl bg-dark-900">
+        {youtubeId ? (
+          <iframe
+            src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1`}
+            title={title}
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen
+            class="absolute inset-0 w-full h-full"
+          ></iframe>
+        ) : (
+          <!-- Placeholder when no video is set -->
+          <div class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-dark-800 to-dark-950">
+            <div class="text-6xl mb-4 opacity-50">🎬</div>
+            <p class="text-gray-400 text-lg">Video coming soon</p>
+            <p class="text-gray-500 text-sm mt-2">Check out the screenshots below!</p>
+          </div>
+        )}
+      </div>
+      
+      <!-- Quick links below video -->
+      <div class="flex flex-wrap justify-center gap-4 mt-6">
+        <a 
+          href="https://steamcommunity.com/sharedfiles/filedetails/?id=3628222709"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-accent-500"
+        >
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95 0-5.52-4.48-10-10-10z"></path>
+          </svg>
+          Steam Workshop
+        </a>
+        <a
+          href={`${import.meta.env.BASE_URL}/screenshots/`}
+          class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-accent-500"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+          View Screenshots
+        </a>
+      </div>
+    </div>
+  </div>
+</section>

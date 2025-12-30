@@ -1,0 +1,59 @@
+---
+/**
+ * Anchor heading with copy-to-clipboard link
+ */
+interface Props {
+  id: string;
+  level?: 1 | 2 | 3 | 4;
+}
+
+const { id, level = 2 } = Astro.props;
+const Tag = `h${level}` as any;
+---
+
+<Tag id={id} class="anchor-heading group relative scroll-mt-20">
+  <slot />
+  <a
+    href={`#${id}`}
+    class="anchor-link ml-2 opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center"
+    aria-label={`Link to this section`}
+  >
+    <svg
+      class="w-4 h-4 text-gray-400 hover:text-accent-500"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+      ></path>
+    </svg>
+  </a>
+</Tag>
+
+<style>
+  .anchor-heading {
+    display: flex;
+    align-items: center;
+  }
+</style>
+
+<script>
+  // Copy URL to clipboard when clicking anchor
+  document.querySelectorAll(".anchor-link").forEach((link) => {
+    link.addEventListener("click", async (e) => {
+      const href = (link as HTMLAnchorElement).href;
+      try {
+        await navigator.clipboard.writeText(href);
+        // Brief visual feedback
+        link.classList.add("text-green-500");
+        setTimeout(() => link.classList.remove("text-green-500"), 1000);
+      } catch (err) {
+        // Fallback: just navigate
+      }
+    });
+  });
+</script>

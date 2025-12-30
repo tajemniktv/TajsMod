@@ -1,0 +1,87 @@
+---
+/**
+ * "What's New" banner showing the latest release
+ * Dismissible with localStorage persistence
+ */
+import { getLatestVersion } from "../data/parse-changelog";
+
+const latest = getLatestVersion();
+const BASE_URL = import.meta.env.BASE_URL;
+---
+
+{
+  latest && (
+    <div
+      id="whats-new-banner"
+      class="bg-gradient-to-r from-accent-500/10 via-accent-400/10 to-accent-500/10 border-b border-accent-200 dark:border-accent-800/30"
+    >
+      <div class="container-wide py-2.5">
+        <div class="flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3 flex-wrap">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-accent-500 text-white text-xs font-bold rounded-full">
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fill-rule="evenodd"
+                  d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+              NEW
+            </span>
+            <span class="text-sm">
+              <strong class="text-accent-600 dark:text-accent-400">
+                v{latest.version}
+              </strong>
+              <span class="text-gray-600 dark:text-gray-400 hidden sm:inline">
+                {" "}
+                — {latest.summary}
+              </span>
+            </span>
+            <a
+              href={`${BASE_URL}/changelog/`}
+              class="text-sm text-accent-600 dark:text-accent-400 hover:text-accent-700 dark:hover:text-accent-300 font-medium underline underline-offset-2"
+            >
+              View changelog →
+            </a>
+          </div>
+          <button
+            id="dismiss-banner"
+            class="p-1 rounded-lg hover:bg-accent-500/10 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            aria-label="Dismiss banner"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+<script define:vars={{ version: latest?.version }}>
+  const storageKey = `banner-dismissed-${version}`;
+  const banner = document.getElementById("whats-new-banner");
+  const dismissBtn = document.getElementById("dismiss-banner");
+
+  // Hide if already dismissed
+  if (banner && localStorage.getItem(storageKey)) {
+    banner.style.display = "none";
+  }
+
+  // Dismiss handler
+  dismissBtn?.addEventListener("click", () => {
+    localStorage.setItem(storageKey, "true");
+    banner?.remove();
+  });
+</script>

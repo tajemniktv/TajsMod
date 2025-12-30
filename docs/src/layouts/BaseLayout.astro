@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import NavBar from "../components/NavBar.astro";
 import Footer from "../components/Footer.astro";
+import CommandPalette from "../components/CommandPalette.astro";
 
 interface Props {
   title: string;
@@ -35,6 +36,12 @@ const socialImageURL = new URL(image, Astro.site);
     <title>{title} | Taj's Mod</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonicalURL} />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title="Taj's Mod Changelog"
+      href={`${import.meta.env.BASE_URL}/feed.xml`}
+    />
 
     <!-- OpenGraph -->
     <meta property="og:type" content="website" />
@@ -67,6 +74,7 @@ const socialImageURL = new URL(image, Astro.site);
     class="min-h-screen bg-gray-50 dark:bg-dark-950 text-gray-900 dark:text-gray-100"
   >
     <NavBar />
+    <CommandPalette />
     <main>
       <slot />
     </main>

@@ -6,6 +6,8 @@ export interface Feature {
   tags: string[];
   icon: string;
   highlight?: boolean;
+  longDescription?: string;
+  tips?: string[];
 }
 
 export const categories = {

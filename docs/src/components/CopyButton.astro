@@ -1,0 +1,80 @@
+---
+/**
+ * Copy to clipboard button component
+ * Shows "Copied!" feedback on successful copy
+ */
+interface Props {
+  text: string;
+  label?: string;
+}
+
+const { text, label = "Copy" } = Astro.props;
+---
+
+<button
+  class="copy-btn inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded-md bg-gray-100 dark:bg-dark-700 hover:bg-gray-200 dark:hover:bg-dark-600 text-gray-600 dark:text-gray-300 transition-colors"
+  data-copy-text={text}
+  type="button"
+  aria-label={`Copy: ${text}`}
+>
+  <svg
+    class="copy-icon w-3.5 h-3.5"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+    ></path>
+  </svg>
+  <svg
+    class="check-icon w-3.5 h-3.5 hidden text-green-500"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      d="M5 13l4 4L19 7"></path>
+  </svg>
+  <span class="copy-label">{label}</span>
+</button>
+
+<script>
+  function initCopyButtons() {
+    document.querySelectorAll(".copy-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const text = btn.getAttribute("data-copy-text");
+        if (!text) return;
+
+        try {
+          await navigator.clipboard.writeText(text);
+
+          const copyIcon = btn.querySelector(".copy-icon");
+          const checkIcon = btn.querySelector(".check-icon");
+          const label = btn.querySelector(".copy-label");
+
+          copyIcon?.classList.add("hidden");
+          checkIcon?.classList.remove("hidden");
+          if (label) label.textContent = "Copied!";
+
+          setTimeout(() => {
+            copyIcon?.classList.remove("hidden");
+            checkIcon?.classList.add("hidden");
+            if (label) label.textContent = "Copy";
+          }, 2000);
+        } catch (err) {
+          console.error("Failed to copy:", err);
+        }
+      });
+    });
+  }
+
+  document.addEventListener("astro:page-load", initCopyButtons);
+  initCopyButtons();
+</script>

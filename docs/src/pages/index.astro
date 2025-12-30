@@ -1,6 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Hero from "../components/Hero.astro";
+import WhatsNewBanner from "../components/WhatsNewBanner.astro";
+import TrustBar from "../components/TrustBar.astro";
+import VideoSection from "../components/VideoSection.astro";
 import FeatureGrid from "../components/FeatureGrid.astro";
 import GettingStarted from "../components/GettingStarted.astro";
 import FAQAccordion from "../components/FAQAccordion.astro";
@@ -77,6 +80,15 @@ const externalLinks = [
 <BaseLayout title="Home">
   <!-- Hero -->
   <Hero />
+
+  <!-- What's New Banner -->
+  <WhatsNewBanner />
+
+  <!-- Trust Bar -->
+  <TrustBar />
+
+  <!-- Video Section -->
+  <VideoSection />
 
   <!-- Feature Highlights -->
   <FeatureGrid />

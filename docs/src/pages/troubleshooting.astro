@@ -1,0 +1,274 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CopyButton from "../components/CopyButton.astro";
+import PageActions from "../components/PageActions.astro";
+
+// Configurable troubleshooting paths
+const troubleshootingConfig = {
+  paths: {
+    windows: {
+      game: "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Upload Labs",
+      mods: "%APPDATA%\\Godot\\app_userdata\\Upload Labs\\mods",
+      config: "%APPDATA%\\Godot\\app_userdata\\Upload Labs\\settings.cfg",
+      logs: "%APPDATA%\\Godot\\app_userdata\\Upload Labs\\logs",
+      saves: "%APPDATA%\\Godot\\app_userdata\\Upload Labs\\saves",
+    },
+    linux: {
+      game: "~/.steam/steam/steamapps/common/Upload Labs",
+      mods: "~/.local/share/godot/app_userdata/Upload Labs/mods",
+      config: "~/.config/godot/app_userdata/Upload Labs/settings.cfg",
+      logs: "~/.local/share/godot/app_userdata/Upload Labs/logs",
+    },
+    mac: {
+      game: "~/Library/Application Support/Steam/steamapps/common/Upload Labs",
+      mods: "~/Library/Application Support/Godot/app_userdata/Upload Labs/mods",
+      config:
+        "~/Library/Application Support/Godot/app_userdata/Upload Labs/settings.cfg",
+    },
+  },
+};
+
+const BASE_URL = import.meta.env.BASE_URL;
+---
+
+<BaseLayout
+  title="Troubleshooting"
+  description="Diagnostic checklist and common fixes for Taj's Mod issues."
+>
+  <!-- Header -->
+  <section
+    class="bg-gradient-to-b from-gray-100 to-gray-50 dark:from-dark-900 dark:to-dark-950 pt-12 pb-8"
+  >
+    <div class="container-wide text-center">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">Troubleshooting</h1>
+      <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
+        Diagnostic checklist and quick fixes for common issues
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container-narrow">
+      <!-- Quick Diagnosis -->
+      <div
+        class="card mb-8 bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30"
+      >
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>⚡</span>
+          Quick Diagnosis Checklist
+        </h2>
+        <div class="space-y-3">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-gray-300 accent-accent-500"
+            />
+            <span>Is the mod subscribed on Steam Workshop?</span>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-gray-300 accent-accent-500"
+            />
+            <span>Have you launched the game after subscribing?</span>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-gray-300 accent-accent-500"
+            />
+            <span>Is Steam Workshop sync enabled?</span>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-gray-300 accent-accent-500"
+            />
+            <span>Are other mods disabled (to test conflict)?</span>
+          </label>
+          <label class="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              class="mt-1 h-4 w-4 rounded border-gray-300 accent-accent-500"
+            />
+            <span>Have you tried unsubscribing and resubscribing?</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Important Paths -->
+      <div class="card mb-8">
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>📂</span>
+          Important Paths (Windows)
+        </h2>
+        <div class="space-y-4">
+          {
+            Object.entries(troubleshootingConfig.paths.windows).map(
+              ([key, path]) => (
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span class="font-medium text-gray-700 dark:text-gray-300 min-w-[100px] capitalize">
+                    {key}:
+                  </span>
+                  <code class="flex-1 text-sm bg-gray-100 dark:bg-dark-700 px-3 py-1.5 rounded-lg break-all">
+                    {path}
+                  </code>
+                  <CopyButton text={path} />
+                </div>
+              )
+            )
+          }
+        </div>
+        <details class="mt-6">
+          <summary
+            class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+          >
+            Show Linux / macOS paths
+          </summary>
+          <div
+            class="mt-4 space-y-4 pl-4 border-l-2 border-gray-200 dark:border-dark-700"
+          >
+            <h4 class="font-medium text-sm text-gray-500">Linux</h4>
+            {
+              Object.entries(troubleshootingConfig.paths.linux).map(
+                ([key, path]) => (
+                  <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span class="text-gray-600 dark:text-gray-400 min-w-[80px] capitalize text-sm">
+                      {key}:
+                    </span>
+                    <code class="flex-1 text-xs bg-gray-100 dark:bg-dark-700 px-2 py-1 rounded break-all">
+                      {path}
+                    </code>
+                    <CopyButton text={path} />
+                  </div>
+                )
+              )
+            }
+            <h4 class="font-medium text-sm text-gray-500 mt-4">macOS</h4>
+            {
+              Object.entries(troubleshootingConfig.paths.mac).map(
+                ([key, path]) => (
+                  <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span class="text-gray-600 dark:text-gray-400 min-w-[80px] capitalize text-sm">
+                      {key}:
+                    </span>
+                    <code class="flex-1 text-xs bg-gray-100 dark:bg-dark-700 px-2 py-1 rounded break-all">
+                      {path}
+                    </code>
+                    <CopyButton text={path} />
+                  </div>
+                )
+              )
+            }
+          </div>
+        </details>
+      </div>
+
+      <!-- Common Issues -->
+      <div class="card mb-8">
+        <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+          <span>🔧</span>
+          Common Issues
+        </h2>
+
+        <div class="space-y-6">
+          <div>
+            <h3 class="font-semibold mb-2">
+              Mod not loading after subscription
+            </h3>
+            <ol
+              class="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-400 text-sm"
+            >
+              <li>Fully close the game and Steam</li>
+              <li>Restart Steam to force Workshop sync</li>
+              <li>Launch Upload Labs</li>
+              <li>Look for the puzzle piece icon (⚙️) in the HUD</li>
+            </ol>
+          </div>
+
+          <div>
+            <h3 class="font-semibold mb-2">Game crashes on startup</h3>
+            <ol
+              class="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-400 text-sm"
+            >
+              <li>Disable all other mods first</li>
+              <li>Enable Debug Logging in mod settings (if accessible)</li>
+              <li>Check logs folder for error details</li>
+              <li>Report the issue with logs attached</li>
+            </ol>
+          </div>
+
+          <div>
+            <h3 class="font-semibold mb-2">Settings not saving</h3>
+            <ol
+              class="list-decimal list-inside space-y-1 text-gray-600 dark:text-gray-400 text-sm"
+            >
+              <li>Ensure the game isn't running from a read-only location</li>
+              <li>Try running as administrator once</li>
+              <li>Use "Reset All Settings" in Debug tab</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- What to Attach -->
+      <div
+        class="card bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800/30"
+      >
+        <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+          <span>📎</span>
+          When Reporting an Issue
+        </h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          Help us help you! Include these when reporting:
+        </p>
+        <ul class="space-y-2 text-gray-700 dark:text-gray-300">
+          <li class="flex items-start gap-2">
+            <span class="text-blue-500">✓</span>
+            <span><strong>Log files</strong> from the logs folder</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-blue-500">✓</span>
+            <span><strong>settings.cfg</strong> if settings-related</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-blue-500">✓</span>
+            <span><strong>Screenshots</strong> of the issue or error</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-blue-500">✓</span>
+            <span><strong>Steps to reproduce</strong> the problem</span>
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="text-blue-500">✓</span>
+            <span><strong>Mod version</strong> (check in mod settings)</span>
+          </li>
+        </ul>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a
+            href="https://github.com/TajemnikTV/TajsMod/issues/new"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-primary text-sm"
+          >
+            Report on GitHub
+          </a>
+          <a
+            href="https://discord.gg/enigmadev"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn-secondary text-sm"
+          >
+            Ask on Discord
+          </a>
+        </div>
+      </div>
+
+      <!-- Page Actions -->
+      <div class="mt-12 pt-8 border-t border-gray-200 dark:border-dark-700">
+        <PageActions editPath="/troubleshooting.astro" />
+      </div>
+    </div>
+  </section>
+</BaseLayout>
