@@ -1,0 +1,109 @@
+[img]https://raw.githubusercontent.com/tajemniktv/TajsMod/refs/heads/master/TajsModHeader.png[/img]
+[hr]
+Right now it’s a growing collection of [b]Utility / QoL + Visual Tweaks[/b], without overhauling the whole core gameplay loop.
+The plan is simple: keep expanding it into a “make the game better” toolbox - more settings, more convenience features, more polish, hopefully without turning it into bloat.
+
+If something feels missing, annoying, or you want a specific option/toggle, let me know. I actively read feedback for the game itself, and I’ll do the same for the mod - your suggestion might end up in the next update.
+
+[h1]✨ Features[/h1]
+A clean bundle of QoL, visuals, and power-user tools — with any gameplay-affecting stuff kept strictly [b]opt-in[/b].
+
+[hr]
+
+[h2]🎛️ General / QoL[/h2]
+[list]
+[*][b]Command Palette (MMB/Space)[/b] — Fuzzy search for commands, settings, and navigation.
+[*][b]Mod Settings Panel[/b] — A deeper settings menu accessible via the puzzle piece icon.
+[*][b]Toast History[/b] — Missed a notification? Check the log via the bell icon.
+[*][b]Mute on Focus Loss[/b] — Auto-mute game audio when you tab out (configurable volume).
+[*][b]Real-time Node Counter[/b] — Track your node usage vs the limit.
+[*][b]Smart Screenshots[/b] — HQ capture overrides, and resolution settings.
+[/list]
+
+[h2]🎨 Visuals[/h2]
+[list]
+[*][b]Group Node Patterns[/b] — Custom patterns (Dots, Stripes, Zipzag, etc.) with adjustable opacity and colors.
+[*][b]Wire Colors[/b] — Customize wire colors by resource type (Power, Data, etc.).
+[*][b]Disconnected Node Highlighter[/b] — Visual aids (`Pulse` or `Outline` style) to find unconnected nodes.
+[*][b]Extra Glow & Bloom[/b] — Tweak intensity, bloom, and sensitivity of game visuals.
+[*][b]UI Opacity[/b] — Adjust HUD transparency.
+[*][b]Custom Boot Screen[/b] — A modded startup screen.
+[/list]
+
+[h2]🔧 Tools & Utilities[/h2]
+[list]
+[*][b]Wire Drop Menu[/b] — Drop a wire on empty space to instantly open a compatible node spawner.
+[*][b]Quick Navigation[/b] — "Jump to Group" and "Jump to Note" commands to zoom to specific areas.
+[*][b]Screenshot Selection[/b] — Capture only the currently selected nodes.
+[*][b]Sticky Notes[/b] — Place colored text notes on the canvas.
+[*][b]Universal Clear Wires[/b] — Right-click output slots or use "Clear Wires" on a selection to clean up.
+[*][b]The Bin[/b] — A dedicated trash node for easy deletion.
+[*][b]6-Input Containers[/b] — Option to increase container inputs from 5 to 6.
+[/list]
+
+[h2]🎮 Gameplay & Cheats (Opt-in)[/h2]
+[list]
+[*][b]Buy Max Button[/b] — Smart button to buy max affordable upgrades (Lowest/Highest cost strategy).
+[*][b]Node Limit Control[/b] — Increase limit up to 2000 or set to Unlimited (∞).
+[*][b]Disable Controller Input[/b] — Completely block gamepad input to prevent interference.
+[*][b]Cheats Panel[/b] — Modify Money, Research, and Tokens (Add/Remove %, Set to 0).
+[/list]
+
+[quote]
+[b]Important:[/b] Anything that affects gameplay is [b]opt-in[/b] and clearly separated from pure QoL/visual settings.
+[/quote]
+
+[h2]🐛 Debug/Troubleshooting[/h2]
+[list]
+[*][b]Debug Logging[/b] — Toggle verbose logs for troubleshooting.
+[*][b]Reset All Settings[/b] — One click back to defaults.
+[*][b]Debug Info[/b] — Logs current currency values and limits.
+[/list]
+
+[hr]
+[h2]Controls[/h2]
+[table]
+[tr][th]Action[/th][th]Input[/th][/tr]
+[tr][td]Open Command Palette[/td][td]Middle-click[/td][/tr]
+[tr][td]Navigate Palette[/td][td]Arrow keys/Mouse[/td][/tr]
+[tr][td]Go Back (Palette)[/td][td]Mouse Back Button[/td][/tr]
+[tr][td]Go Forward (Palette)[/td][td]Mouse Forward Button[/td][/tr]
+[tr][td]Clear Wires[/td][td]Right-click on connector[/td][/tr]
+[tr][td]Sticky Note Context[/td][td]WIP[/td][/tr]
+[tr][td]Buy Max[/td][td]Click (Dropdown for options)[/td][/tr]
+[/table]
+
+[hr]
+[h1]Technical Notes[/h1]
+
+[h2]Installation[/h2]
+[list]
+[*]Subscribe on the Workshop and launch the game.
+[*]If you previously installed the mod manually, remove the old .zip from your [i]Upload Labs/mods[/i] folder to avoid duplicates.
+[/list]
+
+[h2]Known Issues / Compatibility[/h2]
+[list]
+[*]No known conflicts as of yet.
+[*][b]Technical Note:[/b] This mod patches desktop.gd and some HUD elements. If you have other mods that drastically alter the main desktop input or the HUD overlay, load order may matter.
+[*]For bugs / requests, check the GitHub Issues tracker.
+[/list]
+
+[h2]Troubles installing the mod?[/h2]
+If you subscribed but the mod isn’t working, check trouble section [url=https://steamcommunity.com/sharedfiles/filedetails?id=3633685275]HERE[/url]
+
+[h2]Still not working?[/h2]
+Post a comment below or report it in the [url=https://discord.gg/enigmadev]EnigmaDev Discord[/url] and ping [b]@TajemnikTV[/b].
+
+[hr]
+[h2]Links[/h2]
+[list]
+[*][b][url=https://github.com/tajemniktv/TajsMod/issues?q=is%3Aissue]GitHub Issues[/url][/b]
+[*][b][url=https://github.com/tajemniktv/TajsMod]GitHub[/url][/b]
+[*][b][url=https://steamcommunity.com/sharedfiles/filedetails?id=3633685275]Guide[/url][/b]
+[/list]
+
+[hr]
+[h2]Credits[/h2]
+TBD
+[hr]

@@ -1,0 +1,257 @@
+Overview
+
+A mod that adds quality-of-life improvements, visual enhancements, and optional gameplay modifications without fundamentally altering the core gameplay loop. 
+
+For a wiki that refreshes every 7 days, go here: [url=https://deepwiki.com/tajemniktv/TajsMod]DeepWiki[/url]
+
+I can't promise that this guide nor the workshop description are up-to-date (Someone looking for a job? Lol)
+
+
+
+
+
+Features
+
+[b]Workflow & Controls[/b]
+[list]
+[*] [b]Command Palette:[/b] Press Middle Mouse Button to open a fuzzy-search menu for quick commands, finding nodes, and recent actions.
+[*] [b]Wire Drop Spawning:[/b] Drag a wire to an empty space to instantly spawn a compatible node attached to that line.
+[*] [b]Smart Selection:[/b] Use Ctrl+A to select all nodes on the desktop.
+[*] [b]Wire Cleanup:[/b] Right-click any connector to instantly clear all wires attached to it.
+[*] [b]Sticky Notes:[/b] Place colored text notes to annotate your factory.
+[*] [b]Quick Navigation:[/b] Jump instantly to specific Node Groups or Sticky Notes via the Command Palette.
+[/list]
+
+[b]Visual Customization[/b]
+[list]
+[*] [b]Custom Wire Colors:[/b] Use a full RGB picker to change wire colors for better visibility or aesthetics.
+[*] [b]Group Styles:[/b] Custom patterns (dots, stripes, zigzag, etc.) with adjustable opacity/colors and improved z-ordering.
+[*] [b]Disconnected Node Highlighter:[/b] Find loose ends with visual pulsing or outlines.
+[*] [b]Visual Tweaks:[/b] Adjust UI opacity and extra glow settings (bloom intensity) to fit your vibe.
+[*] [b]Custom Boot Screen:[/b] Toggle a custom boot-up sequence in the Debug settings.
+[/list]
+
+[b]Quality of Life[/b]
+[list]
+[*] [b]Buy Max Button:[/b] Purchase maximum affordable upgrades for nodes (or the global upgrades tab) with a single click.
+[*] [b]Improved Containers:[/b] Standard containers now support up to 6 input slots.
+[*] [b]The Bin Node:[/b] A universal receiver node that voids any input—great for testing or cleaning up lines.
+[*] [b]Focus Mute:[/b] Automatically mutes or lowers game volume when you Alt-Tab away.
+[*] [b]Toast History:[/b] View a log of recent notifications so you never miss a warning.
+[/list]
+
+[b]Tools & Cheats[/b]
+[list]
+[*] [b]Node Limit Control:[/b] Increase the node limit or disable it entirely via the settings slider.
+[*] [b]Disable Controller Input:[/b] Completely block gamepad input to prevent interference.
+[*] [b]Screenshot Manager:[/b] Take high-resolution, tiled screenshots of your entire factory layout.
+[*] [b]Cheats Panel:[/b] Optional menu to inject Hack Points, Corporate Data, and other currencies if you want to sandbox.
+[/list]
+
+
+
+
+
+Controls & Keybinds
+
+This mod adds several new inputs to speed up your workflow.
+
+[h3]Mouse[/h3]
+[list]
+[*] [b]Middle Click (Desktop):[/b] Open Command Palette.
+[*] [b]Right Click (Connector):[/b] Delete all wires attached to this pin.
+[*] [b]Right Click (Sticky Note):[/b] Open context menu (Color/Edit).
+[*] [b]Mouse Back / Forward (X1/X2):[/b] Navigate back/forward in Command Palette menus.
+[*] [b]Drag Wire -> Empty Space:[/b] Open "Add Node" picker (auto-connects).
+[/list]
+
+[h3]Keyboard[/h3]
+[list]
+[*] [b]Ctrl + A:[/b] Select ALL nodes on the desktop (smart context—won't trigger if typing in a text box).
+[/list]
+
+[h3]Command Palette Navigation[/h3]
+When the palette is open:
+[list]
+[*] [b]Up / Down:[/b] Select item.
+[*] [b]Enter:[/b] Execute command or select node.
+[*] [b]Tab / Right Arrow:[/b] Enter selected category.
+[*] [b]Left Arrow / Backspace:[/b] Go back (if search is empty).
+[*] [b]Esc:[/b] Close palette.
+[*] [b]Ctrl + F:[/b] Toggle "Favorite" status for the selected command (keeps it at the top).
+[/list]
+
+
+
+
+
+Quick Start Guide
+
+[h2]1. Accessing the Mod[/h2]
+Once installed, look for the new [b]Puzzle Piece icon[/b] in the top HUD (Extras Buttons area). This is your main hub for configuring the mod.
+
+[h2]2. Using the Command Palette[/h2]
+Press the [b]Middle Mouse Button[/b] anywhere on the desktop to open the palette.
+[list]
+[*] Type to fuzzy-search for nodes, commands, or settings.
+[*] Use it to quickly toggle options or find specific nodes without navigating menus.
+[*] Tip: Add your most-used commands to Favorites (Ctrl+F) for instant access.
+[/list]
+
+[h2]3. Wire Drop System[/h2]
+Speed up your building by dragging a wire from any output and releasing it on an [b]empty grid space[/b].
+A popup menu will appear, allowing you to instantly spawn a compatible node that automatically connects to your wire.
+
+[h2]4. Managing Large Factories[/h2]
+[list]
+[*] [b]Jump to Group:[/b] Use the new button in the bottom-left corner to see a list of all your Node Groups. Select one to instantly pan the camera to it.
+[*] [b]Bulk Upgrades:[/b] Use the "Buy Max" button in the upgrade tab (or on selected nodes) to spend your points efficiently.
+[/list]
+
+
+
+
+
+Settings & Configuration
+
+All configuration is handled in-game. No config files to edit manually!
+
+[h2]Settings[/h2]
+[list]
+[*] [b]General:[/b] Node limits, specific tool toggles.
+[*] [b]Visuals:[/b] Wire colors, UI opacity, glow settings.
+[*] [b]Cheats:[/b] Currency buttons (hidden by default unless you go looking).
+[*] [b]Debug:[/b] Logs and boot screen toggles.
+[/list]
+
+[h2]Recommended Defaults[/h2]
+[list]
+[*] [b]Node Limit:[/b] Set to ~500 or "Unlimited" if you have a strong PC. The vanilla limit is strict for performance, but modern CPUs can handle much more.
+[*] [b]Focus Mute:[/b] [b]ON[/b]. It’s a lifesaver if you play while watching videos or working.
+[/list]
+
+
+
+
+
+Compatibility
+
+
+This mod uses [b]ModLoader[/b] and should be compatible with most other mods.
+[quote]
+[b]Technical Note:[/b] This mod patches [code]desktop.gd[/code] and some HUD elements. If you have other mods that drastically alter the main desktop input or the HUD overlay, load order may matter.
+[/quote]
+
+
+
+
+
+Troubleshooting
+
+If you subscribed but the mod isn’t working, here’s what to try (top to bottom):
+
+[h2]1) Verify Steam actually downloaded the Workshop files[/h2]
+
+[list]
+[*] Open your Steam Library
+[*] Right-click [b]Upload Labs[/b] → [b]Manage[/b] → [b]Browse Local Files[/b]
+[*]You’ll likely see a path similar to:
+[code]C:\Program Files (x86)\Steam\steamapps\common\Upload Labs[/code]
+
+[*]Now go to the Workshop content folder instead:
+[code]C:\Program Files (x86)\Steam\steamapps\workshop\content[/code]
+
+[*]Find and open the folder:
+[code]3606890[/code]
+
+[*]Inside it, find and open:
+[code]3628222709[/code]
+
+[*]You should see:
+[code]TajemnikTV-TajsModded.zip[/code]
+[/list]
+
+[b]What you’re looking for:[/b]
+[list]
+[*] If the .zip exists and its size is [b]not 0 bytes[/b] → Steam downloaded it correctly.
+[*] If the file is missing or is [b]0 bytes[/b] → it’s likely a Steam download/workshop issue. Try the Steam-related fixes below.
+[/list]
+
+[h2]2) Steam-related fixes (when it doesn’t download / stays broken)[/h2]
+
+Community tips for cases that look like Steam being the culprit:
+
+[list]
+[*] [b]Restart Steam[/b] (fully close it, then open again)
+[*] [b]Unsubscribe and resubscribe[/b] to the mod
+[*] [b]Verify game files[/b]:
+[list]
+[*] Steam Library → right-click [b]Upload Labs[/b] → [b]Properties[/b] → [b]Installed Files[/b] → [b]Verify integrity of game files[/b]
+[/list]
+[/list]
+
+If none of that helps and the Workshop file still won’t download, it’s very likely something on Steam’s side (Workshop syncing / downloads). In that case, use the GitHub download as a workaround:
+[url=https://github.com/tajemniktv/TajsMod/releases]GitHub[/url]
+
+[h2]3) Clear Mod Loader cached data[/h2]
+
+[list]
+[*] Press [b]Windows + R[/b]
+[*] Type:
+[code]%appdata%[/code]
+[*] Press [b]Enter[/b]
+[*] Open the folder:
+[code]Upload Labs[/code]
+[*] Delete these files (if they exist):
+[list]
+[*][code]mod_loader_cache.json[/code]
+[*][code]mod_user_profiles.json[/code]
+[/list]
+[/list]
+
+[h2]4) Reinstall Upload Labs[/h2]
+
+[list]
+[*] Uninstall Upload Labs in Steam
+[*] Install it again
+[*]Launch the game and re-check the mod
+[/list]
+
+[b]UI missing or strange bugs?[/b]
+[list]
+[*] Go to mod settings (General Tab) and try clicking "Reset Config".
+[*] Check if you accidentally set "UI Opacity" to 0 in the Visuals tab.
+[/list]
+
+[b]Performance issues?[/b]
+[list]
+[*] If you set the Node Limit to "Unlimited" and built a mega-base, the game might slow down. This is an engine limitation, not a mod bug.
+[/list]
+
+[h2]Still not working?[/h2]
+
+Create an issue at [url=https://github.com/tajemniktv/TajsGraph/issues]GitHub[/url] or report it in the [url=https://discord.gg/enigmadev]EnigmaDev Discord[/url] and ping [b]@TajemnikTV[/b].
+
+
+
+
+
+FAQ
+
+[b]Q: Can I add or remove this mod mid-save?[/b]
+A: Yes. It is generally safe to add or remove. Note that if you built more nodes than the vanilla limit allows, removing the mod might stop you from placing [i]new[/i] nodes until you are back under the limit, but your existing factory should remain.
+
+[b]Q: Does this disable achievements?[/b]
+A: No, standard modding rules apply (usually achievements still work unless specifically disabled by the game developer).
+
+[b]Q: Where are my screenshots saved?[/b]
+A: They are saved in your user directory. Check the "General" tab in settings for a button to open the folder directly.
+
+
+
+
+
+Credits
+
+Developed by TajemnikTV.
+TBD. 
