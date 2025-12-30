@@ -45,6 +45,23 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "SAFE"
     })
     
+    # Calculator - quick inline math calculator
+    registry.register({
+        "id": "cmd_calculator",
+        "title": "Calculator",
+        "category_path": [],
+        "keywords": ["calculator", "calc", "math", "compute", "calculate"],
+        "hint": "Open inline calculator (= 2+2)",
+        "icon_path": "res://textures/icons/cog.png",
+        "badge": "SAFE",
+        "keep_open": true,
+        "run": func(ctx):
+            if controller and controller.overlay:
+                controller.overlay.search_input.text = "= "
+                controller.overlay.search_input.caret_column = 2
+                controller.overlay._perform_search()
+    })
+    
     registry.register({
         "id": "cat_tajs_mod",
         "title": "Taj's Mod",
@@ -56,17 +73,6 @@ static func register_all(registry, refs: Dictionary) -> void:
         "badge": "SAFE"
     })
     
-    registry.register({
-        "id": "cat_tools",
-        "title": "Tools (Opt-in)",
-        "category_path": [],
-        "keywords": ["tools", "cheats", "gameplay", "dev"],
-        "hint": "Gameplay-affecting tools and cheats",
-        "icon_path": "res://textures/icons/bug.png",
-        "is_category": true,
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled()
-    })
     
     registry.register({
         "id": "cat_help",
@@ -608,168 +614,6 @@ static func register_all(registry, refs: Dictionary) -> void:
             if mod_config:
                 mod_config.reset_to_defaults()
                 Signals.notify.emit("check", "Settings reset!")
-    })
-    
-    # ==========================================
-    # TOOLS (OPT-IN) - CHEATS
-    # ==========================================
-    
-    registry.register({
-        "id": "cmd_money_add",
-        "title": "Money +10%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["money", "cash", "add", "cheat", "currency"],
-        "hint": "Increase money by 10%",
-        "icon_path": "res://textures/icons/money.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("money", 0.1)
-    })
-    
-    registry.register({
-        "id": "cmd_money_add_30",
-        "title": "Money +30%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["money", "cash", "add", "cheat"],
-        "hint": "Increase money by 30%",
-        "icon_path": "res://textures/icons/money.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("money", 0.3)
-    })
-    
-    registry.register({
-        "id": "cmd_money_add_50",
-        "title": "Money +50%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["money", "cash", "add", "cheat"],
-        "hint": "Increase money by 50%",
-        "icon_path": "res://textures/icons/money.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("money", 0.5)
-    })
-    
-    registry.register({
-        "id": "cmd_money_sub",
-        "title": "Money -10%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["money", "cash", "remove", "subtract", "cheat"],
-        "hint": "Decrease money by 10%",
-        "icon_path": "res://textures/icons/money.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("money", -0.1)
-    })
-    
-    registry.register({
-        "id": "cmd_money_zero",
-        "title": "Money → 0",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["money", "cash", "zero", "reset", "clear", "cheat"],
-        "hint": "Set money to 0",
-        "icon_path": "res://textures/icons/money.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main.set_currency_to_zero("money")
-    })
-    
-    registry.register({
-        "id": "cmd_research_add",
-        "title": "Research +10%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["research", "science", "add", "cheat"],
-        "hint": "Increase research by 10%",
-        "icon_path": "res://textures/icons/research.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("research", 0.1)
-    })
-    
-    registry.register({
-        "id": "cmd_research_add_30",
-        "title": "Research +30%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["research", "science", "add", "cheat"],
-        "hint": "Increase research by 30%",
-        "icon_path": "res://textures/icons/research.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("research", 0.3)
-    })
-    
-    registry.register({
-        "id": "cmd_research_add_50",
-        "title": "Research +50%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["research", "science", "add", "cheat"],
-        "hint": "Increase research by 50%",
-        "icon_path": "res://textures/icons/research.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("research", 0.5)
-    })
-    
-    registry.register({
-        "id": "cmd_research_sub",
-        "title": "Research -10%",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["research", "science", "remove", "cheat"],
-        "hint": "Decrease research by 10%",
-        "icon_path": "res://textures/icons/research.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main._modify_currency("research", -0.1)
-    })
-    
-    registry.register({
-        "id": "cmd_research_zero",
-        "title": "Research → 0",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["research", "science", "zero", "reset", "clear", "cheat"],
-        "hint": "Set research to 0",
-        "icon_path": "res://textures/icons/research.png",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main: mod_main.set_currency_to_zero("research")
-    })
-    
-    registry.register({
-        "id": "cmd_node_limit_unlimited",
-        "title": "Set Unlimited Nodes",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["nodes", "limit", "unlimited", "infinite", "max"],
-        "hint": "Remove the node limit (set to ∞)",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main and mod_main.has_method("set_node_limit"):
-                mod_main.set_node_limit(-1)
-                Signals.notify.emit("check", "Node limit set to ∞")
-    })
-    
-    registry.register({
-        "id": "cmd_node_limit_default",
-        "title": "Reset Node Limit",
-        "category_path": ["Tools (Opt-in)"],
-        "keywords": ["nodes", "limit", "reset", "default"],
-        "hint": "Reset node limit to default (400)",
-        "badge": "OPT-IN",
-        "can_run": func(ctx): return ctx.are_tools_enabled(),
-        "run": func(ctx):
-            if mod_main and mod_main.has_method("set_node_limit"):
-                mod_main.set_node_limit(400)
-                Signals.notify.emit("check", "Node limit reset to 400")
     })
     
     # ==========================================

@@ -9,6 +9,7 @@ extends CanvasLayer
 const LOG_NAME = "TajsModded:Palette"
 
 const FuzzySearch = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/fuzzy_search.gd")
+const Calculator = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/calculator.gd")
 
 # References
 var registry # TajsModCommandRegistry
@@ -48,6 +49,13 @@ var _group_picker_groups: Array = [] # Array of group node references
 # Note Picker Mode (for Jump to Note feature)
 var _note_picker_mode: bool = false
 var _note_picker_notes: Array = [] # Array of sticky note references
+
+# Calculator Mode (for inline math evaluation)
+var _calc_mode: bool = false
+var _calc_result: String = ""
+var _calc_error: String = ""
+var _calc_history: Array = [] # Array of {"expr": String, "result": String}
+const CALC_MAX_HISTORY = 5
 
 # Styling
 const PANEL_WIDTH = 600
@@ -389,6 +397,11 @@ func hide_palette() -> void:
 	# Reset note picker mode state
 	_note_picker_mode = false
 	_note_picker_notes.clear()
+	
+	# Reset calculator mode state
+	_calc_mode = false
+	_calc_result = ""
+	_calc_error = ""
 	
 	closed.emit()
 	
@@ -744,6 +757,170 @@ func _filter_note_picker(query: String) -> void:
 
 
 # ==============================================================================
+# Calculator Mode (for inline math evaluation)
+# ==============================================================================
+
+## Display calculator result or error
+func _display_calculator_result(expression: String) -> void:
+	# Clear existing items
+	for child in _result_items:
+		child.queue_free()
+	_result_items.clear()
+	
+	_displayed_items.clear()
+	_selected_index = 0
+	
+	# Update breadcrumbs for calculator mode
+	breadcrumb_label.text = "🧮 Calculator"
+	
+	var item: Dictionary
+	var items_to_display: Array[Dictionary] = []
+	
+	if expression.is_empty():
+		# Show hint for empty expression
+		item = {
+			"id": "_calc_hint",
+			"title": "Type an expression",
+			"hint": "e.g. = 2+2, = sqrt(144), = pi * 2^3",
+			"icon_path": "res://textures/icons/info.png",
+			"is_category": false,
+			"badge": "HINT",
+			"_is_calc_result": false
+		}
+		items_to_display.append(item)
+		_calc_result = ""
+		_calc_error = ""
+		
+		# Add recent expressions from history
+		for i in range(_calc_history.size()):
+			var hist = _calc_history[i]
+			var hist_item = {
+				"id": "_calc_history_%d" % i,
+				"title": hist.expr,
+				"hint": "= " + hist.result,
+				"icon_path": "res://textures/icons/time.png",
+				"is_category": false,
+				"badge": "RECENT",
+				"_is_calc_result": false,
+				"_is_calc_history": true,
+				"_calc_expr": hist.expr
+			}
+			items_to_display.append(hist_item)
+	else:
+		# Evaluate expression
+		var result = Calculator.evaluate(expression)
+		
+		if result.success:
+			_calc_result = Calculator.format_result(result.value)
+			_calc_error = ""
+			item = {
+				"id": "_calc_result",
+				"title": "Result: " + _calc_result,
+				"hint": "Enter = copy to clipboard",
+				"icon_path": "res://textures/icons/check.png",
+				"is_category": false,
+				"badge": "SAFE",
+				"_is_calc_result": true,
+				"_calc_expr": expression
+			}
+		else:
+			_calc_result = ""
+			_calc_error = result.error
+			item = {
+				"id": "_calc_error",
+				"title": "Invalid expression",
+				"hint": result.error,
+				"icon_path": "res://textures/icons/exclamation.png",
+				"is_category": false,
+				"badge": "ERROR",
+				"_is_calc_result": false
+			}
+		items_to_display.append(item)
+	
+	for display_item in items_to_display:
+		_displayed_items.append(display_item)
+	no_results_label.visible = false
+	
+	for i in range(items_to_display.size()):
+		var display_item = items_to_display[i]
+		var row = _create_calculator_result_row(display_item, i)
+		results_container.add_child(row)
+		_result_items.append(row)
+	
+	_update_selection()
+
+
+## Create a result row specifically for calculator mode with custom styling
+func _create_calculator_result_row(item: Dictionary, index: int) -> Control:
+	var row = PanelContainer.new()
+	row.custom_minimum_size = Vector2(0, ITEM_HEIGHT + 10)
+	
+	var row_style = StyleBoxFlat.new()
+	
+	# Different styling based on result type
+	if item.get("_is_calc_result", false):
+		row_style.bg_color = Color(0.1, 0.25, 0.15, 0.8) # Green tint for success
+	elif item.badge == "ERROR":
+		row_style.bg_color = Color(0.25, 0.1, 0.1, 0.8) # Red tint for error
+	else:
+		row_style.bg_color = Color(0.1, 0.12, 0.16, 0.5) # Default
+	
+	row_style.set_corner_radius_all(8)
+	row.add_theme_stylebox_override("panel", row_style)
+	
+	row.mouse_entered.connect(func(): _on_item_hover(index))
+	row.gui_input.connect(func(event): _on_item_click(event, index))
+	
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 8)
+	row.add_child(margin)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 4)
+	margin.add_child(vbox)
+	
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 12)
+	vbox.add_child(hbox)
+	
+	# Icon
+	var icon_path = item.get("icon_path", "")
+	if not icon_path.is_empty() and ResourceLoader.exists(icon_path):
+		var icon = TextureRect.new()
+		icon.texture = load(icon_path)
+		icon.custom_minimum_size = Vector2(28, 28)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		hbox.add_child(icon)
+	
+	# Title (Result value)
+	var title = Label.new()
+	title.text = item.get("title", "")
+	title.add_theme_font_size_override("font_size", 22)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	if item.get("_is_calc_result", false):
+		title.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5)) # Green for success
+	elif item.badge == "ERROR":
+		title.add_theme_color_override("font_color", Color(1.0, 0.5, 0.4)) # Red for error
+	
+	_apply_text_style(title, true)
+	hbox.add_child(title)
+	
+	# Hint (action or error message)
+	var hint = Label.new()
+	hint.text = item.get("hint", "")
+	hint.add_theme_font_size_override("font_size", 13)
+	hint.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+	vbox.add_child(hint)
+	
+	return row
+
+
+# ==============================================================================
 # Navigation & Display
 # ==============================================================================
 
@@ -999,6 +1176,22 @@ func _perform_search() -> void:
 		_filter_note_picker(query)
 		return
 	
+	# Check for calculator mode (= or calc prefix)
+	var calc_expression = ""
+	if query.begins_with("="):
+		calc_expression = query.substr(1).strip_edges()
+		_calc_mode = true
+	elif query.to_lower().begins_with("calc "):
+		calc_expression = query.substr(5).strip_edges()
+		_calc_mode = true
+	else:
+		_calc_mode = false
+	
+	# Handle calculator mode
+	if _calc_mode:
+		_display_calculator_result(calc_expression)
+		return
+	
 	if query.is_empty():
 		if _current_path.is_empty():
 			_show_home_screen()
@@ -1127,6 +1320,11 @@ func _execute_selected() -> void:
 		_execute_note_picker_selection(item)
 		return
 	
+	# Handle calculator mode
+	if _calc_mode:
+		_execute_calculator_action(item)
+		return
+	
 	# If it's a category, enter it
 	if item.get("is_category", false):
 		_enter_category()
@@ -1196,6 +1394,49 @@ func _execute_note_picker_selection(item: Dictionary) -> void:
 	hide_palette()
 
 
+## Execute a calculator action (copy result to clipboard)
+func _execute_calculator_action(item: Dictionary) -> void:
+	# Handle history item click - fill in the expression
+	if item.get("_is_calc_history", false):
+		var expr = item.get("_calc_expr", "")
+		if not expr.is_empty():
+			search_input.text = "= " + expr
+			search_input.caret_column = search_input.text.length()
+			_perform_search()
+			Sound.play("click")
+		return
+	
+	# Only copy if we have a valid result
+	if not item.get("_is_calc_result", false) or _calc_result.is_empty():
+		# Can't copy hint or error
+		Sound.play("error")
+		return
+	
+	# Add to history (most recent first)
+	var expr = item.get("_calc_expr", "")
+	if not expr.is_empty():
+		# Remove duplicate if exists
+		for i in range(_calc_history.size() - 1, -1, -1):
+			if _calc_history[i].expr == expr:
+				_calc_history.remove_at(i)
+		
+		# Add to front
+		_calc_history.insert(0, {"expr": expr, "result": _calc_result})
+		
+		# Limit history size
+		while _calc_history.size() > CALC_MAX_HISTORY:
+			_calc_history.pop_back()
+	
+	# Copy to clipboard
+	DisplayServer.clipboard_set(_calc_result)
+	
+	# Show notification
+	Signals.notify.emit("check", "Copied: " + _calc_result)
+	
+	Sound.play("click")
+	hide_palette()
+
+
 func _enter_category() -> void:
 	if _selected_index < 0 or _selected_index >= _displayed_items.size():
 		return
@@ -1215,6 +1456,24 @@ func _enter_category() -> void:
 
 
 func _go_back() -> void:
+	# Handle special modes - exit back to normal mode
+	if _calc_mode or _picker_mode or _group_picker_mode or _note_picker_mode:
+		_calc_mode = false
+		_picker_mode = false
+		_picker_origin_info.clear()
+		_picker_nodes.clear()
+		_group_picker_mode = false
+		_group_picker_groups.clear()
+		_note_picker_mode = false
+		_note_picker_notes.clear()
+		_current_path = []
+		search_input.text = ""
+		search_input.placeholder_text = "Search commands..."
+		_show_home_screen()
+		_update_breadcrumbs()
+		Sound.play("click")
+		return
+	
 	if _history_back.is_empty():
 		# If no history, go up one level in category path
 		if _current_path.is_empty():
