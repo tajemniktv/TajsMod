@@ -1,0 +1,111 @@
+name: Generate CHANGELOG entry (Gemini, Added/Changed/Removed/Fixed)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["master"]
+    paths:
+      - "export/TajemnikTV-TajsModded.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  gen_changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Build changelog entry from commits via Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          : "${GEMINI_API_KEY:?Missing GEMINI_API_KEY secret}"
+          MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+
+          test -f CHANGELOG.md || (echo "Missing CHANGELOG.md" && exit 1)
+
+          MANIFEST="$(git ls-files | grep -E '(^|/)manifest\.json$' | head -n 1 || true)"
+          test -n "$MANIFEST" || (echo "No manifest.json found" && exit 1)
+
+          VER="$(jq -r '.version_number // empty' "$MANIFEST")"
+          test -n "$VER" || (echo "manifest.json missing version_number" && exit 1)
+
+          # If entry already exists, do nothing
+          if grep -qE "^##[[:space:]]*\\[$VER\\][[:space:]]*-" CHANGELOG.md; then
+            echo "CHANGELOG already has entry for [$VER] -> skipping"
+            exit 0
+          fi
+
+          git fetch --tags --force
+
+          # Best-effort previous tag (expects vX.Y.Z tags; if none, uses all commits)
+          PREV_TAG="$(git tag -l "v*" --sort=-v:refname | head -n 1 || true)"
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          COMMITS="$(git log --no-merges --pretty=format:'%s' $RANGE | head -n 120 || true)"
+          [ -n "$COMMITS" ] || COMMITS="(No commits found.)"
+
+          TODAY="$(date +%F)"
+
+          SYS_INSTR=$'You are writing release notes for a game mod.\n\nReturn Markdown in EXACT structure:\n\n### Added\n- ...\n\n### Changed\n- ...\n\n### Removed\n- ...\n\n### Fixed\n- ...\n\nRules:\n- Only output that Markdown. No intro text.\n- User-facing wording, short bullets.\n- If a section has nothing, put "- (none)".\n- Ignore CI/build/refactor noise unless it affects players.'
+
+          USER_TEXT="Version: ${VER}
+Date: ${TODAY}
+
+Commits (newest first):
+$(printf "%s\n" "$COMMITS" | sed 's/^/- /')"
+
+          PAYLOAD="$(jq -n \
+            --arg sys "$SYS_INSTR" \
+            --arg user "$USER_TEXT" \
+            '{
+              "system_instruction": { "parts": [ { "text": $sys } ] },
+              "contents": [ { "role": "user", "parts": [ { "text": $user } ] } ],
+              "generationConfig": { "temperature": 0.2 }
+            }')"
+
+          RESP="$(curl -sS \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            -d "$PAYLOAD" \
+            "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent")"
+
+          NOTES="$(printf "%s" "$RESP" | jq -r '.candidates[0].content.parts[0].text // empty')"
+          if [ -z "$(printf "%s" "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "Gemini returned empty response (or blocked). Full response:"
+            echo "$RESP"
+            exit 1
+          fi
+
+          # Prepend entry to CHANGELOG.md
+          {
+            echo "## [$VER] - $TODAY"
+            echo
+            printf "%s\n" "$NOTES"
+            echo
+            cat CHANGELOG.md
+          } > CHANGELOG.md.new
+          mv CHANGELOG.md.new CHANGELOG.md
+
+      - name: Commit CHANGELOG.md
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "docs: add CHANGELOG entry (Gemini) [skip ci]"
+          file_pattern: CHANGELOG.md
