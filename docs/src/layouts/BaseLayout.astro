@@ -87,20 +87,27 @@ const socialImageURL = new URL(image, Astro.site);
         }
       });
 
-      // Memory cleanup before navigation (helps garbage collection)
-      document.addEventListener("astro:before-swap", () => {
-        // Clear any cached data
-        if (window.mermaid) {
-          try {
-            window.mermaid = undefined;
-          } catch (e) {}
-        }
-        // Clear any search indexes
-        if (window.__pagefind) {
-          try {
-            window.__pagefind = undefined;
-          } catch (e) {}
-        }
+      // Aggressive memory cleanup for View Transitions
+      // Clears caches before AND after swap to keep only current page in memory
+
+      document.addEventListener("astro:before-swap", (e) => {
+        // Clear heavy libraries before swap
+        try {
+          if (window.mermaid) window.mermaid = undefined;
+          if (window.__pagefind) window.__pagefind = undefined;
+        } catch (err) {}
+
+        // Clear any detached DOM references
+        const oldImages = document.querySelectorAll("img");
+        oldImages.forEach((img) => (img.src = ""));
+      });
+
+      document.addEventListener("astro:after-swap", () => {
+        // Force garbage collection hint after navigation
+        setTimeout(() => {
+          // Clear any leftover references from previous page
+          if (window.gc) window.gc(); // Only works in some browsers with flags
+        }, 100);
       });
     </script>
 

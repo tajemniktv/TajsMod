@@ -25,13 +25,11 @@ export default defineConfig({
   integrations: [
     // Sitemap for SEO
     sitemap(),
+    // Mermaid diagrams for documentation
     astroMermaid({
-      // Enable zoom/pan for diagrams
       mermaidConfig: {
-        securityLevel: 'loose', // Required for interactive features
-        flowchart: {
-          htmlLabels: true,
-        },
+        securityLevel: 'loose',
+        flowchart: { htmlLabels: true },
       },
     }),
     tailwind({
