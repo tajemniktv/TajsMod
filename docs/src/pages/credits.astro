@@ -8,7 +8,10 @@ const credits = {
   creator: {
     name: "TajemnikTV",
     role: "Creator & Lead Developer",
-    links: [{ name: "GitHub", url: "https://github.com/TajemnikTV" }],
+    links: [
+      { name: "GitHub", url: "https://github.com/TajemnikTV" },
+      { name: "Discord", url: "https://discord.gg/enigmadev" },
+    ],
   },
   acknowledgments: [
     {
@@ -25,6 +28,7 @@ const credits = {
     { name: "Godot Engine", url: "https://godotengine.org/" },
     { name: "Astro", url: "https://astro.build/" },
     { name: "Tailwind CSS", url: "https://tailwindcss.com/" },
+    { name: "Starlight", url: "https://starlight.astro.build/" },
   ],
 };
 ---
@@ -65,9 +69,22 @@ const credits = {
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="text-accent-500 hover:text-accent-600"
+                class="text-accent-500 hover:text-accent-600 inline-flex items-center gap-1"
               >
-                {link.name} →
+                {link.name}
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
               </a>
             ))
           }
@@ -140,53 +157,50 @@ const credits = {
           License
         </h2>
         <div class="prose dark:prose-invert prose-sm max-w-none">
-          <p class="text-gray-600 dark:text-gray-400 mb-4">
-            Taj's Mod is open source software. The mod code is available under
-            the terms specified in the repository.
-          </p>
+          <div
+            class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-lg p-4 mb-4"
+          >
+            <p class="text-amber-800 dark:text-amber-200 font-medium mb-2">
+              ⚠️ All Rights Reserved
+            </p>
+            <p class="text-amber-700 dark:text-amber-300 text-sm">
+              The source code for Taj's Mod is publicly visible on GitHub for
+              transparency and learning purposes, but it is <strong
+                >not open source</strong
+              >. All rights are reserved.
+            </p>
+          </div>
 
           <div
             class="bg-gray-50 dark:bg-dark-700/50 rounded-lg p-4 font-mono text-sm"
           >
-            <p class="mb-2"><strong>MIT License</strong></p>
-            <p class="text-gray-500 dark:text-gray-400">
-              Copyright (c) 2025 TajemnikTV
-            </p>
-            <p class="text-gray-500 dark:text-gray-400 mt-2">
-              Permission is hereby granted, free of charge, to any person
-              obtaining a copy of this software...
+            <p class="mb-2"><strong>Copyright © 2025 TajemnikTV</strong></p>
+            <p class="text-gray-600 dark:text-gray-400">
+              All rights reserved. This software and its source code are
+              provided for viewing purposes only. Unauthorized copying,
+              modification, distribution, or use of this software is strictly
+              prohibited, unless specificed otherwise in the license.
             </p>
           </div>
 
-          <p class="mt-4">
-            <a
-              href="https://github.com/TajemnikTV/TajsMod/blob/main/LICENSE.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-accent-500 hover:text-accent-600"
-            >
-              View full license on GitHub →
-            </a>
+          <p class="mt-4 text-gray-600 dark:text-gray-400 text-sm">
+            For licensing inquiries or permission requests, please contact the
+            author via GitHub or Discord.
           </p>
         </div>
       </div>
 
-      <!-- Contributing Note -->
+      <!-- Support Note -->
       <div
         class="mt-8 p-6 bg-accent-500/5 border border-accent-500/20 rounded-xl text-center"
       >
-        <h3 class="font-semibold mb-2">Want to Contribute?</h3>
+        <h3 class="font-semibold mb-2">Want to Support?</h3>
         <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
-          Contributions are welcome! Check out the contributing guidelines on
-          GitHub.
+          The best way to support Taj's Mod is by using it, providing feedback,
+          and sharing it with others in the Upload Labs community!
         </p>
-        <a
-          href="https://github.com/TajemnikTV/TajsMod/blob/main/CONTRIBUTING.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="btn-secondary text-sm"
-        >
-          Contributing Guidelines
+        <a href={`${BASE_URL}/support/`} class="btn-secondary text-sm">
+          Support the Project
         </a>
       </div>
 
