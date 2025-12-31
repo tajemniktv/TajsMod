@@ -159,5 +159,68 @@ const socialImageURL = new URL(image, Astro.site);
       document.addEventListener("astro:page-load", initTheme);
       initTheme();
     </script>
+
+    <!-- Global Mermaid Zoom -->
+    <script>
+      function initMermaidZoom() {
+        document.querySelectorAll(".mermaid").forEach((mermaid) => {
+          // Skip if already processed
+          if (mermaid.closest(".mermaid-zoomable")) return;
+
+          // Wrap the mermaid element
+          const wrapper = document.createElement("div");
+          wrapper.className = "mermaid-zoomable";
+          wrapper.style.cssText =
+            "position: relative; overflow: auto; max-height: 600px; border: 1px solid #e5e7eb; border-radius: 0.75rem; margin: 1rem 0;";
+
+          const content = document.createElement("div");
+          content.className = "mermaid-zoom-content";
+          content.style.cssText =
+            "min-width: fit-content; padding: 1rem; transform-origin: top left; transition: transform 0.1s ease-out;";
+
+          // Move mermaid into wrapper
+          mermaid.parentNode?.insertBefore(wrapper, mermaid);
+          content.appendChild(mermaid);
+          wrapper.appendChild(content);
+
+          // Add zoom hint
+          const hint = document.createElement("div");
+          hint.style.cssText =
+            "position: absolute; bottom: 8px; right: 8px; font-size: 11px; color: #9ca3af; pointer-events: none; background: rgba(255,255,255,0.8); padding: 2px 6px; border-radius: 4px;";
+          hint.textContent = "Ctrl+Scroll to zoom";
+          wrapper.appendChild(hint);
+
+          let scale = 1;
+          const minScale = 0.3;
+          const maxScale = 4;
+
+          // Wheel zoom
+          wrapper.addEventListener(
+            "wheel",
+            (e: WheelEvent) => {
+              if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.15 : 0.15;
+                scale = Math.min(maxScale, Math.max(minScale, scale + delta));
+                content.style.transform = `scale(${scale})`;
+              }
+            },
+            { passive: false }
+          );
+
+          // Double-click to reset
+          wrapper.addEventListener("dblclick", () => {
+            scale = 1;
+            content.style.transform = "scale(1)";
+          });
+        });
+      }
+
+      // Run after Mermaid renders (with delay to ensure diagrams are ready)
+      document.addEventListener("astro:page-load", () =>
+        setTimeout(initMermaidZoom, 500)
+      );
+      setTimeout(initMermaidZoom, 500);
+    </script>
   </body>
 </html>
