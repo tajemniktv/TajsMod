@@ -1,8 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { fetchChangelog, isGitHubConfigured } from "../data/github";
+import { changelog } from "../data/changelog";
+import PageActions from "../components/PageActions.astro";
 
-const { entries, isFromGitHub } = await fetchChangelog();
+const entries = changelog;
 ---
 
 <BaseLayout
@@ -18,21 +19,12 @@ const { entries, isFromGitHub } = await fetchChangelog();
       <p class="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto text-lg">
         Complete release history with all changes, additions, and fixes.
       </p>
-      {
-        !isFromGitHub && isGitHubConfigured() && (
-          <p class="text-sm text-amber-600 dark:text-amber-400 mt-4">
-            ⚠️ Using local changelog data. GitHub API sync is configured but may
-            be temporarily unavailable.
-          </p>
-        )
-      }
-      {
-        !isGitHubConfigured() && (
-          <p class="text-sm text-gray-500 dark:text-gray-500 mt-4">
-            ℹ️ Auto-sync from GitHub disabled. Showing local changelog.
-          </p>
-        )
-      }
+      <p class="text-sm text-gray-500 dark:text-gray-500 mt-4">
+        📄 Parsed from <code
+          class="px-1.5 py-0.5 bg-gray-100 dark:bg-dark-700 rounded"
+          >CHANGELOG.md</code
+        >
+      </p>
     </div>
   </section>
 
@@ -42,7 +34,7 @@ const { entries, isFromGitHub } = await fetchChangelog();
       <div class="space-y-8">
         {
           entries.map((entry, index) => (
-            <article class="card">
+            <article class="card" id={`v${entry.version}`}>
               <div class="flex flex-wrap items-center gap-3 mb-4">
                 <span class="px-3 py-1 bg-accent-500 text-white font-bold rounded-lg">
                   v{entry.version}
@@ -138,6 +130,11 @@ const { entries, isFromGitHub } = await fetchChangelog();
           </svg>
           View All Releases on GitHub
         </a>
+      </div>
+
+      <!-- Page Actions -->
+      <div class="mt-12 pt-8 border-t border-gray-200 dark:border-dark-700">
+        <PageActions editPath="/changelog.astro" />
       </div>
     </div>
   </section>

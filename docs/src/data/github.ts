@@ -1,17 +1,12 @@
-import { changelog as localChangelog, type ChangelogEntry } from './changelog';
+/**
+ * GitHub API integration
+ * Used only for Roadmap (GitHub Issues) - Changelog uses CHANGELOG.md directly
+ */
 import { roadmap as localRoadmap, type RoadmapItem } from './roadmap';
 
 const GITHUB_REPO = import.meta.env.PUBLIC_GITHUB_REPO || 'TajemnikTV/TajsMod';
 const GITHUB_TOKEN = import.meta.env.GITHUB_TOKEN || '';
 const ROADMAP_LABEL = import.meta.env.PUBLIC_ROADMAP_LABEL || 'roadmap';
-
-interface GitHubRelease {
-  tag_name: string;
-  name: string;
-  published_at: string;
-  body: string;
-  html_url: string;
-}
 
 interface GitHubIssue {
   number: number;
@@ -48,52 +43,6 @@ async function fetchGitHub<T>(endpoint: string): Promise<T | null> {
     console.warn(`Failed to fetch from GitHub API: ${error}`);
     return null;
   }
-}
-
-function parseReleaseBody(body: string): Partial<ChangelogEntry> {
-  const result: Partial<ChangelogEntry> = {};
-  
-  const sections = {
-    added: /### Added\s*\n([\s\S]*?)(?=###|$)/i,
-    changed: /### Changed\s*\n([\s\S]*?)(?=###|$)/i,
-    removed: /### Removed\s*\n([\s\S]*?)(?=###|$)/i,
-    fixed: /### Fixed\s*\n([\s\S]*?)(?=###|$)/i,
-  };
-  
-  for (const [key, regex] of Object.entries(sections)) {
-    const match = body.match(regex);
-    if (match) {
-      const items = match[1]
-        .split('\n')
-        .map(line => line.replace(/^[-*]\s*/, '').trim())
-        .filter(line => line && line !== 'N/A' && line !== '-');
-      
-      if (items.length > 0) {
-        result[key as keyof typeof sections] = items;
-      }
-    }
-  }
-  
-  return result;
-}
-
-export async function fetchChangelog(): Promise<{ entries: ChangelogEntry[]; isFromGitHub: boolean }> {
-  const releases = await fetchGitHub<GitHubRelease[]>('/releases?per_page=10');
-  
-  if (!releases || releases.length === 0) {
-    return { entries: localChangelog, isFromGitHub: false };
-  }
-  
-  const entries: ChangelogEntry[] = releases.map(release => {
-    const parsed = parseReleaseBody(release.body || '');
-    return {
-      version: release.tag_name.replace(/^v/, ''),
-      date: release.published_at.split('T')[0],
-      ...parsed,
-    };
-  });
-  
-  return { entries, isFromGitHub: true };
 }
 
 export async function fetchRoadmap(): Promise<{ items: RoadmapItem[]; isFromGitHub: boolean }> {

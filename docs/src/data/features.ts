@@ -28,6 +28,13 @@ export const features: Feature[] = [
     tags: ['search', 'quick', 'navigation', 'commands'],
     icon: '⌨️',
     highlight: true,
+    longDescription: 'The Command Palette is your central hub for quickly accessing any feature in the mod. It supports fuzzy search, so typing "scr" will match "screenshot". You can navigate groups, toggle settings, run debug commands, and more.',
+    tips: [
+      'Press Middle Mouse Button or Spacebar to open',
+      'Type to search across all commands',
+      'Use arrow keys + Enter to select',
+      'Press Escape to close'
+    ],
   },
   {
     id: 'mod-settings',
@@ -37,6 +44,13 @@ export const features: Feature[] = [
     tags: ['settings', 'configuration', 'options'],
     icon: '⚙️',
     highlight: true,
+    longDescription: 'The settings panel lets you configure all mod features. Settings are organized into tabs: General, Visuals, Tools, Gameplay, and Debug. All changes are saved automatically and persist across sessions.',
+    tips: [
+      'Click the puzzle piece icon in the HUD to open',
+      'Use the search bar to find specific settings',
+      'Hover over settings for tooltips',
+      'Some settings require a restart (indicated by banner)'
+    ],
   },
   {
     id: 'toast-history',
@@ -70,6 +84,13 @@ export const features: Feature[] = [
     tags: ['screenshot', 'capture', 'quality'],
     icon: '📸',
     highlight: true,
+    longDescription: 'Capture high-resolution screenshots of your factory with configurable settings. Supports resolution multipliers, capture delays, watermarks, and selection-only capture mode.',
+    tips: [
+      'Use "Screenshot: Capture Selection" to capture only selected nodes',
+      'Enable watermark in settings to brand your screenshots',
+      'Increase resolution multiplier for ultra-HD exports',
+      'Add capture delay if UI elements are interfering'
+    ],
   },
 
   // Visuals

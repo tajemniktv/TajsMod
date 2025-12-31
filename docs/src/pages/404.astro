@@ -1,5 +1,45 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+
+// Dynamically get all valid routes at build time
+const allPages = await Astro.glob("./**/*.astro");
+const apiRoutes = await Astro.glob("./**/*.ts");
+
+// Extract route paths from page files
+const validRoutes: string[] = [];
+
+for (const page of allPages) {
+  // Get the file path relative to pages folder
+  const filePath = page.file || "";
+  // Extract route from file path (e.g., /features.astro -> /features/)
+  const match = filePath.match(/pages[\\\/](.+)\.astro$/);
+  if (match) {
+    let route = match[1]
+      .replace(/\\/g, "/") // Windows paths
+      .replace(/index$/, "") // index.astro -> /
+      .replace(/\[.*\]/, ""); // Dynamic routes
+
+    // Skip 404 page itself
+    if (route === "404") continue;
+
+    // Ensure format: /route/
+    if (!route.startsWith("/")) route = "/" + route;
+    if (!route.endsWith("/")) route += "/";
+
+    validRoutes.push(route);
+  }
+}
+
+// Add known Starlight documentation routes
+const docRoutes = [
+  "/documentation/",
+  "/documentation/installation-and-configuration/",
+  "/documentation/features/",
+];
+validRoutes.push(...docRoutes);
+
+// Dedupe and sort
+const uniqueRoutes = [...new Set(validRoutes)].sort();
 ---
 
 <BaseLayout title="Page Not Found">
@@ -7,76 +47,212 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     <div class="container-narrow text-center py-20">
       <div class="text-8xl mb-6">🔍</div>
       <h1 class="text-4xl md:text-5xl font-bold mb-4">Page Not Found</h1>
-      <p class="text-gray-600 dark:text-gray-400 text-lg mb-8 max-w-md mx-auto">
+      <p class="text-gray-600 dark:text-gray-400 text-lg mb-4 max-w-md mx-auto">
         The page you're looking for doesn't exist or may have been moved.
       </p>
-      <p
-        class="text-gray-500 dark:text-gray-500 text-sm mb-8"
-        id="redirect-message"
+
+      <!-- Redirect/Suggestion Message -->
+      <div
+        id="redirect-section"
+        class="bg-accent-50 dark:bg-accent-900/20 border border-accent-200 dark:border-accent-800/30 rounded-xl p-4 mb-6 max-w-md mx-auto hidden"
       >
-        Checking for alternate URL...
-      </p>
-      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <p
+          id="redirect-text"
+          class="text-sm text-gray-600 dark:text-gray-400 mb-2"
+        >
+        </p>
+        <a
+          id="redirect-link"
+          href="#"
+          class="text-accent-600 dark:text-accent-400 hover:underline font-medium"
+        >
+        </a>
+      </div>
+
+      <!-- Multiple Suggestions -->
+      <div
+        id="suggestions-section"
+        class="bg-gray-50 dark:bg-dark-800/50 rounded-xl p-4 mb-6 max-w-md mx-auto hidden"
+      >
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          Did you mean one of these?
+        </p>
+        <div id="suggestions-list" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div
+        class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8"
+      >
         <a href={`${import.meta.env.BASE_URL}/`} class="btn-primary">
           Go to Home
         </a>
-        <a href={`${import.meta.env.BASE_URL}/docs/`} class="btn-secondary">
-          Browse Docs
+        <a href={`${import.meta.env.BASE_URL}/features/`} class="btn-secondary">
+          Browse Features
         </a>
+      </div>
+
+      <!-- Command Palette Hint -->
+      <div class="text-sm text-gray-500 dark:text-gray-400">
+        💡 Tip: Press <kbd
+          class="px-2 py-1 bg-gray-100 dark:bg-dark-700 rounded text-xs font-mono"
+          >Ctrl+K</kbd
+        > to search the entire site
+      </div>
+
+      <!-- Popular Pages -->
+      <div class="mt-8 pt-8 border-t border-gray-200 dark:border-dark-700">
+        <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-4">
+          Popular pages:
+        </p>
+        <div class="flex flex-wrap justify-center gap-2">
+          <a href={`${import.meta.env.BASE_URL}/features/`} class="chip"
+            >Features</a
+          >
+          <a href={`${import.meta.env.BASE_URL}/docs/`} class="chip"
+            >Documentation</a
+          >
+          <a href={`${import.meta.env.BASE_URL}/faq/`} class="chip">FAQ</a>
+          <a href={`${import.meta.env.BASE_URL}/changelog/`} class="chip"
+            >Changelog</a
+          >
+          <a href={`${import.meta.env.BASE_URL}/troubleshooting/`} class="chip"
+            >Troubleshooting</a
+          >
+        </div>
       </div>
     </div>
   </section>
 </BaseLayout>
 
-<script is:inline>
-  // Case-insensitive redirect script
+<script is:inline define:vars={{ validRoutes: uniqueRoutes }}>
+  // Advanced 404 recovery script
   (function () {
     const currentPath = window.location.pathname;
     const basePath = "/TajsMod";
 
-    // Try case-insensitive redirect
-    // Common case variations to check
-    const variations = [
-      currentPath.toLowerCase(),
-      currentPath.toUpperCase(),
-      // Handle common patterns like /tajsmod -> /TajsMod
-      currentPath.replace(/\/tajsmod\//gi, "/TajsMod/"),
-      currentPath.replace(/\/tajsmod$/gi, "/TajsMod"),
-    ];
+    const redirectSection = document.getElementById("redirect-section");
+    const redirectText = document.getElementById("redirect-text");
+    const redirectLink = document.getElementById("redirect-link");
+    const suggestionsSection = document.getElementById("suggestions-section");
+    const suggestionsList = document.getElementById("suggestions-list");
 
-    // If current path doesn't start with correct base, try redirect
-    if (
-      !currentPath.startsWith(basePath) &&
-      !currentPath.startsWith(basePath.toLowerCase())
-    ) {
-      // Check if it's a case mismatch
-      const lowerPath = currentPath.toLowerCase();
-      if (lowerPath.startsWith("/tajsmod")) {
-        const correctedPath = basePath + currentPath.slice("/tajsmod".length);
-        document.getElementById("redirect-message").textContent =
-          "Redirecting to correct URL...";
-        window.location.replace(correctedPath);
-        return;
+    // Levenshtein distance for fuzzy matching
+    function levenshtein(a, b) {
+      const matrix = [];
+      for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+      for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1,
+              matrix[i][j - 1] + 1,
+              matrix[i - 1][j] + 1
+            );
+          }
+        }
+      }
+      return matrix[b.length][a.length];
+    }
+
+    function showSingleSuggestion(url, message) {
+      if (redirectSection && redirectText && redirectLink) {
+        redirectSection.classList.remove("hidden");
+        redirectText.textContent = message;
+        redirectLink.href = url;
+        redirectLink.textContent = url.replace(basePath, "");
       }
     }
 
-    // Add trailing slash if missing
-    if (
-      currentPath.startsWith(basePath) &&
-      !currentPath.endsWith("/") &&
-      !currentPath.includes(".")
-    ) {
-      const withSlash = currentPath + "/";
-      document.getElementById("redirect-message").textContent =
-        "Redirecting to correct URL...";
-      window.location.replace(withSlash);
+    function showMultipleSuggestions(suggestions) {
+      if (suggestionsSection && suggestionsList && suggestions.length > 0) {
+        suggestionsSection.classList.remove("hidden");
+        suggestionsList.innerHTML = suggestions
+          .map(
+            (s) =>
+              `<a href="${s.url}" class="text-accent-600 dark:text-accent-400 hover:underline text-sm">${s.url.replace(basePath, "")}</a>`
+          )
+          .join("");
+      }
+    }
+
+    function autoRedirect(url) {
+      window.location.replace(url);
+    }
+
+    // 1. Fix base path case mismatch (/tajsmod -> /TajsMod)
+    const lowerPath = currentPath.toLowerCase();
+    if (lowerPath.startsWith("/tajsmod") && !currentPath.startsWith(basePath)) {
+      const correctedPath = basePath + currentPath.slice("/tajsmod".length);
+      autoRedirect(correctedPath);
       return;
     }
 
-    // No redirect found
-    const msgEl = document.getElementById("redirect-message");
-    if (msgEl) {
-      msgEl.textContent = "Couldn't find an alternate URL.";
+    // 2. Process route part
+    if (currentPath.startsWith(basePath)) {
+      let routePart = currentPath.slice(basePath.length);
+
+      // Normalize: ensure trailing slash, lowercase for comparison
+      if (!routePart) routePart = "/";
+      if (!routePart.startsWith("/")) routePart = "/" + routePart;
+      if (!routePart.endsWith("/") && !routePart.includes("."))
+        routePart += "/";
+
+      const routeLower = routePart.toLowerCase();
+
+      // 3. Exact case-insensitive match -> auto redirect
+      const exactMatch = validRoutes.find(
+        (r) => r.toLowerCase() === routeLower
+      );
+      if (exactMatch && routePart !== exactMatch) {
+        autoRedirect(basePath + exactMatch);
+        return;
+      }
+
+      // 4. If route exists (case matches), maybe trailing slash issue
+      if (validRoutes.includes(routePart)) {
+        // Page should exist... might be subpath issue
+      }
+
+      // 5. Fuzzy match with Levenshtein distance
+      const routeClean = routeLower.replace(/\//g, "");
+      const scored = validRoutes
+        .map((r) => ({
+          route: r,
+          url: basePath + r,
+          distance: levenshtein(routeClean, r.replace(/\//g, "")),
+        }))
+        .filter((s) => s.distance <= 3) // Max 3 edits
+        .sort((a, b) => a.distance - b.distance);
+
+      if (scored.length > 0) {
+        if (scored[0].distance <= 1) {
+          // Very close match - show single suggestion
+          showSingleSuggestion(scored[0].url, "Did you mean:");
+        } else if (scored.length >= 1) {
+          // Multiple possibilities
+          showMultipleSuggestions(scored.slice(0, 3));
+        }
+        return;
+      }
+
+      // 6. Check if it's a subpath of a valid route
+      const parentMatch = validRoutes.find((r) =>
+        routeLower.startsWith(r.toLowerCase())
+      );
+      if (parentMatch) {
+        showSingleSuggestion(basePath + parentMatch, "This section exists:");
+        return;
+      }
     }
   })();
 </script>
+
+<style>
+  .chip {
+    @apply px-3 py-1.5 bg-gray-100 dark:bg-dark-700 hover:bg-gray-200 dark:hover:bg-dark-600 rounded-full text-sm text-gray-700 dark:text-gray-300 transition-colors;
+  }
+</style>

@@ -1,0 +1,50 @@
+---
+/**
+ * Floating Search Button
+ * Always visible button to open Command Palette
+ */
+---
+
+<button
+  id="floating-search-btn"
+  class="fixed bottom-6 right-6 z-50 w-14 h-14 bg-accent-500 hover:bg-accent-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center group"
+  aria-label="Search (Ctrl+K)"
+  title="Search (Ctrl+K)"
+>
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="2"
+      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+  </svg>
+
+  <!-- Tooltip -->
+  <span
+    class="absolute right-full mr-3 px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none"
+  >
+    Search <kbd class="ml-1 px-1.5 py-0.5 bg-gray-700 rounded text-xs"
+      >Ctrl+K</kbd
+    >
+  </span>
+</button>
+
+<script>
+  function initFloatingSearch() {
+    const btn = document.getElementById("floating-search-btn");
+    if (!btn) return;
+
+    btn.addEventListener("click", () => {
+      // Trigger the Command Palette
+      const event = new KeyboardEvent("keydown", {
+        key: "k",
+        ctrlKey: true,
+        bubbles: true,
+      });
+      document.dispatchEvent(event);
+    });
+  }
+
+  document.addEventListener("astro:page-load", initFloatingSearch);
+  initFloatingSearch();
+</script>
