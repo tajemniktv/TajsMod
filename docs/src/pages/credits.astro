@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PageActions from "../components/PageActions.astro";
+import { license } from "../data/parse-license";
 
 const BASE_URL = import.meta.env.BASE_URL;
 
@@ -150,13 +151,15 @@ const credits = {
         </div>
       </div>
 
-      <!-- License -->
+      <!-- License (parsed from LICENSE.md) -->
       <div class="card">
         <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
           <span>📜</span>
-          License
+          {license.title}
         </h2>
+
         <div class="prose dark:prose-invert prose-sm max-w-none">
+          <!-- Warning Banner -->
           <div
             class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30 rounded-lg p-4 mb-4"
           >
@@ -171,36 +174,107 @@ const credits = {
             </p>
           </div>
 
+          <!-- Copyright -->
           <div
-            class="bg-gray-50 dark:bg-dark-700/50 rounded-lg p-4 font-mono text-sm"
+            class="bg-gray-50 dark:bg-dark-700/50 rounded-lg p-4 font-mono text-sm mb-6"
           >
-            <p class="mb-2"><strong>Copyright © 2025 TajemnikTV</strong></p>
-            <p class="text-gray-600 dark:text-gray-400">
-              All rights reserved. This software and its source code are
-              provided for viewing purposes only. Unauthorized copying,
-              modification, distribution, or use of this software is strictly
-              prohibited, unless specificed otherwise in the license.
-            </p>
+            <p class="font-bold">{license.copyright}</p>
           </div>
 
-          <p class="mt-4 text-gray-600 dark:text-gray-400 text-sm">
-            For licensing inquiries or permission requests, please contact the
-            author via GitHub or Discord.
+          <!-- License Sections (Collapsible) -->
+          <details class="group">
+            <summary
+              class="cursor-pointer font-medium text-accent-600 dark:text-accent-400 hover:underline flex items-center gap-2"
+            >
+              <svg
+                class="w-4 h-4 transition-transform group-open:rotate-90"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"></path>
+              </svg>
+              View Full License Terms
+            </summary>
+
+            <div
+              class="mt-4 space-y-6 pl-4 border-l-2 border-gray-200 dark:border-dark-600"
+            >
+              {
+                license.sections.map((section) => (
+                  <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white mb-2">
+                      {section.title}
+                    </h3>
+                    <div class="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-wrap">
+                      {section.content.trim()}
+                    </div>
+                  </div>
+                ))
+              }
+            </div>
+          </details>
+
+          <!-- GitHub Link -->
+          <p class="mt-6">
+            <a
+              href="https://github.com/TajemnikTV/TajsMod/blob/master/LICENSE.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-accent-500 hover:text-accent-600 inline-flex items-center gap-1"
+            >
+              View LICENSE.md on GitHub
+              <svg
+                class="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                ></path>
+              </svg>
+            </a>
           </p>
         </div>
       </div>
 
-      <!-- Support Note -->
+      <!-- Contributing Note -->
       <div
         class="mt-8 p-6 bg-accent-500/5 border border-accent-500/20 rounded-xl text-center"
       >
-        <h3 class="font-semibold mb-2">Want to Support?</h3>
+        <h3 class="font-semibold mb-2">Want to Contribute?</h3>
         <p class="text-gray-600 dark:text-gray-400 text-sm mb-4">
-          The best way to support Taj's Mod is by using it, providing feedback,
-          and sharing it with others in the Upload Labs community!
+          Contributions are welcome! Check out the contributing guidelines on
+          GitHub.
         </p>
-        <a href={`${BASE_URL}/support/`} class="btn-secondary text-sm">
-          Support the Project
+        <a
+          href="https://github.com/TajemnikTV/TajsMod/blob/master/CONTRIBUTING.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-secondary text-sm inline-flex items-center gap-2"
+        >
+          Contributing Guidelines
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+            ></path>
+          </svg>
         </a>
       </div>
 

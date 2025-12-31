@@ -1,18 +1,15 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 
-// Dynamically get all valid routes at build time
-const allPages = await Astro.glob("./**/*.astro");
-const apiRoutes = await Astro.glob("./**/*.ts");
+// Dynamically get all valid routes at build time using import.meta.glob (not deprecated Astro.glob)
+const pageModules = import.meta.glob("./**/*.astro", { eager: true });
 
 // Extract route paths from page files
 const validRoutes: string[] = [];
 
-for (const page of allPages) {
-  // Get the file path relative to pages folder
-  const filePath = page.file || "";
-  // Extract route from file path (e.g., /features.astro -> /features/)
-  const match = filePath.match(/pages[\\\/](.+)\.astro$/);
+for (const [path, _module] of Object.entries(pageModules)) {
+  // Extract route from file path (e.g., ./features.astro -> /features/)
+  const match = path.match(/\.\/(.+)\.astro$/);
   if (match) {
     let route = match[1]
       .replace(/\\/g, "/") // Windows paths
