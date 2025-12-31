@@ -59,8 +59,9 @@ const socialImageURL = new URL(image, Astro.site);
     <meta property="twitter:description" content={description} />
     <meta property="twitter:image" content={socialImageURL} />
 
-    <!-- Theme Script (prevent flash) -->
+    <!-- Theme Script (prevent flash + View Transitions support) -->
     <script is:inline>
+      // Apply theme immediately to prevent flash
       (function () {
         const theme = localStorage.getItem("theme");
         if (
@@ -68,8 +69,23 @@ const socialImageURL = new URL(image, Astro.site);
           (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)
         ) {
           document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
         }
       })();
+
+      // Re-apply theme after View Transitions navigation
+      document.addEventListener("astro:after-swap", () => {
+        const theme = localStorage.getItem("theme");
+        if (
+          theme === "dark" ||
+          (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)
+        ) {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+      });
     </script>
 
     <!-- View Transitions for smooth navigation -->

@@ -1,5 +1,6 @@
 ---
 import FeatureCard from "./FeatureCard.astro";
+import FeatureModal from "./FeatureModal.astro";
 import { getHighlightedFeatures } from "../data/features";
 
 const highlightedFeatures = getHighlightedFeatures();
@@ -39,4 +40,7 @@ const highlightedFeatures = getHighlightedFeatures();
       </a>
     </div>
   </div>
+
+  <!-- Feature Modal -->
+  <FeatureModal />
 </section>
