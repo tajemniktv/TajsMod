@@ -86,6 +86,22 @@ const socialImageURL = new URL(image, Astro.site);
           document.documentElement.classList.remove("dark");
         }
       });
+
+      // Memory cleanup before navigation (helps garbage collection)
+      document.addEventListener("astro:before-swap", () => {
+        // Clear any cached data
+        if (window.mermaid) {
+          try {
+            window.mermaid = undefined;
+          } catch (e) {}
+        }
+        // Clear any search indexes
+        if (window.__pagefind) {
+          try {
+            window.__pagefind = undefined;
+          } catch (e) {}
+        }
+      });
     </script>
 
     <!-- View Transitions for smooth navigation -->

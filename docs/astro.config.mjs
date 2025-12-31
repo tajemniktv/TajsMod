@@ -14,10 +14,9 @@ export default defineConfig({
   build: {
     format: 'directory',
   },
-  // Enable prefetching for faster navigation
+  // Enable prefetching for faster navigation (limited to viewport to save memory)
   prefetch: {
-    prefetchAll: true,
-    defaultStrategy: 'hover',
+    defaultStrategy: 'viewport', // Only prefetch links visible in viewport
   },
   // Enable content intellisense for Markdown/MDX files
   experimental: {
