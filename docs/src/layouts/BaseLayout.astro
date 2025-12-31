@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { ViewTransitions } from "astro:transitions";
 import NavBar from "../components/NavBar.astro";
 import Footer from "../components/Footer.astro";
 import CommandPalette from "../components/CommandPalette.astro";
@@ -70,6 +71,9 @@ const socialImageURL = new URL(image, Astro.site);
         }
       })();
     </script>
+
+    <!-- View Transitions for smooth navigation -->
+    <ViewTransitions />
   </head>
   <body
     class="min-h-screen bg-gray-50 dark:bg-dark-950 text-gray-900 dark:text-gray-100"

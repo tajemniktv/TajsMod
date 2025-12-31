@@ -1,0 +1,64 @@
+---
+/**
+ * Breadcrumbs Component
+ * Navigation path for nested pages
+ */
+interface Props {
+  items?: { label: string; href?: string }[];
+}
+
+const { items } = Astro.props;
+const pathname = Astro.url.pathname;
+const BASE_URL = import.meta.env.BASE_URL;
+
+// Auto-generate breadcrumbs from URL if not provided
+const autoBreadcrumbs = pathname
+  .replace(BASE_URL, "")
+  .split("/")
+  .filter(Boolean)
+  .map((segment, index, arr) => {
+    const href = BASE_URL + "/" + arr.slice(0, index + 1).join("/") + "/";
+    const label = segment
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return { label, href };
+  });
+
+const breadcrumbs = items || autoBreadcrumbs;
+---
+
+{
+  breadcrumbs.length > 0 && (
+    <nav aria-label="Breadcrumb" class="breadcrumbs text-sm mb-4">
+      <ol class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+        <li>
+          <a
+            href={`${BASE_URL}/`}
+            class="hover:text-accent-500 transition-colors"
+          >
+            Home
+          </a>
+        </li>
+        {breadcrumbs.map((item, index) => (
+          <>
+            <li class="text-gray-300 dark:text-gray-600">/</li>
+            <li>
+              {index === breadcrumbs.length - 1 ? (
+                <span class="text-gray-700 dark:text-gray-300 font-medium">
+                  {item.label}
+                </span>
+              ) : (
+                <a
+                  href={item.href}
+                  class="hover:text-accent-500 transition-colors"
+                >
+                  {item.label}
+                </a>
+              )}
+            </li>
+          </>
+        ))}
+      </ol>
+    </nav>
+  )
+}

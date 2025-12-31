@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import tailwind from '@astrojs/tailwind';
+import sitemap from '@astrojs/sitemap';
 import astroMermaid from 'astro-mermaid';
 
 export default defineConfig({
@@ -13,11 +14,18 @@ export default defineConfig({
   build: {
     format: 'directory',
   },
+  // Enable prefetching for faster navigation
+  prefetch: {
+    prefetchAll: true,
+    defaultStrategy: 'hover',
+  },
   // Enable content intellisense for Markdown/MDX files
   experimental: {
     contentIntellisense: true,
   },
   integrations: [
+    // Sitemap for SEO
+    sitemap(),
     astroMermaid({
       // Enable zoom/pan for diagrams
       mermaidConfig: {
@@ -43,6 +51,10 @@ export default defineConfig({
       customCss: [
         './src/styles/starlight-custom.css',
       ],
+      // Enable table of contents for documentation
+      tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 4 },
+      // Enable last updated timestamps
+      lastUpdated: true,
     }),
   ],
 });
