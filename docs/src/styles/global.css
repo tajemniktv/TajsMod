@@ -119,3 +119,8 @@
   .stagger-4 { animation-delay: 0.4s; }
   .stagger-5 { animation-delay: 0.5s; }
 }
+
+.mermaid {
+  overflow: auto;
+  max-height: 500px;
+}

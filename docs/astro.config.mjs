@@ -6,15 +6,27 @@ import astroMermaid from 'astro-mermaid';
 
 export default defineConfig({
   site: 'https://TajemnikTV.github.io',
-  base: 'TajsMod',
+  base: '/TajsMod',
   // Ensure consistent trailing slashes for all URLs
   trailingSlash: 'always',
   // Build options for GitHub Pages compatibility
   build: {
     format: 'directory',
   },
+  // Enable content intellisense for Markdown/MDX files
+  experimental: {
+    contentIntellisense: true,
+  },
   integrations: [
-    astroMermaid(),
+    astroMermaid({
+      // Enable zoom/pan for diagrams
+      mermaidConfig: {
+        securityLevel: 'loose', // Required for interactive features
+        flowchart: {
+          htmlLabels: true,
+        },
+      },
+    }),
     tailwind({
       // Disable injecting base styles so we have full control
       applyBaseStyles: false,

@@ -1,0 +1,201 @@
+---
+/**
+ * Feature Detail Modal
+ * Full-screen overlay for feature details
+ */
+---
+
+<!-- Feature Detail Modal -->
+<div
+  id="feature-modal"
+  class="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm hidden items-center justify-center p-4"
+  role="dialog"
+  aria-modal="true"
+  aria-label="Feature details"
+>
+  <div
+    class="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+  >
+    <!-- Header -->
+    <div
+      class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-dark-700"
+    >
+      <div class="flex items-center gap-4">
+        <span id="modal-icon" class="text-4xl"></span>
+        <div>
+          <h2 id="modal-title" class="text-2xl font-bold"></h2>
+          <span
+            id="modal-category"
+            class="text-sm text-gray-500 dark:text-gray-400"></span>
+        </div>
+      </div>
+      <button
+        id="modal-close"
+        class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-700 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+        aria-label="Close"
+      >
+        <svg
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 overflow-y-auto flex-1">
+      <p id="modal-description" class="text-gray-600 dark:text-gray-400 mb-6">
+      </p>
+
+      <div
+        id="modal-long-description"
+        class="prose dark:prose-invert max-w-none mb-6 hidden"
+      >
+        <p id="modal-long-text"></p>
+      </div>
+
+      <!-- Tips -->
+      <div id="modal-tips-section" class="hidden">
+        <h3
+          class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3"
+        >
+          💡 Tips
+        </h3>
+        <ul id="modal-tips" class="space-y-2"></ul>
+      </div>
+
+      <!-- Tags -->
+      <div class="mt-6 pt-6 border-t border-gray-200 dark:border-dark-700">
+        <div id="modal-tags" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div
+      class="p-6 border-t border-gray-200 dark:border-dark-700 bg-gray-50 dark:bg-dark-700/30"
+    >
+      <div class="flex justify-end gap-3">
+        <button id="modal-close-btn" class="btn-secondary"> Close </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  interface FeatureData {
+    id: string;
+    title: string;
+    description: string;
+    icon: string;
+    category: string;
+    categoryIcon: string;
+    tags: string[];
+    longDescription?: string;
+    tips?: string[];
+    dedicatedPage?: string;
+  }
+
+  function initFeatureModal() {
+    const modal = document.getElementById("feature-modal");
+    const closeBtn = document.getElementById("modal-close");
+    const closeBtnFooter = document.getElementById("modal-close-btn");
+
+    if (!modal) return;
+
+    function openModal(data: FeatureData) {
+      // Check for dedicated page first
+      if (data.dedicatedPage) {
+        window.location.href = data.dedicatedPage;
+        return;
+      }
+
+      // Populate modal
+      const iconEl = document.getElementById("modal-icon");
+      const titleEl = document.getElementById("modal-title");
+      const categoryEl = document.getElementById("modal-category");
+      const descEl = document.getElementById("modal-description");
+      const longDescSection = document.getElementById("modal-long-description");
+      const longDescText = document.getElementById("modal-long-text");
+      const tipsSection = document.getElementById("modal-tips-section");
+      const tipsList = document.getElementById("modal-tips");
+      const tagsEl = document.getElementById("modal-tags");
+
+      if (iconEl) iconEl.textContent = data.icon;
+      if (titleEl) titleEl.textContent = data.title;
+      if (categoryEl)
+        categoryEl.textContent = `${data.categoryIcon} ${data.category}`;
+      if (descEl) descEl.textContent = data.description;
+
+      // Long description
+      if (data.longDescription && longDescSection && longDescText) {
+        longDescSection.classList.remove("hidden");
+        longDescText.textContent = data.longDescription;
+      } else if (longDescSection) {
+        longDescSection.classList.add("hidden");
+      }
+
+      // Tips
+      if (data.tips && data.tips.length > 0 && tipsSection && tipsList) {
+        tipsSection.classList.remove("hidden");
+        tipsList.innerHTML = data.tips
+          .map(
+            (tip) =>
+              `<li class="flex items-start gap-2 text-gray-600 dark:text-gray-400">
+            <span class="text-accent-500">•</span>
+            <span>${tip}</span>
+          </li>`
+          )
+          .join("");
+      } else if (tipsSection) {
+        tipsSection.classList.add("hidden");
+      }
+
+      // Tags
+      if (tagsEl) {
+        tagsEl.innerHTML = data.tags
+          .map(
+            (tag) =>
+              `<span class="px-2 py-1 bg-gray-100 dark:bg-dark-700 text-gray-600 dark:text-gray-400 rounded-full text-xs">${tag}</span>`
+          )
+          .join("");
+      }
+
+      // Show modal
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      document.body.style.overflow = "";
+    }
+
+    // Expose to global for FeatureCard to call
+    (window as any).__openFeatureModal = openModal;
+
+    // Close handlers
+    closeBtn?.addEventListener("click", closeModal);
+    closeBtnFooter?.addEventListener("click", closeModal);
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal.classList.contains("flex")) {
+        closeModal();
+      }
+    });
+  }
+
+  document.addEventListener("astro:page-load", initFeatureModal);
+  initFeatureModal();
+</script>

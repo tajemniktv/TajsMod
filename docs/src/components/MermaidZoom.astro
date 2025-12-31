@@ -1,0 +1,91 @@
+---
+/**
+ * Zoomable Mermaid Diagram Wrapper
+ * Adds pan/zoom functionality to Mermaid diagrams
+ */
+interface Props {
+  maxHeight?: string;
+}
+
+const { maxHeight = "500px" } = Astro.props;
+---
+
+<div class="mermaid-zoom-wrapper" style={`max-height: ${maxHeight}`}>
+  <div class="mermaid-zoom-content">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .mermaid-zoom-wrapper {
+    position: relative;
+    overflow: auto;
+    border: 1px solid var(--color-gray-200);
+    border-radius: 0.75rem;
+    background: var(--color-gray-50);
+  }
+
+  :global(.dark) .mermaid-zoom-wrapper {
+    border-color: var(--color-dark-700);
+    background: var(--color-dark-800);
+  }
+
+  .mermaid-zoom-content {
+    min-width: fit-content;
+    padding: 1rem;
+    transform-origin: top left;
+    transition: transform 0.1s ease-out;
+  }
+
+  /* Ensure mermaid SVG is responsive */
+  .mermaid-zoom-content :global(svg) {
+    max-width: none;
+    height: auto;
+  }
+</style>
+
+<script>
+  function initZoomableCharts() {
+    document.querySelectorAll(".mermaid-zoom-wrapper").forEach((wrapper) => {
+      const content = wrapper.querySelector(
+        ".mermaid-zoom-content"
+      ) as HTMLElement;
+      if (!content) return;
+
+      let scale = 1;
+      const minScale = 0.5;
+      const maxScale = 3;
+
+      // Wheel zoom
+      wrapper.addEventListener(
+        "wheel",
+        (e: WheelEvent) => {
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            scale = Math.min(maxScale, Math.max(minScale, scale + delta));
+            content.style.transform = `scale(${scale})`;
+          }
+        },
+        { passive: false }
+      );
+
+      // Double-click to reset
+      wrapper.addEventListener("dblclick", () => {
+        scale = 1;
+        content.style.transform = "scale(1)";
+      });
+
+      // Add zoom hint
+      const hint = document.createElement("div");
+      hint.className =
+        "absolute bottom-2 right-2 text-xs text-gray-400 dark:text-gray-500 pointer-events-none";
+      hint.textContent = "Ctrl+Scroll to zoom • Double-click to reset";
+      (wrapper as HTMLElement).style.position = "relative";
+      wrapper.appendChild(hint);
+    });
+  }
+
+  document.addEventListener("astro:page-load", initZoomableCharts);
+  initZoomableCharts();
+</script>
