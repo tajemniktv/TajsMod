@@ -72,13 +72,14 @@ export default defineConfig({
                 const content = document.getElementById('mermaid-modal-content');
                 
                 function updateTransform() {
-                  content.style.transform = 'translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')';
+                  content.style.transform = 'translate(calc(-50% + ' + panX + 'px), calc(-50% + ' + panY + 'px)) scale(' + scale + ')';
                 }
                 
                 modal.addEventListener('wheel', (e) => {
                   e.preventDefault();
-                  const delta = e.deltaY > 0 ? -0.15 : 0.15;
-                  scale = Math.min(5, Math.max(0.2, scale + delta));
+                  const zoomSpeed = scale > 3 ? 0.3 : 0.2;
+                  const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+                  scale = Math.min(20, Math.max(0.1, scale + delta));
                   updateTransform();
                 }, { passive: false });
                 
@@ -121,9 +122,8 @@ export default defineConfig({
                 window.openMermaidModal = function(svg) {
                   scale = 1; panX = 0; panY = 0;
                   content.innerHTML = svg;
-                  content.style.left = '50%'; content.style.top = '50%';
-                  content.style.transform = 'translate(-50%, -50%) scale(1)';
-                  panX = -content.offsetWidth / 2; panY = -content.offsetHeight / 2;
+                  content.style.left = '50%';
+                  content.style.top = '50%';
                   modal.style.display = 'block';
                   document.body.style.overflow = 'hidden';
                   updateTransform();
