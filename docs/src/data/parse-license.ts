@@ -15,6 +15,31 @@ export interface LicenseInfo {
 export interface LicenseSection {
   title: string;
   content: string;
+  contentHtml: string;
+}
+
+/**
+ * Simple markdown to HTML converter for license content
+ */
+function markdownToHtml(text: string): string {
+  return text
+    // Bold: **text** or __text__
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    // Italic: *text* or _text_
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    // Links: [text](url)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-accent-500 hover:underline">$1</a>')
+    // Inline code: `code`
+    .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-gray-100 dark:bg-dark-600 rounded text-sm">$1</code>')
+    // List items: * item or - item
+    .replace(/^[\*\-]\s+(.+)$/gm, '<li class="ml-4">$1</li>')
+    // Checkmarks: ✅ or ✓
+    .replace(/✅/g, '<span class="text-green-500">✅</span>')
+    .replace(/✓/g, '<span class="text-green-500">✓</span>')
+    // Line breaks
+    .replace(/\n\n/g, '</p><p class="mb-2">')
+    .replace(/\n/g, '<br>');
 }
 
 /**
@@ -54,25 +79,28 @@ export function parseLicense(): LicenseInfo {
   let currentSection: LicenseSection | null = null;
   
   for (const line of lines) {
-    const sectionMatch = line.match(/^##\s+(\d+\)?)\s*(.+)/);
+    const sectionMatch = line.match(/^##\s+(\d+\)?\s*)(.+)/);
     if (sectionMatch) {
       if (currentSection) {
+        currentSection.contentHtml = markdownToHtml(currentSection.content);
         sections.push(currentSection);
       }
       currentSection = {
         title: sectionMatch[2].trim(),
         content: '',
+        contentHtml: '',
       };
     } else if (currentSection && line.trim()) {
-      // Skip sub-headers (###) title lines, include content
-      if (!line.startsWith('###')) {
-        currentSection.content += line + '\n';
-      } else {
+      // Handle sub-headers (###)
+      if (line.startsWith('###')) {
         currentSection.content += '\n**' + line.replace(/^###\s*/, '').trim() + '**\n';
+      } else {
+        currentSection.content += line + '\n';
       }
     }
   }
   if (currentSection) {
+    currentSection.contentHtml = markdownToHtml(currentSection.content);
     sections.push(currentSection);
   }
 
@@ -86,3 +114,4 @@ export function parseLicense(): LicenseInfo {
 
 // Export parsed license for use in pages
 export const license = parseLicense();
+

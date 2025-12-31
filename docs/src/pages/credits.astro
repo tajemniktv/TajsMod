@@ -210,9 +210,10 @@ const credits = {
                     <h3 class="font-semibold text-gray-900 dark:text-white mb-2">
                       {section.title}
                     </h3>
-                    <div class="text-gray-600 dark:text-gray-400 text-sm whitespace-pre-wrap">
-                      {section.content.trim()}
-                    </div>
+                    <div
+                      class="text-gray-600 dark:text-gray-400 text-sm license-content"
+                      set:html={section.contentHtml}
+                    />
                   </div>
                 ))
               }
