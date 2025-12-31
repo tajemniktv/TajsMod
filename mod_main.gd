@@ -29,6 +29,7 @@ const DisconnectedNodeHighlighterScript = preload("res://mods-unpacked/TajemnikT
 const UpgradeManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/upgrade_manager.gd")
 const StickyNoteManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/sticky_note_manager.gd")
 const SmoothScrollManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/smooth_scroll_manager.gd")
+const UndoManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/undo/undo_manager.gd")
 
 # Components
 var config # ConfigManager instance
@@ -48,6 +49,7 @@ var disconnected_highlighter # DisconnectedNodeHighlighter instance
 var sticky_note_manager # StickyNoteManager instance
 var upgrade_manager # UpgradeManager instance
 var smooth_scroll_manager # SmoothScrollManager instance
+var undo_manager # UndoManager instance
 
 # State
 var mod_dir_path: String = ""
@@ -117,11 +119,16 @@ func _init() -> void:
     add_child(smooth_scroll_manager)
     smooth_scroll_manager.setup(config)
     
+    # Init Undo Manager
+    undo_manager = UndoManagerScript.new()
+    undo_manager.name = "UndoManager"
+    add_child(undo_manager)
+    
     # Init Wire Color Overrides (applied in _ready when Data is loaded)
     wire_colors = WireColorOverridesScript.new()
 
 func _ready() -> void:
-    ModLoaderLog.info("TajsModded ready!", LOG_NAME)
+    ModLoaderLog.info("TajsMod is ready to improve your game!", LOG_NAME)
     
     # Init Shared Color Picker Overlay
     picker_canvas = CanvasLayer.new()
@@ -203,6 +210,25 @@ func _input(event: InputEvent) -> void:
         if event is InputEventJoypadMotion or event is InputEventJoypadButton:
             get_viewport().set_input_as_handled()
             return
+
+    # Undo/Redo shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
+    if event is InputEventKey and event.is_released():
+        if config.get_value("undo_redo_enabled", true) and undo_manager:
+            # Don't intercept when text field is focused
+            var focused = get_viewport().gui_get_focus_owner()
+            if focused and (focused is LineEdit or focused is TextEdit or focused.is_class("LineEdit") or focused.is_class("TextEdit")):
+                # ModLoaderLog.info("Ignored Ctrl+Z due to focus: " + str(focused.get_class()), LOG_NAME)
+                pass # Let native text field handle it
+            elif Input.is_key_pressed(KEY_CTRL):
+                if event.keycode == KEY_Z and not event.shift_pressed:
+                    # ModLoaderLog.info("Undo Triggered. Focused: " + (str(focused.get_class()) if focused else "None"), LOG_NAME)
+                    undo_manager.undo()
+                    get_viewport().set_input_as_handled()
+                    return
+                elif event.keycode == KEY_Y or (event.keycode == KEY_Z and event.shift_pressed):
+                    undo_manager.redo()
+                    get_viewport().set_input_as_handled()
+                    return
 
     # Global Slider Scroll Blocking (affects all sliders - mod and vanilla)
     if config.get_value("disable_slider_scroll", false):
@@ -347,6 +373,11 @@ func _setup_for_main(main_node: Node) -> void:
         disconnected_highlighter.set_enabled(false)
         
     smooth_scroll_manager.set_enabled(config.get_value("smooth_scroll_enabled", false))
+    
+    # Setup Undo Manager (connect signals now that desktop exists)
+    if undo_manager:
+        undo_manager.setup(get_tree(), config, self)
+        Globals.undo_manager = undo_manager
 
 
 ## Setup Go To Node Group panel in the HUD
@@ -492,6 +523,13 @@ func _build_settings_menu() -> void:
         if palette_controller:
             palette_controller.set_palette_enabled(v)
     , "Open a searchable command palette with Middle Mouse Button.")
+    
+    # Undo/Redo toggle
+    _settings_toggles["undo_redo_enabled"] = ui.add_toggle(gen_vbox, "Undo/Redo (Ctrl+Z)", config.get_value("undo_redo_enabled", true), func(v):
+        config.set_value("undo_redo_enabled", v)
+        if undo_manager:
+            undo_manager.set_enabled(v)
+    , "Enable undo/redo for node movements and connections.")
     
     # Right-click Wire Clear toggle
     _settings_toggles["right_click_clear_enabled"] = ui.add_toggle(gen_vbox, "Right-click Wire Clear", config.get_value("right_click_clear_enabled"), func(v):
@@ -673,12 +711,16 @@ func _build_settings_menu() -> void:
     # Apply initial debug state to components that need it
     if sticky_note_manager:
         sticky_note_manager.set_debug_enabled(saved_debug)
+    if undo_manager:
+        undo_manager.set_debug_enabled(saved_debug)
     
     var debug_toggle = ui.add_toggle(debug_vbox, "Enable Debug Logging", saved_debug, func(v):
         _debug_mode = v
         config.set_value("debug_mode", v)
         if sticky_note_manager:
             sticky_note_manager.set_debug_enabled(v)
+        if undo_manager:
+            undo_manager.set_debug_enabled(v)
         _add_debug_log("Debug mode " + ("enabled" if v else "disabled"), true)
     , "Log extra debug information to the console and debug tab.")
     

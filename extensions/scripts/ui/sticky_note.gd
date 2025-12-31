@@ -20,12 +20,12 @@ signal note_deleted(note_id: String)
 signal note_duplicated(note_id: String, new_position: Vector2)
 signal drag_started()
 signal drag_ended()
+signal selection_changed(selected: bool)
 
 # Note properties
 var note_id: String = ""
 var title_text: String = "Note"
 var body_text: String = ""
-# Default color matches Group Node default (blueish gray)
 var note_color: Color = Color("1a202c")
 
 # Pattern state
@@ -94,7 +94,6 @@ func _ready() -> void:
         _body_edit.text = body_text
         
     # Apply initial visuals
-    # Apply initial visuals
     update_color()
     update_pattern()
     _update_visual_state()
@@ -123,11 +122,9 @@ func _build_ui() -> void:
     _title_panel.mouse_filter = Control.MOUSE_FILTER_STOP
     _title_panel.gui_input.connect(_on_title_panel_input)
     
-    # Use white stylebox for tinting (matching Group Node)
-    # SQUARED BOTTOM CORNERS for seamless look
-    # ADDED TRANSPARENCY and SHADOW for Vanilla look
+    # Styling
     var title_style = StyleBoxFlat.new()
-    title_style.bg_color = Color(1, 1, 1, 0.5) # More transparent (glassy)
+    title_style.bg_color = Color(1, 1, 1, 0.5)
     title_style.corner_radius_top_left = 12
     title_style.corner_radius_top_right = 12
     title_style.corner_radius_bottom_right = 0
@@ -426,6 +423,7 @@ func update_pattern() -> void:
         drawer.set_pattern(pattern_index)
         drawer.set_style(pattern_color, pattern_alpha, pattern_spacing, pattern_thickness)
 
+
 func _set_selected(value: bool) -> void:
     if _is_selected != value:
         # If deselecting, save changes
@@ -435,6 +433,8 @@ func _set_selected(value: bool) -> void:
         _is_selected = value
         _update_visual_state()
         queue_redraw()
+        
+        selection_changed.emit(_is_selected)
 
 func _update_visual_state() -> void:
     # Show/Hide handles based on selection

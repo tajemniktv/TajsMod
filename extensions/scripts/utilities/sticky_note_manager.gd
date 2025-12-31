@@ -9,6 +9,10 @@ class_name TajsStickyNoteManager
 const LOG_NAME = "TajsModded:StickyNoteManager"
 const StickyNoteScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/sticky_note.gd")
 
+# Signals for external tracking (Undo/Redo)
+signal note_added(note: Control)
+signal note_removed(note_id: String, note_data: Dictionary)
+
 # References
 var _config = null
 var _desktop: Control = null
@@ -87,6 +91,9 @@ func create_note(world_pos: Vector2, note_size: Vector2 = Vector2(250, 150)):
     # Notify user
     Signals.notify.emit("check", "Note created!")
     
+    # Emit signal for UndoManager
+    note_added.emit(note)
+    
     return note
 
 func delete_note(note_id: String) -> void:
@@ -94,6 +101,8 @@ func delete_note(note_id: String) -> void:
         return
     
     var note = _notes[note_id]
+    var note_data = note.get_data() if is_instance_valid(note) else {}
+    
     _notes.erase(note_id)
     
     if is_instance_valid(note):
@@ -102,6 +111,11 @@ func delete_note(note_id: String) -> void:
     _log("Deleted note: " + note_id)
     save_notes()
     Signals.notify.emit("check", "Note deleted")
+    
+    # Emit signal for UndoManager
+    if not note_data.is_empty():
+        note_removed.emit(note_id, note_data)
+
 
 func duplicate_note(note_id: String, new_position: Vector2):
     if not _notes.has(note_id):

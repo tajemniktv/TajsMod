@@ -6,6 +6,9 @@
 extends "res://scripts/desktop.gd"
 
 func paste(data: Dictionary) -> void:
+    if Globals.undo_manager:
+        Globals.undo_manager.begin_action("Paste")
+        
     var seed: int = randi() / 10
     var new_windows: Dictionary
     var to_connect: Dictionary[String, Array]
@@ -32,6 +35,8 @@ func paste(data: Dictionary) -> void:
         if required > Globals.custom_node_limit - Globals.max_window_count:
             Signals.notify.emit("exclamation", "build_limit_reached")
             Sound.play("error")
+            if Globals.undo_manager:
+                Globals.undo_manager.cancel_action()
             return
 
     data.windows = new_windows
@@ -58,11 +63,22 @@ func paste(data: Dictionary) -> void:
             Signals.create_connection.emit(i, output)
 
     $Connectors.connector_data.clear()
+    
+    if Globals.undo_manager:
+        Globals.undo_manager.commit_action()
 
 
 func _input(event: InputEvent) -> void:
-    # Call parent to preserve CTRL+C/CTRL+V functionality
-    super._input(event)
+    # Wrap Delete key in transaction for grouped undo
+    if event is InputEventKey and event.pressed and event.keycode == KEY_DELETE:
+        if Globals.undo_manager:
+            Globals.undo_manager.begin_action("Delete Selection")
+        super._input(event)
+        if Globals.undo_manager:
+            Globals.undo_manager.commit_action()
+    else:
+        # Call parent to preserve CTRL+C/CTRL+V functionality
+        super._input(event)
     
     # Ctrl+A to select all nodes (only if enabled and no text field is focused)
     if event is InputEventKey and event.pressed:

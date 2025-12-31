@@ -5,6 +5,8 @@
 # ==============================================================================
 extends "res://scenes/windows/window_group.gd"
 
+signal group_changed
+
 # Expanded color palette
 const NEW_COLORS: Array[String] = [
     "1a202c", "1a2b22", "1a292b", "1a1b2b", "211a2b", "2b1a27", "2b1a1a",
@@ -208,6 +210,7 @@ func _on_pattern_settings_changed(idx: int, c: Color, a: float, sp: float, th: f
     pattern_spacing = sp
     pattern_thickness = th
     update_pattern()
+    group_changed.emit()
 
 
 func update_color() -> void:
@@ -232,11 +235,13 @@ func cycle_color() -> void:
         custom_color = Color.TRANSPARENT
         update_color()
         color_changed.emit()
+        group_changed.emit()
 
 
 func _on_pattern_selected(id: int) -> void:
     pattern_index = id
     update_pattern()
+    group_changed.emit()
     Sound.play("click2")
 
 
@@ -244,6 +249,7 @@ func _on_color_picked(new_color: Color) -> void:
     custom_color = new_color
     update_color()
     color_changed.emit()
+    group_changed.emit()
     Sound.play("click2")
 
 
@@ -252,6 +258,7 @@ func cycle_pattern() -> void:
     if pattern_index > 10:
         pattern_index = 0
     update_pattern()
+    group_changed.emit()
     Sound.play("click2")
 
 
@@ -403,3 +410,39 @@ func set_resizing(l: bool, t: bool, r: bool, b: bool) -> void:
         Sound.play("error")
         return
     super.set_resizing(l, t, r, b)
+
+func set_custom_name(new_name: String) -> void:
+    super.set_custom_name(new_name)
+    group_changed.emit()
+
+func set_icon(icon: String) -> void:
+    super.set_icon(icon)
+    group_changed.emit()
+
+# Apply data (for Undo/Redo)
+func load_data(data: Dictionary) -> void:
+    if data.has("custom_name"): set_custom_name(data["custom_name"])
+    if data.has("custom_icon"): set_icon(data["custom_icon"])
+    if data.has("color"):
+        color = data["color"]
+        
+    if data.has("pattern_index"): pattern_index = data["pattern_index"]
+    if data.has("pattern_color"): pattern_color = Color.html(data["pattern_color"])
+    if data.has("pattern_alpha"): pattern_alpha = data["pattern_alpha"]
+    if data.has("pattern_spacing"): pattern_spacing = data["pattern_spacing"]
+    if data.has("pattern_thickness"): pattern_thickness = data["pattern_thickness"]
+    
+    if data.has("custom_color"):
+        custom_color = Color.html(data["custom_color"])
+    else:
+        custom_color = Color.TRANSPARENT
+        
+    if data.has("locked"):
+        locked = data["locked"]
+        
+    update_color()
+    update_pattern()
+    # No signal emission to prevent infinite loop if used inside undo?
+    # Actually, we WANT signal if we want to update UI?
+    # But usually Undo action shouldn't record another Undo step.
+    # The command executes this.

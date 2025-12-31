@@ -111,6 +111,36 @@ static func register_all(registry, refs: Dictionary) -> void:
                     Signals.notify.emit("check", "Selected %d nodes" % typed_windows.size())
     })
     
+    # Undo command
+    registry.register({
+        "id": "cmd_undo",
+        "title": "Undo",
+        "category_path": ["Nodes"],
+        "keywords": ["undo", "revert", "back", "ctrl+z", "history"],
+        "hint": "Undo the last action (Ctrl+Z)",
+        "icon_path": "res://textures/icons/refresh.png",
+        "badge": "SAFE",
+        "can_run": func(ctx): return mod_main and mod_main.undo_manager and mod_main.undo_manager.can_undo(),
+        "run": func(ctx):
+            if mod_main and mod_main.undo_manager:
+                mod_main.undo_manager.undo()
+    })
+    
+    # Redo command
+    registry.register({
+        "id": "cmd_redo",
+        "title": "Redo",
+        "category_path": ["Nodes"],
+        "keywords": ["redo", "repeat", "forward", "ctrl+y", "history"],
+        "hint": "Redo the last undone action (Ctrl+Y)",
+        "icon_path": "res://textures/icons/refresh.png",
+        "badge": "SAFE",
+        "can_run": func(ctx): return mod_main and mod_main.undo_manager and mod_main.undo_manager.can_redo(),
+        "run": func(ctx):
+            if mod_main and mod_main.undo_manager:
+                mod_main.undo_manager.redo()
+    })
+    
     registry.register({
         "id": "cmd_deselect_all",
         "title": "Deselect All",
