@@ -120,7 +120,7 @@ export default defineConfig({
                 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
                 
                 window.openMermaidModal = function(svg) {
-                  scale = 1; panX = 0; panY = 0;
+                  scale = 2; panX = 0; panY = 0;  // Start at 2x zoom for readability
                   content.innerHTML = svg;
                   content.style.left = '50%';
                   content.style.top = '50%';
