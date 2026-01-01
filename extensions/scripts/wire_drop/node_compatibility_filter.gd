@@ -40,6 +40,13 @@ func build_cache() -> void:
 	ModLoaderLog.info("Built node compatibility cache for %d windows" % _window_connectors_cache.size(), LOG_NAME)
 
 
+## Get connector info for a specific window (lazy load if needed)
+func get_connector_info(window_id: String) -> Dictionary:
+	if not _cache_built:
+		build_cache()
+	return _window_connectors_cache.get(window_id, {})
+
+
 ## Get connector info for a window by loading its scene
 func _get_window_connector_info(window_id: String, window_data: Dictionary) -> Dictionary:
 	var scene_path: String = "res://scenes/windows/" + window_data.scene + ".tscn"
@@ -67,13 +74,95 @@ func _get_window_connector_info(window_id: String, window_data: Dictionary) -> D
 		"outputs": []
 	}
 	
-	# Find ResourceContainers with input/output connectors
-	_collect_connectors(instance, info)
+	# Try using window.containers property (preferred method per game design)
+	if "containers" in instance:
+		var containers = instance.containers
+		if containers is Array:
+			for container in containers:
+				if container is ResourceContainer:
+					var connector_data = _extract_connector_data(container)
+					if not connector_data.is_empty():
+						if container.is_in_group("input"):
+							info.inputs.append(connector_data)
+						if container.is_in_group("output"):
+							info.outputs.append(connector_data)
+	
+	# Fallback: recursive search if containers property didn't find anything
+	if info.inputs.is_empty() and info.outputs.is_empty():
+		_collect_connectors(instance, info)
+	
+	# Post-process: Infer dynamic output types from typed inputs
+	# Many processing nodes (Verifier, Antivirus, etc.) output the same type as their input
+	_infer_passthrough_outputs(info)
 	
 	# Clean up
 	instance.queue_free()
 	
 	return info
+
+
+## For pass-through nodes, dynamic outputs should inherit type from typed inputs
+func _infer_passthrough_outputs(info: Dictionary) -> void:
+	# Find the first non-speed typed input (usually the "file" input)
+	var typed_file_input: Dictionary = {}
+	for input in info.inputs:
+		var shape = input.get("shape", "")
+		# Skip flow/speed inputs (circle is usually clock/speed, we want file shapes like square)
+		if shape != "" and shape != "any" and shape != "circle":
+			typed_file_input = input
+			break
+	
+	# If no typed file input found, check for any non-circle typed input
+	if typed_file_input.is_empty():
+		for input in info.inputs:
+			var shape = input.get("shape", "")
+			if shape != "" and shape != "any":
+				typed_file_input = input
+				break
+	
+	# Update dynamic outputs to inherit from typed input
+	if not typed_file_input.is_empty():
+		for i in range(info.outputs.size()):
+			var output = info.outputs[i]
+			if output.get("shape", "") == "any":
+				# Inherit shape and color from typed input
+				output["shape"] = typed_file_input.get("shape", "any")
+				output["color"] = typed_file_input.get("color", "white")
+				# Update name to remove "(Dynamic)" and show inherited type
+				var base_name = output.get("name", "Output").replace(" (Dynamic)", "")
+				output["name"] = base_name
+				info.outputs[i] = output
+
+
+## Extract connector data from a ResourceContainer (safely, without requiring tree entry)
+func _extract_connector_data(rc: ResourceContainer) -> Dictionary:
+	var shape := ""
+	var color := ""
+	
+	# DEBUG LOGGING for generic Neurons
+	if "Neuron" in rc.name:
+		ModLoaderLog.info("DEBUG CompatibleFilter: Extracting from %s" % rc.name, LOG_NAME)
+		ModLoaderLog.info("  - override_connector: %s" % str(rc.override_connector), LOG_NAME)
+		ModLoaderLog.info("  - default_resource: %s" % str(rc.default_resource), LOG_NAME)
+
+	# Safely extract shape/color - can't use get_connection_shape() because data isn't populated yet
+	if not rc.override_connector.is_empty():
+		shape = rc.override_connector
+		color = rc.override_color if not rc.override_color.is_empty() else "white"
+	elif not rc.default_resource.is_empty() and Data.resources.has(rc.default_resource):
+		var resource_data: Dictionary = Data.resources[rc.default_resource]
+		shape = resource_data.get("connection", "")
+		color = resource_data.get("color", "white")
+	
+	if shape.is_empty():
+		return {}
+	
+	return {
+		"shape": shape,
+		"color": color,
+		"name": rc.name,
+		"resource_id": rc.default_resource # Add this so we can resolve generic names later
+	}
 
 
 ## Recursively collect connector info from a node tree
@@ -83,29 +172,46 @@ func _collect_connectors(node: Node, info: Dictionary) -> void:
 		var shape := ""
 		var color := ""
 		
-		# Get connector properties from the resource container
-		if rc.override_connector.is_empty():
-			# Need to use default_resource to determine connector type
-			if not rc.default_resource.is_empty() and Data.resources.has(rc.default_resource):
-				var resource_data: Dictionary = Data.resources[rc.default_resource]
-				shape = resource_data.get("connection", "")
-				color = resource_data.get("color", "")
-		else:
+		# Safely extract shape/color - can't use get_connection_shape() because data isn't populated yet
+		if not rc.override_connector.is_empty():
 			shape = rc.override_connector
 			color = rc.override_color if not rc.override_color.is_empty() else "white"
+		elif not rc.default_resource.is_empty() and Data.resources.has(rc.default_resource):
+			var resource_data: Dictionary = Data.resources[rc.default_resource]
+			shape = resource_data.get("connection", "")
+			color = resource_data.get("color", "white")
+		
+		# Check if this container has input/output connectors
+		var is_input = node.has_node("InputConnector") or node.is_in_group("input")
+		var is_output = node.has_node("OutputConnector") or node.is_in_group("output")
 		
 		if not shape.is_empty():
 			var connector_data := {
 				"shape": shape,
 				"color": color,
-				"name": node.name
+				"name": node.name,
+				"resource_id": rc.default_resource
 			}
 			
-			# Check if this container has input/output connectors
-			if node.has_node("InputConnector"):
+			if is_input:
 				info.inputs.append(connector_data)
-			if node.has_node("OutputConnector"):
+			if is_output:
 				info.outputs.append(connector_data)
+		else:
+			# Dynamic/untyped output - has connector but no fixed resource type
+			# These ports accept whatever resource is connected to them
+			if is_output:
+				info.outputs.append({
+					"shape": "any",
+					"color": "white",
+					"name": node.name + " (Dynamic)"
+				})
+			if is_input:
+				info.inputs.append({
+					"shape": "any",
+					"color": "white",
+					"name": node.name + " (Dynamic)"
+				})
 	
 	# Recurse into children
 	for child in node.get_children():
@@ -166,6 +272,42 @@ func _sort_by_category_and_name(a: Dictionary, b: Dictionary) -> bool:
 	if a.sub_category != b.sub_category:
 		return a.sub_category < b.sub_category
 	return a.name < b.name
+
+
+## Get all windows that have a specific INPUT port type
+func get_nodes_with_input(shape: String, color: String) -> Array[Dictionary]:
+	if not _cache_built:
+		build_cache()
+	
+	var matching: Array[Dictionary] = []
+	
+	for window_id in _window_connectors_cache:
+		var window_info: Dictionary = _window_connectors_cache[window_id]
+		for input in window_info.inputs:
+			if _is_compatible(shape, color, input.shape, input.color):
+				matching.append(window_info.duplicate())
+				break
+	
+	matching.sort_custom(_sort_by_category_and_name)
+	return matching
+
+
+## Get all windows that have a specific OUTPUT port type
+func get_nodes_with_output(shape: String, color: String) -> Array[Dictionary]:
+	if not _cache_built:
+		build_cache()
+	
+	var matching: Array[Dictionary] = []
+	
+	for window_id in _window_connectors_cache:
+		var window_info: Dictionary = _window_connectors_cache[window_id]
+		for output in window_info.outputs:
+			if _is_compatible(shape, color, output.shape, output.color):
+				matching.append(window_info.duplicate())
+				break
+	
+	matching.sort_custom(_sort_by_category_and_name)
+	return matching
 
 
 ## Clear the cache (call if window definitions change)

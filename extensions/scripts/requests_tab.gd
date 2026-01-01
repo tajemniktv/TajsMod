@@ -96,25 +96,110 @@ func _update_request_visibility() -> void:
 	var hidden_count = 0
 	
 	for child in container.get_children():
-		# Reset state first by calling update_all()
-		# This ensures 'visible' is set to 'unlocked' (true) by default before we apply extra filtering
-		if child.has_method("update_all"):
+		# Update the child state
+		if child.has_method("set_hide_completed"):
+			# This updates the internal config AND triggers an update_all()
+			child.set_hide_completed(_is_hiding_completed)
+		elif child.has_method("update_all"):
+			# Vanilla fallback or incomplete extension
 			child.update_all()
 			
-		if child.has_method("set_hide_completed"):
-			# Pass the setting to the child (which triggers another update_all effectively, but safe)
-			child.set_hide_completed(_is_hiding_completed)
+		# Explicitly verify and enforce visibility
+		# This acts as a safeguard even if the child's internal logic missed it
+		if _is_hiding_completed and child.visible:
+			var should_hide = false
+			if child.has_method("is_claimed"):
+				should_hide = child.is_claimed()
+			else:
+				# Fallback using global state directly
+				should_hide = Globals.requests.get(child.name, 0) == 2
+				
+			if should_hide:
+				child.visible = false
+		
+		# Count hidden items (claimed ones that we hid)
+		# We check if it IS claimed, because hidden_count should count "Hidden Completed Requests", not locked ones.
+		# But sticking to previous logic: count items that are NOT visible AND are claimed.
+		if !child.visible:
+			var claimed = false
+			if child.has_method("is_claimed"):
+				claimed = child.is_claimed()
+			else:
+				claimed = Globals.requests.get(child.name, 0) == 2
 			
-			# Check result
-			if !child.visible and child.has_method("is_claimed") and child.is_claimed():
+			if claimed:
 				hidden_count += 1
-		else:
-			# Fallback for vanilla nodes if extension fails
-			# Since we called update_all() above, visible should be true if unlocked.
-			if _is_hiding_completed:
-				var completed = Globals.requests.get(child.name, 0) == 2
-				if completed and child.visible:
-					child.visible = false
-					hidden_count += 1
 			
 	_counter_label.text = "Hidden: " + str(hidden_count)
+	_sort_requests(container)
+
+func _sort_requests(container: Control) -> void:
+	# Custom sort: Completed (Unclaimed) > Active > Locked/Hidden (Claimed)
+	var children = container.get_children()
+	
+	children.sort_custom(func(a, b):
+		var priority_a = _get_request_priority(a)
+		var priority_b = _get_request_priority(b)
+		
+		if priority_a != priority_b:
+			return priority_a > priority_b
+			
+		# Secondary sort: Fallback to original order (or by name)
+		# Since we don't have a reliable index, we can just keep stable or sort by name
+		return a.name < b.name
+	)
+	
+	# Apply order
+	for i in range(children.size()):
+		container.move_child(children[i], i)
+
+func _get_request_priority(node: Node) -> int:
+	# Priority 2: Completed but Unclaimed
+	if _is_completed_unclaimed(node):
+		return 2
+		
+	# Check for claimed status
+	var is_claimed = false
+	if node.has_method("is_claimed"):
+		is_claimed = node.is_claimed()
+	else:
+		is_claimed = Globals.requests.get(node.name, 0) == 2
+		
+	# Priority 0: Claimed (Paid)
+	if is_claimed:
+		return 0
+		
+	# Priority 1: Active (Not completed, not claimed)
+	return 1
+
+func _is_completed_unclaimed(node: Node) -> bool:
+	# 1. Check if claimed (if so, it is NOT "completed but unclaimed")
+	if node.has_method("is_claimed") and node.is_claimed():
+		return false
+	if Globals.requests.get(node.name, 0) == 2:
+		return false
+		
+	# 2. Check for "Completed" status via recursive search
+	return _scan_for_completion(node)
+
+func _scan_for_completion(node: Node) -> bool:
+	for child in node.get_children():
+		# Heuristic A: Label with "Completed"
+		if child is Label and "Completed" in child.text:
+			return true
+			
+		# Heuristic B: Active Button (Claim Button)
+		# We assume the only active button in a request panel is the Claim button
+		# (There might be others, but usually Claim is the main one)
+		if child is Button and child.visible and !child.disabled:
+			# Extra check: valid claim buttons usually have text like "Claim" or an icon
+			# But "Completed" label is the strongest signal if present.
+			# Let's trust the button state if we don't find the label yet.
+			return true
+		
+		# Recurse
+		if child.get_child_count() > 0:
+			if _scan_for_completion(child):
+				return true
+				
+	return false

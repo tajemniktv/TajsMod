@@ -192,3 +192,14 @@ func get_configurable_wires() -> Dictionary:
 ## Check if overrides are enabled
 func is_enabled() -> bool:
     return _enabled
+
+## Check if a specific connector name has a resource override (e.g. 'circle' -> 'ai' -> custom color)
+func get_override_for_connector(connector_name: String) -> Color:
+    # Check if any configured resource used this connector originally
+    for resource_id in _original_colors:
+        if _original_colors[resource_id] == connector_name:
+            # Found a resource that uses this connector. Check if it has a custom color.
+            if _custom_hex.has(resource_id):
+                return Color(_custom_hex[resource_id])
+                
+    return Color(0, 0, 0, 0) # Transparent if no override found

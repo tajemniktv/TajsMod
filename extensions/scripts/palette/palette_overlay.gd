@@ -10,11 +10,14 @@ const LOG_NAME = "TajsModded:Palette"
 
 const FuzzySearch = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/fuzzy_search.gd")
 const Calculator = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/calculator.gd")
+const NodeDefinitionPanel = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/node_definition_panel.gd")
+const ResourceDefinitionPanel = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/palette/resource_definition_panel.gd")
 
 # References
 var registry # TajsModCommandRegistry
 var context # TajsModContextProvider
 var palette_config # TajsModPaletteConfig
+var node_metadata_service # TajsModNodeMetadataService
 
 # UI Elements
 var background: ColorRect
@@ -24,6 +27,8 @@ var results_container: VBoxContainer
 var results_scroll: ScrollContainer
 var breadcrumb_label: Label
 var no_results_label: Label
+var _node_def_panel: Control # NodeDefinitionPanel instance
+var _resource_def_panel: Control # ResourceDefinitionPanel instance
 
 # State
 var _is_open: bool = false
@@ -35,6 +40,10 @@ var _debounce_timer: Timer
 var _history_back: Array = [] # Navigation history for back button
 var _history_forward: Array = [] # Navigation history for forward button
 var _onboarding_hint: Control # Onboarding hint panel
+
+# Definition Mode
+var _def_mode: bool = false
+var _resource_mode: bool = false
 
 # Node Picker Mode (for wire-drop feature)
 var _picker_mode: bool = false
@@ -93,10 +102,171 @@ func _ready() -> void:
 	visible = false
 
 
-func setup(reg, ctx, config) -> void:
+func _input(event: InputEvent) -> void:
+	if not _is_open:
+		return
+	
+	# Handle mouse back button globally when palette is open
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_XBUTTON1:
+			if _resource_mode:
+				_on_resource_panel_back()
+				get_viewport().set_input_as_handled()
+			elif _def_mode:
+				# Exit def mode back to search results
+				_exit_def_mode()
+				get_viewport().set_input_as_handled()
+			elif _calc_mode or _picker_mode or _group_picker_mode or _note_picker_mode or not _current_path.is_empty():
+				# Exit any special mode or navigate back in category hierarchy
+				_go_back()
+				get_viewport().set_input_as_handled()
+
+
+func setup(reg, ctx, config, meta_service = null, wire_colors_ref = null) -> void:
 	registry = reg
 	context = ctx
 	palette_config = config
+	node_metadata_service = meta_service
+	
+	if _node_def_panel and wire_colors_ref:
+		_node_def_panel.set_wire_colors(wire_colors_ref)
+
+
+## Show node definition panel
+func show_node_definition(node_id: String) -> void:
+	if not node_metadata_service:
+		Signals.notify.emit("exclamation", "Metadata service not available")
+		return
+	
+	var details = node_metadata_service.get_node_details(node_id)
+	if details.is_empty():
+		Signals.notify.emit("exclamation", "Could not load node details")
+		return
+		
+	_def_mode = true
+	
+	# Hide palette panel, show def panel
+	# We hide the whole palette so the def panel (overlay child) is visible clearly
+	panel.visible = false
+	_node_def_panel.visible = true
+	
+	_node_def_panel.display_node(details)
+	
+	# Update UI state
+	breadcrumb_label.text = "📘 Definition: " + details.get("name", "Unknown")
+	# search_input.editable = false # Not needed if panel is hidden
+	
+	# Clean up selection
+	_selected_index = -1
+	_update_selection()
+
+
+func _on_def_panel_back() -> void:
+	_exit_def_mode()
+
+
+## Enter node browser mode to show all available nodes
+func enter_node_browser() -> void:
+	search_input.placeholder_text = "Filter nodes..."
+	_perform_node_search("")
+	Sound.play("click")
+
+
+func _exit_def_mode() -> void:
+	if not _def_mode:
+		return
+		
+	_def_mode = false
+	
+	# Restore UI
+	panel.visible = true
+	_node_def_panel.visible = false
+	
+	search_input.editable = true
+	search_input.grab_focus()
+	
+	# Update breadcrumbs (simplified reset)
+	if _picker_mode:
+		_update_picker_breadcrumbs()
+	elif _group_picker_mode:
+		_update_group_picker_breadcrumbs()
+	elif _note_picker_mode:
+		_update_note_picker_breadcrumbs()
+	else:
+		_update_breadcrumbs()
+
+
+## Handle port click from NodeDefinitionPanel - show resource info
+func _on_port_clicked(resource_id: String, shape: String, color: String, label: String) -> void:
+	# Show resource definition panel
+	_node_def_panel.visible = false
+	_resource_def_panel.visible = true
+	_resource_mode = true
+	
+	# Pass wire colors if available
+	if _node_def_panel.has_method("_wire_colors"):
+		_resource_def_panel.set_wire_colors(_node_def_panel._wire_colors)
+	
+	_resource_def_panel.display_resource(resource_id, shape, color, label)
+	
+	# Update breadcrumb
+	breadcrumb_label.text = "📊 Resource: " + label
+
+
+## Handle back from ResourceDefinitionPanel - return to NodeDefinitionPanel
+func _on_resource_panel_back() -> void:
+	_resource_mode = false
+	_resource_def_panel.visible = false
+	_node_def_panel.visible = true
+	
+	# Restore def mode breadcrumb
+	breadcrumb_label.text = "📘 Definition"
+
+
+## Handle "Show Nodes with Input" button
+func _on_show_inputs(shape: String, color: String) -> void:
+	_exit_resource_mode()
+	_show_nodes_with_port(shape, color, true)
+
+
+## Handle "Show Nodes with Output" button
+func _on_show_outputs(shape: String, color: String) -> void:
+	_exit_resource_mode()
+	_show_nodes_with_port(shape, color, false)
+
+
+func _exit_resource_mode() -> void:
+	_resource_mode = false
+	_def_mode = false
+	_resource_def_panel.visible = false
+	_node_def_panel.visible = false
+	panel.visible = true
+
+
+## Show filtered nodes with a specific port type
+func _show_nodes_with_port(shape: String, color: String, is_input: bool) -> void:
+	# Get compatible nodes from the filter
+	var controller = get_parent()
+	if controller and controller.has_method("get_node_filter"):
+		var filter = controller.get_node_filter()
+		if filter:
+			var nodes: Array[Dictionary]
+			if is_input:
+				nodes = filter.get_nodes_with_input(shape, color)
+			else:
+				nodes = filter.get_nodes_with_output(shape, color)
+			
+			if nodes.is_empty():
+				Signals.notify.emit("exclamation", "No nodes found with this port type")
+				return
+			
+			# Display as picker results
+			_display_picker_nodes(nodes)
+			breadcrumb_label.text = "🔍 Nodes with %s (%s)" % [shape, "Input" if is_input else "Output"]
+			search_input.placeholder_text = "Filter nodes..."
+			search_input.grab_focus()
+	else:
+		Signals.notify.emit("exclamation", "Filter not available")
 
 
 ## Apply glow styling to a label for a polished look
@@ -172,6 +342,46 @@ func _build_ui() -> void:
 	no_results_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	no_results_label.add_theme_font_size_override("font_size", 18)
 	no_results_label.visible = false
+	
+	# Node Definition Panel
+	_node_def_panel = NodeDefinitionPanel.new()
+	_node_def_panel.visible = false
+	_node_def_panel.back_requested.connect(_on_def_panel_back)
+	_node_def_panel.close_requested.connect(hide_palette)
+	_node_def_panel.port_clicked.connect(_on_port_clicked)
+	
+	# Add node def panel to OVERLAY, not VBOX, so it can be larger than the palette
+	_node_def_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 10% margins for nearly fullscreen
+	_node_def_panel.anchor_left = 0.1
+	_node_def_panel.anchor_top = 0.1
+	_node_def_panel.anchor_right = 0.9
+	_node_def_panel.anchor_bottom = 0.9
+	_node_def_panel.offset_left = 0
+	_node_def_panel.offset_top = 0
+	_node_def_panel.offset_right = 0
+	_node_def_panel.offset_bottom = 0
+	
+	add_child(_node_def_panel)
+	
+	# Resource Definition Panel
+	_resource_def_panel = ResourceDefinitionPanel.new()
+	_resource_def_panel.visible = false
+	_resource_def_panel.back_requested.connect(_on_resource_panel_back)
+	_resource_def_panel.show_inputs_requested.connect(_on_show_inputs)
+	_resource_def_panel.show_outputs_requested.connect(_on_show_outputs)
+	
+	# Same layout as node def panel
+	_resource_def_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_resource_def_panel.anchor_left = 0.1
+	_resource_def_panel.anchor_top = 0.1
+	_resource_def_panel.anchor_right = 0.9
+	_resource_def_panel.anchor_bottom = 0.9
+	
+	add_child(_resource_def_panel)
+	
+	# It should share space with results_scroll, so we'll toggle visibility
+	# It should share space with results_scroll, so we'll toggle visibility
 	
 	# Onboarding hint (shown first time)
 	_onboarding_hint = _create_onboarding_hint()
@@ -351,6 +561,8 @@ func show_palette() -> void:
 	
 	_is_open = true
 	visible = true
+	if panel:
+		panel.visible = true
 	search_input.text = ""
 	_selected_index = 0
 	_current_path = []
@@ -402,6 +614,21 @@ func hide_palette() -> void:
 	_calc_mode = false
 	_calc_result = ""
 	_calc_error = ""
+	
+	# Reset def mode
+	_def_mode = false
+	if _node_def_panel:
+		_node_def_panel.visible = false
+	
+	# Reset resource mode
+	_resource_mode = false
+	if _resource_def_panel:
+		_resource_def_panel.visible = false
+	
+	if results_scroll:
+		results_scroll.visible = true
+	if search_input:
+		search_input.editable = true
 	
 	closed.emit()
 	
@@ -1159,7 +1386,8 @@ func _on_search_changed(new_text: String) -> void:
 
 
 func _perform_search() -> void:
-	var query = search_input.text.strip_edges()
+	var raw_query = search_input.text
+	var query = raw_query.strip_edges()
 	
 	# Handle picker mode search
 	if _picker_mode:
@@ -1187,6 +1415,17 @@ func _perform_search() -> void:
 	else:
 		_calc_mode = false
 	
+	# Check for node definition mode (def/nodeinfo prefix)
+	# WE USE RAW_QUERY HERE to distinguish "def" from "def "
+	if raw_query.to_lower().begins_with("def ") or query.begins_with("? ") or query.to_lower().begins_with("nodeinfo "):
+		var search_term = ""
+		if raw_query.to_lower().begins_with("def "): search_term = raw_query.substr(4)
+		elif query.begins_with("? "): search_term = query.substr(2)
+		elif query.to_lower().begins_with("nodeinfo "): search_term = query.substr(9)
+		
+		_perform_node_search(search_term.strip_edges())
+		return
+
 	# Handle calculator mode
 	if _calc_mode:
 		_display_calculator_result(calc_expression)
@@ -1325,6 +1564,11 @@ func _execute_selected() -> void:
 		_execute_calculator_action(item)
 		return
 	
+	# Handle node def results
+	if item.get("_is_node_def_result", false):
+		_execute_node_def_selection(item)
+		return
+	
 	# If it's a category, enter it
 	if item.get("is_category", false):
 		_enter_category()
@@ -1435,6 +1679,71 @@ func _execute_calculator_action(item: Dictionary) -> void:
 	
 	Sound.play("click")
 	hide_palette()
+
+
+## Perform search for node definitions
+func _perform_node_search(query: String) -> void:
+	if not node_metadata_service:
+		# Show error item
+		var items: Array[Dictionary] = []
+		items.append({
+			"id": "_node_def_error",
+			"title": "Service Not Initialized",
+			"hint": "Please restart the game to use this feature.",
+			"icon_path": "res://textures/icons/exclamation.png",
+			"is_category": false,
+			"badge": "ERROR",
+			"_is_node_def_result": true,
+			"_node_id": ""
+		})
+		_display_items(items)
+		breadcrumb_label.text = "📘 Node Definitions: Error"
+		return
+		
+	var nodes = node_metadata_service.find_nodes(query)
+	
+	var items: Array[Dictionary] = []
+	
+	if nodes.is_empty():
+		# Empty state or no results
+		_displayed_items.clear()
+		# Use default "no results" label
+	
+	for node in nodes:
+		var item = {
+			"id": node.id,
+			"title": node.name,
+			"hint": node.get("description", ""),
+			"category_path": [node.get("category", "")],
+			"icon_path": "res://textures/icons/" + node.get("icon", "cog") + ".png",
+			"is_category": false,
+			"badge": "INFO",
+			"_is_node_def_result": true,
+			"_node_id": node.id
+		}
+		items.append(item)
+	
+	_display_items(items)
+	
+	# Force update breadcrumb to show mode
+	if query.is_empty():
+		breadcrumb_label.text = "📘 Node Definitions (Type to filter)"
+	else:
+		breadcrumb_label.text = "📘 Node Definitions: " + query
+
+
+## Execute a node definition selection
+func _execute_node_def_selection(item: Dictionary) -> void:
+	# Handle error item
+	if item.get("id", "") == "_node_def_error":
+		Signals.notify.emit("exclamation", "Restart Required")
+		Sound.play("error")
+		return
+
+	var node_id = item.get("_node_id", "")
+	if not node_id.is_empty():
+		show_node_definition(node_id)
+		Sound.play("click")
 
 
 func _enter_category() -> void:

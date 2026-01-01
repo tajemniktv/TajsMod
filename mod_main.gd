@@ -84,6 +84,9 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_inventory.gd") # 6 inputs
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/request_panel.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/requests_tab.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/achievements_tab.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/tokens_tab.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/upgrades_tab.gd")
     
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
@@ -944,6 +947,10 @@ func _add_wire_color_picker(parent: Control, label_text: String, resource_id: St
         _open_color_picker(wc.get_color(res_id), func(new_col):
             # Update storage
             wc.set_color_from_rgb(res_id, new_col)
+            # Clear metadata cache to ensure Node Definition panel updates
+            if self_ref.palette_controller:
+                self_ref.palette_controller.clear_metadata_cache()
+            
             # Update button visual
             style.bg_color = new_col
             # Note: We don't refresh all connectors on every drag frame for performance,
@@ -961,6 +968,8 @@ func _add_wire_color_picker(parent: Control, label_text: String, resource_id: St
     reset_btn.custom_minimum_size = Vector2(36, 36)
     reset_btn.pressed.connect(func():
         wc.reset_color(res_id)
+        if self_ref.palette_controller:
+            self_ref.palette_controller.clear_metadata_cache()
         var def_col = wc.get_original_color(res_id)
         style.bg_color = def_col
         self_ref._refresh_all_connectors()

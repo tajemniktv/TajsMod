@@ -780,16 +780,6 @@ func _track_window(window: Node) -> void:
         if not window.group_changed.is_connected(_on_group_node_changed.bind(window)):
             window.group_changed.connect(_on_group_node_changed.bind(window))
             
-    # Also listen to rename signal (if any - we consolidated to group_changed)
-    # If connection was already made (e.g. reloading), bind might duplicate? 
-    # Godot checks method+object uniqueness. But bind creates new Callable.
-    # So we check is_connected on the signal with the specific callable? 
-    # Hard to check bound callable.
-    # We rely on unique connection or safe check logic?
-    # Actually, we can check `is_connected` but it requires the exact callable.
-    # If we call this multiple times, we might duplicate connections.
-    # But `child_entered_tree` fires once. `setup` fires once.
-    # We should be safe.
 
 ## Handle Group Node changes
 func _on_group_node_changed(window: Node) -> void:
@@ -803,25 +793,6 @@ func _on_group_node_changed(window: Node) -> void:
         return
         
     var before = _window_clean_data[window_name]
-    
-    # Compare
-    # We can reuse similar logic to Sticky Note, but keys are different.
-    # Major keys: pattern_index, color, custom_name, custom_icon.
-    # We specifically ignore position? No, window.save() includes pos? 
-    # window_group.gd save() includes size, custom_name, custom_icon, color.
-    # The parent save() includes position?
-    # Let's check window_group.gd save:
-    # return super().merged({...})
-    # super is WindowIndexed? -> WindowBin? -> WindowBase?
-    # WindowBase likely saves position.
-    # If position changed, we might generate command?
-    # BUT MoveNodesCommand handles position.
-    # We want to ignore position here to avoid duplicate commands if Move logic fires too.
-    # Move logic uses `_drag_start_positions`.
-    # Does `_on_group_node_changed` fire on move?
-    # NO. `group_changed` is ONLY emitted by setters I added (pattern, name, color).
-    # So we are SAFE. 
-    # We don't need complex diffing, just standard comparison.
     
     if before.hash() == after.hash():
         return

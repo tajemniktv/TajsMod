@@ -62,6 +62,36 @@ static func register_all(registry, refs: Dictionary) -> void:
                 controller.overlay._perform_search()
     })
     
+    # Node Definition / Info
+    registry.register({
+        "id": "cmd_node_def",
+        "title": "Node Definition",
+        "category_path": [],
+        "keywords": ["def", "nodeinfo", "info", "help", "?", "wiki", "details"],
+        "hint": "Show node details (or use 'def <name>')",
+        "icon_path": "res://textures/icons/info.png",
+        "badge": "SAFE",
+        "keep_open": true,
+        "run": func(ctx):
+            if controller and controller.overlay:
+                # Context awareness: if 1 node selected, show its info
+                if ctx.selected_node_count == 1:
+                    var node = ctx.selected_nodes[0]
+                    # We need the window ID (usually filename without .tscn or custom ID)
+                    # WindowContainer usually has 'window_id' or we can infer it
+                    var id = ""
+                    if "id" in node: id = node.id
+                    elif "window_id" in node: id = node.window_id
+                    elif node.has_method("get_window_id"): id = node.get_window_id()
+                    
+                    if id != "":
+                        controller.overlay.show_node_definition(id)
+                        return
+                
+                # Default: show node browser with all nodes
+                controller.overlay.enter_node_browser()
+    })
+    
     registry.register({
         "id": "cat_tajs_mod",
         "title": "Taj's Mod",
