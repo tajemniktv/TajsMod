@@ -1,3 +1,17 @@
+## [0.3.4] - 2026-01-02
+
+### Added
+- N/A
+
+### Changed
+- Forced download of all items by bypassing the Steam NeedsUpdate flag.
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.3.3] - 2026-01-02
 
 ### Added
