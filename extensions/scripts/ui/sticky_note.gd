@@ -13,6 +13,7 @@ const LOG_NAME = "TajsModded:StickyNote"
 const ColorPickerPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/color_picker_panel.gd")
 const PatternPickerPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/pattern_picker_panel.gd")
 const PatternDrawerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/pattern_drawer.gd")
+const RichTextContextMenuScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/rich_text_context_menu.gd")
 
 # Signals for manager synchronization
 signal note_changed(note_id: String)
@@ -42,10 +43,16 @@ var _body_panel: Panel
 var _title_button: Button
 var _title_edit: LineEdit
 var _body_edit: TextEdit
+var _body_display: RichTextLabel # Rich text view (shown when not editing)
+var _context_menu: Control = null # RichTextContextMenu instance
+var _context_menu_layer: CanvasLayer = null
 var _color_btn: Button
 var _pattern_btn: Button
 var _duplicate_btn: Button
 var _delete_btn: Button
+
+# Edit/View mode state
+var _is_edit_mode: bool = false
 
 # Resize Handles (Controls)
 var _resize_handles: Dictionary = {}
@@ -86,12 +93,18 @@ func _init() -> void:
 func _ready() -> void:
     _build_ui()
     _setup_pickers()
+    _setup_context_menu()
     
     # Apply initial content
     if _title_button:
         _title_button.text = title_text if title_text else "Note"
     if _body_edit:
         _body_edit.text = body_text
+    if _body_display:
+        _body_display.text = body_text
+    
+    # Start in view mode
+    _set_edit_mode(false)
         
     # Apply initial visuals
     update_color()
@@ -108,6 +121,7 @@ func _ready() -> void:
     )
     
     z_index = 10
+    ModLoaderLog.debug("StickyNote initialized with ID: " + note_id, LOG_NAME)
 
 func _build_ui() -> void:
     # === TITLE PANEL ===
@@ -259,7 +273,28 @@ func _build_ui() -> void:
     _body_panel.add_child(body_pattern)
     pattern_drawers.append(body_pattern)
     
-    # Body text area
+    # === Rich Text Display (RichTextLabel - VIEW mode) ===
+    _body_display = RichTextLabel.new()
+    _body_display.name = "BodyDisplay"
+    _body_display.bbcode_enabled = true
+    _body_display.scroll_active = true
+    _body_display.selection_enabled = false
+    _body_display.mouse_filter = Control.MOUSE_FILTER_STOP
+    _body_display.anchor_left = 0
+    _body_display.anchor_top = 0
+    _body_display.anchor_right = 1
+    _body_display.anchor_bottom = 1
+    _body_display.offset_left = 8
+    _body_display.offset_top = 8
+    _body_display.offset_right = -8
+    _body_display.offset_bottom = -8
+    _body_display.add_theme_font_size_override("normal_font_size", 14)
+    _body_display.add_theme_color_override("default_color", Color(1, 1, 1))
+    # Click on RichTextLabel to enter edit mode
+    _body_display.gui_input.connect(_on_view_gui_input)
+    _body_panel.add_child(_body_display)
+    
+    # === Body TextEdit (EDIT mode) ===
     _body_edit = TextEdit.new()
     _body_edit.name = "BodyEdit"
     _body_edit.placeholder_text = "Write notes here..."
@@ -272,9 +307,10 @@ func _build_ui() -> void:
     _body_edit.offset_right = -8
     _body_edit.offset_bottom = -8
     _body_edit.add_theme_font_size_override("font_size", 14)
-    # Match group node text colors
-    _body_edit.add_theme_color_override("font_placeholder_color", Color(0.8, 0.8, 0.8, 0.5))
     _body_edit.add_theme_color_override("font_color", Color(1, 1, 1))
+    _body_edit.add_theme_color_override("font_placeholder_color", Color(0.8, 0.8, 0.8, 0.5))
+    _body_edit.add_theme_color_override("caret_color", Color(1, 1, 1))
+    _body_edit.add_theme_color_override("selection_color", Color(0.3, 0.5, 0.8, 0.5))
     _body_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
     _body_edit.context_menu_enabled = false
     
@@ -287,6 +323,8 @@ func _build_ui() -> void:
     _body_edit.text_changed.connect(_on_body_changed)
     _body_edit.gui_input.connect(_on_body_gui_input)
     _body_edit.focus_entered.connect(func(): _set_selected(true))
+    _body_edit.focus_exited.connect(_on_body_focus_exited)
+    
     _body_panel.add_child(_body_edit)
     
     # === RESIZE HANDLES ===
@@ -606,10 +644,18 @@ func _on_delete_pressed() -> void:
 
 func _on_body_changed() -> void:
     body_text = _body_edit.text
-    # Optimization: Don't save on every character. 
-    # Logic moved to _set_selected(false)
+    # Note: Don't emit changed on every keystroke for performance
+    # _emit_changed() is called on deselect
 
 func _on_body_gui_input(event: InputEvent) -> void:
+    # Handle right-click for context menu
+    if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+        print("[StickyNote] RMB detected, pressed=", event.pressed)
+        if event.pressed:
+            accept_event() # Consume to prevent other handlers
+            _open_context_menu(event.global_position)
+        return
+    
     # Force Enter key to insert newline if default behavior is blocked
     if event is InputEventKey and event.pressed:
         if event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
@@ -618,6 +664,20 @@ func _on_body_gui_input(event: InputEvent) -> void:
         elif event.keycode == KEY_A and event.ctrl_pressed:
             _body_edit.select_all()
             accept_event()
+        # Keyboard shortcuts for formatting (Ctrl+B/I/U)
+        elif event.ctrl_pressed and _body_edit.has_selection():
+            var handled = true
+            match event.keycode:
+                KEY_B:
+                    _on_format_requested("bold", null)
+                KEY_I:
+                    _on_format_requested("italic", null)
+                KEY_U:
+                    _on_format_requested("underline", null)
+                _:
+                    handled = false
+            if handled:
+                accept_event()
 
 func _emit_changed() -> void:
     note_changed.emit(note_id)
@@ -636,18 +696,21 @@ func set_title(text: String) -> void:
 
 func set_body(text: String) -> void:
     body_text = text
-    if _body_edit: _body_edit.text = text
+    if _body_edit:
+        _body_edit.text = text
+    if _body_display:
+        _body_display.text = text
 
 func set_manager(manager) -> void:
     _manager = manager
 
 func get_data() -> Dictionary:
-    return {
+    var data := {
         "id": note_id,
         "position": [position.x, position.y],
         "size": [size.x, size.y],
         "title": title_text,
-        "body": body_text,
+        "body": body_text, # BBCode text (backward compat for plain text)
         "color": note_color.to_html(true),
         "pattern_index": pattern_index,
         "pattern_color": pattern_color.to_html(true),
@@ -655,6 +718,7 @@ func get_data() -> Dictionary:
         "pattern_spacing": pattern_spacing,
         "pattern_thickness": pattern_thickness
     }
+    return data
 
 func load_from_data(data: Dictionary) -> void:
     if data.has("id"): note_id = data["id"]
@@ -673,3 +737,114 @@ func load_from_data(data: Dictionary) -> void:
     
     update_color()
     update_pattern()
+
+
+# ==============================================================================
+# RICH TEXT SUPPORT
+# ==============================================================================
+
+## Setup context menu for rich text formatting
+func _setup_context_menu() -> void:
+    # Create a CanvasLayer to ensure menu is drawn on top of all UI
+    _context_menu_layer = CanvasLayer.new()
+    _context_menu_layer.name = "ContextMenuLayer"
+    _context_menu_layer.layer = 100 # High layer to be on top
+    get_tree().root.add_child(_context_menu_layer)
+    
+    _context_menu = RichTextContextMenuScript.new()
+    _context_menu.format_requested.connect(_on_format_requested)
+    _context_menu.clear_format_requested.connect(_on_clear_format_requested)
+    _context_menu_layer.add_child(_context_menu)
+
+## Toggle between Edit mode (TextEdit) and View mode (RichTextLabel)
+func _set_edit_mode(edit: bool) -> void:
+    _is_edit_mode = edit
+    
+    if _body_edit:
+        _body_edit.visible = edit
+        if edit:
+            _body_edit.grab_focus()
+    if _body_display:
+        _body_display.visible = not edit
+        if not edit:
+            # Update display when switching to view mode
+            _body_display.text = body_text
+
+## Handle click on RichTextLabel (view mode) - switch to edit mode
+func _on_view_gui_input(event: InputEvent) -> void:
+    if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+        _set_edit_mode(true)
+        accept_event()
+
+## Handle focus exit on body TextEdit - switch to view mode
+func _on_body_focus_exited() -> void:
+    _set_edit_mode(false)
+    _emit_changed()
+
+## Open context menu at position (only in edit mode)
+func _open_context_menu(global_pos: Vector2) -> void:
+    if not _context_menu or not _is_edit_mode:
+        return
+    
+    var has_selection = _body_edit.has_selection()
+    _context_menu.show_at(global_pos, has_selection, get_tree())
+
+## Handle format request - insert BBCode tags around selection
+func _on_format_requested(property: String, value) -> void:
+    if not _body_edit or not _body_edit.has_selection():
+        return
+    
+    var selected_text = _body_edit.get_selected_text()
+    var bbcode_text = ""
+    
+    match property:
+        "bold":
+            bbcode_text = "[b]%s[/b]" % selected_text
+        "italic":
+            bbcode_text = "[i]%s[/i]" % selected_text
+        "underline":
+            bbcode_text = "[u]%s[/u]" % selected_text
+        "color":
+            var color_hex = value.to_html(false) if value is Color else "ffffff"
+            bbcode_text = "[color=#%s]%s[/color]" % [color_hex, selected_text]
+        "font_size":
+            var size = 14
+            if value is int:
+                size = 12 if value < 0 else (18 if value > 0 else 14)
+            bbcode_text = "[font_size=%d]%s[/font_size]" % [size, selected_text]
+        _:
+            return
+    
+    # Replace selection with BBCode-wrapped text
+    _body_edit.insert_text_at_caret(bbcode_text)
+    body_text = _body_edit.text
+    _emit_changed()
+
+## Handle clear format request - remove BBCode tags from selection
+func _on_clear_format_requested() -> void:
+    if not _body_edit or not _body_edit.has_selection():
+        return
+    
+    var selected_text = _body_edit.get_selected_text()
+    
+    # Simple BBCode stripping - remove common tags
+    var stripped = selected_text
+    var patterns = ["[b]", "[/b]", "[i]", "[/i]", "[u]", "[/u]"]
+    for p in patterns:
+        stripped = stripped.replace(p, "")
+    
+    # Remove color tags (regex-like pattern matching)
+    var regex = RegEx.new()
+    regex.compile("\\[color=#[a-fA-F0-9]+\\]")
+    stripped = regex.sub(stripped, "", true)
+    stripped = stripped.replace("[/color]", "")
+    
+    # Remove font_size tags
+    regex.compile("\\[font_size=\\d+\\]")
+    stripped = regex.sub(stripped, "", true)
+    stripped = stripped.replace("[/font_size]", "")
+    
+    # Replace selection with stripped text
+    _body_edit.insert_text_at_caret(stripped)
+    body_text = _body_edit.text
+    _emit_changed()
