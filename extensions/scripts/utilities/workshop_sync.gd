@@ -67,7 +67,7 @@ func _get_steam_api() -> Object:
 
 ## Check if Steam is initialized and logged on
 func _check_steam_availability() -> void:
-	# The game uses GlobalSteam autoload which wraps the Steam singleton ?
+	# The game uses GlobalSteam autoload which wraps the Steam singleton
 	# Check if GlobalSteam exists and is initialized
 	if Engine.get_main_loop() and Engine.get_main_loop().root.has_node("GlobalSteam"):
 		var global_steam = Engine.get_main_loop().root.get_node("GlobalSteam")
@@ -338,7 +338,7 @@ func _finish_sync() -> void:
 		if _on_restart_required.is_valid():
 			_on_restart_required.call()
 	elif _total_triggered > 0:
-		_log("Workshop Sync complete. Downloads were triggered but none reported success yet.")
+		_log("Workshop Sync finished. No updates detected (checked callbacks and timestamps).")
 		# Steam may still be downloading - don't show restart window yet
 	else:
 		_log("Workshop Sync complete. No updates needed.")
