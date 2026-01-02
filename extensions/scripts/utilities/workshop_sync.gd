@@ -28,6 +28,7 @@ var _triggered_ids: Dictionary = {} # PublishedFileId -> true (to avoid re-trigg
 var _pending_downloads: Dictionary = {} # PublishedFileId -> true (waiting for completion)
 var _total_triggered := 0
 var _completed_count := 0
+var _successful_count := 0
 
 # Callbacks
 var _on_restart_required: Callable = Callable() # Called when we need to show restart window
@@ -111,6 +112,7 @@ func start_sync() -> void:
 	_sync_in_progress = true
 	_total_triggered = 0
 	_completed_count = 0
+	_successful_count = 0
 	_pending_downloads.clear()
 	
 	emit_signal("sync_started")
@@ -226,7 +228,22 @@ func _trigger_download(steam, file_id: int) -> void:
 	_total_triggered += 1
 
 ## Handle item_downloaded signal from GodotSteam
-func _on_item_downloaded(app_id: int, file_id: int, result: int) -> void:
+## Note: GodotSteam 4.x passes a Dictionary: {result: int, file_id: int, app_id: int}
+func _on_item_downloaded(download_result) -> void:
+	var file_id: int = 0
+	var result: int = 0
+	
+	# Handle both dictionary format (GodotSteam 4.x) and separate args (older versions)
+	if download_result is Dictionary:
+		file_id = download_result.get("file_id", 0)
+		result = download_result.get("result", 0)
+		_log("Download callback (dict): file_id=" + str(file_id) + ", result=" + str(result))
+	else:
+		# Old format: separate arguments (app_id, file_id, result)
+		# If we get here, download_result is likely app_id
+		_log("Download callback (old format): " + str(download_result))
+		return # Can't properly parse old format in this handler
+	
 	if not _pending_downloads.has(file_id):
 		return # Not one we triggered
 	
@@ -235,6 +252,7 @@ func _on_item_downloaded(app_id: int, file_id: int, result: int) -> void:
 	
 	if result == 1: # k_EResultOK
 		_log("Item " + str(file_id) + " downloaded successfully.")
+		_successful_count += 1
 	else:
 		_log("Item " + str(file_id) + " download failed with result: " + str(result))
 	
@@ -248,15 +266,18 @@ func _on_item_downloaded(app_id: int, file_id: int, result: int) -> void:
 func _finish_sync() -> void:
 	_sync_in_progress = false
 	
-	emit_signal("sync_completed", _total_triggered)
+	emit_signal("sync_completed", _successful_count)
 	
-	if _total_triggered > 0:
-		_log("Workshop Sync complete. " + str(_total_triggered) + " items were updated.")
+	if _successful_count > 0:
+		_log("Workshop Sync complete. " + str(_successful_count) + " items were updated successfully.")
 		Signals.notify.emit("check", "Workshop updates finished. Restart recommended.")
 		
-		# Show restart required window
+		# Show restart required window only if we had successful downloads
 		if _on_restart_required.is_valid():
 			_on_restart_required.call()
+	elif _total_triggered > 0:
+		_log("Workshop Sync complete. Downloads were triggered but none reported success yet.")
+		# Steam may still be downloading - don't show restart window yet
 	else:
 		_log("Workshop Sync complete. No updates needed.")
 
