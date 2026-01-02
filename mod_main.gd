@@ -58,6 +58,7 @@ var workshop_sync # WorkshopSync instance
 var mod_dir_path: String = ""
 var mod_version: String = "0.0.0"
 var _desktop_patched := false
+var _desktop_patch_failed := false
 var _node_info_label: Label = null # Reference for updates
 var _debug_log_label: Label = null # Debug log display
 var _debug_mode := false # Toggle for verbose debug logging
@@ -213,9 +214,13 @@ func _on_picker_color_changed(c: Color) -> void:
         _current_picker_callback.call(c)
 
 func _process(delta: float) -> void:
-    # Persistent Patches
-    if !_desktop_patched:
-        _desktop_patched = Patcher.patch_desktop_script("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd")
+    # Persistent Patches (only try once on failure to avoid log spam)
+    if !_desktop_patched and !_desktop_patch_failed:
+        var result = Patcher.patch_desktop_script("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd")
+        if result:
+            _desktop_patched = true
+        else:
+            _desktop_patch_failed = true # Don't spam retries
         
     # Update UI Logic
     _update_node_label()
