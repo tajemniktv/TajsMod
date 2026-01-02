@@ -6,6 +6,7 @@ on:
     paths:
       - "docs/**"
       - ".github/workflows/deploy-site.yml"
+      - "CHANGELOG.md"
   workflow_dispatch:
 
 permissions:
