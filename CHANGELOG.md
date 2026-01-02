@@ -1,3 +1,17 @@
+## [0.2.3] - 2026-01-02
+
+### Added
+- debug_mode to default configs
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- WireDrop on Group Nodes
+
 ## [0.2.2] - 2026-01-02
 
 ### Added
