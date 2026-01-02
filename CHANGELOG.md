@@ -1,3 +1,17 @@
+## [0.3.1] - 2026-01-02
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Debug logging.
+
 ## [0.3.0] - 2026-01-02
 
 ### Added
