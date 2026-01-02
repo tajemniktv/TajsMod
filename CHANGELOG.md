@@ -1,3 +1,17 @@
+## [0.3.7] - 2026-01-02
+
+### Added
+- N/A
+
+### Changed
+- Lowered sync timeout to 10.
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.3.6] - 2026-01-02
 
 ### Added
