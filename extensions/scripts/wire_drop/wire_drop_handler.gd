@@ -107,6 +107,11 @@ func _check_and_emit_async(connection_id: String, connection_type: int, origin_s
 	if _is_mouse_over_connector():
 		return
 	
+	# If mouse is over any window, don't show picker
+	# (SmartConnections or base game will handle the connection)
+	if _is_mouse_over_any_window():
+		return
+	
 	# We dropped on empty canvas - emit signal to show node picker
 	var drop_position := _get_mouse_world_position()
 	
@@ -146,6 +151,29 @@ func _is_mouse_over_connector() -> bool:
 		if not is_instance_valid(window):
 			continue
 		if _find_connector_at_position(window, mouse_pos):
+			return true
+	
+	return false
+
+
+## Check if mouse is over any WindowContainer
+func _is_mouse_over_any_window() -> bool:
+	if not is_instance_valid(Globals.desktop):
+		return false
+	
+	var windows_container = Globals.desktop.get_node_or_null("Windows")
+	if not windows_container:
+		return false
+	
+	var mouse_pos := Globals.desktop.get_global_mouse_position()
+	
+	for window in windows_container.get_children():
+		if not window is WindowContainer:
+			continue
+		if not is_instance_valid(window):
+			continue
+		var rect: Rect2 = window.get_global_rect()
+		if rect.has_point(mouse_pos):
 			return true
 	
 	return false
