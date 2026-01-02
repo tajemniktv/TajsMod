@@ -1,3 +1,18 @@
+## [0.3.6] - 2026-01-02
+
+### Added
+- 30-second timeout on Steam callbacks
+- Timer-based completion for synchronization
+
+### Changed
+- Force workshop sync button now cancels stuck syncs
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.3.5] - 2026-01-02
 
 ### Added
