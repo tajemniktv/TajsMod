@@ -1,3 +1,19 @@
+## [0.3.5] - 2026-01-02
+
+### Added
+- Tracking for successful downloads.
+
+### Changed
+- The restart window now only appears after a successful download.
+- Updated download callback logic.
+- Improved logging for downloads that were triggered but not successful.
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.3.4] - 2026-01-02
 
 ### Added
