@@ -1,3 +1,40 @@
+## [0.2.1] - 2026-01-02
+
+### Added
+- Undo and Redo system.
+- Command palette features: calculator, jump to note, jump to group, clear wires, and help command.
+- "Def" command in palette to jump to definitions.
+- Sticky notes with text editing, persistence, and resizing.
+- Smooth scrolling functionality with a UI toggle.
+- Bulk upgrade functionality using modifier keys with configurable multipliers.
+- "Buy Max" button with multiple purchase strategies.
+- UI toggles to hide bought upgrades and completed requests.
+- Screenshot selection capture tool.
+- Pattern customization UI with an expanded color palette.
+- "Upgrade All" button for group windows.
+- New settings UI with search, tabs, and tooltips.
+- Option to disable controller input and block joypad events.
+- Mermaid flowchart support in documentation.
+
+### Changed
+- Updated compatible game version to 2.0.21.
+- Redesigned sticky notes and dropdowns to match native game UI.
+- Pattern drawing no longer overlaps the window title bar.
+- Improved resizing handler colors and visibility.
+- Modularized the pattern drawer system for better performance.
+
+### Removed
+- (none)
+
+### Fixed
+- WireDrop functionality on nodes and after using palette commands.
+- Node highlighting now works correctly for all nodes, including factories.
+- Disconnected node highlight logic.
+- Crashes occurring in shipped builds.
+- Debug mode not persisting across sessions.
+- Incorrect upgrade arrow paths.
+- Logo display issues in certain builds.
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
