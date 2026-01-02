@@ -1,3 +1,17 @@
+## [0.3.0] - 2026-01-02
+
+### Added
+- Mod manager with workshop synchronization.
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.2.3] - 2026-01-02
 
 ### Added
