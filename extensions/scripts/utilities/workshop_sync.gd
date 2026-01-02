@@ -138,6 +138,9 @@ func start_sync() -> void:
 			continue # Already triggered this session
 		
 		var state := steam.getItemState(file_id) as int
+		var state_str := _state_to_string(state)
+		_log("Item " + str(file_id) + " state: " + str(state) + " (" + state_str + ")")
+		
 		var needs_download := _should_download(state)
 		
 		if needs_download:
@@ -186,6 +189,25 @@ func _should_download(state: int) -> bool:
 	if (state & STATE_SUBSCRIBED) and not (state & STATE_INSTALLED):
 		return true
 	return false
+
+## Convert state flags to readable string
+func _state_to_string(state: int) -> String:
+	var flags: Array[String] = []
+	if state & STATE_SUBSCRIBED:
+		flags.append("Subscribed")
+	if state & STATE_LEGACY_ITEM:
+		flags.append("Legacy")
+	if state & STATE_INSTALLED:
+		flags.append("Installed")
+	if state & STATE_NEEDS_UPDATE:
+		flags.append("NeedsUpdate")
+	if state & STATE_DOWNLOADING:
+		flags.append("Downloading")
+	if state & STATE_DOWNLOAD_PENDING:
+		flags.append("DownloadPending")
+	if flags.is_empty():
+		return "None"
+	return ", ".join(flags)
 
 ## Trigger download for a specific item
 func _trigger_download(steam, file_id: int) -> void:
