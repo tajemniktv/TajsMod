@@ -30,7 +30,7 @@ var _total_triggered := 0
 var _completed_count := 0
 var _successful_count := 0
 var _sync_timer: Timer = null
-const SYNC_TIMEOUT_SECONDS := 30.0 # Auto-complete sync after this many seconds
+const SYNC_TIMEOUT_SECONDS := 10.0 # Auto-complete sync after this many seconds
 
 # Callbacks
 var _on_restart_required: Callable = Callable() # Called when we need to show restart window
@@ -338,4 +338,3 @@ func is_syncing() -> bool:
 func _log(message: String) -> void:
 	ModLoaderLog.info(message, LOG_NAME)
 	# Debug callback is for UI display only, don't duplicate to log
-	# (the callback in mod_main also logs, causing double output)
