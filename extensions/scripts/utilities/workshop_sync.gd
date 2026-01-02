@@ -30,6 +30,7 @@ var _total_triggered := 0
 var _completed_count := 0
 var _successful_count := 0
 var _sync_timer: Timer = null
+var _initial_timestamps: Dictionary = {} # PublishedFileId -> int (timestamp before sync)
 const SYNC_TIMEOUT_SECONDS := 7.0 # Auto-complete sync after this many seconds
 
 # Callbacks
@@ -155,6 +156,9 @@ func start_sync() -> void:
 		var state_str := _state_to_string(state)
 		_log("Item " + str(file_id) + " state: " + str(state) + " (" + state_str + ")")
 		
+		# Capture initial timestamp for silent update detection
+		_initial_timestamps[file_id] = _get_item_timestamp(steam, file_id)
+		
 		# Force download all bypasses unreliable NeedsUpdate flag
 		var should_trigger := false
 		if force_download_all:
@@ -174,8 +178,40 @@ func start_sync() -> void:
 		_log("Triggered downloads for " + str(_total_triggered) + " items.")
 		Signals.notify.emit("download", "Workshop updates started (" + str(_total_triggered) + " items)")
 		
-		# Start timeout timer - if callbacks don't fire, we'll assume Steam handled it
+	# Start timeout timer - if callbacks don't fire, we'll assume Steam handled it
 		_start_sync_timer()
+
+## Get timestamp of installed item
+func _get_item_timestamp(steam, file_id: int) -> int:
+	var install_info = steam.getItemInstallInfo(file_id)
+	if install_info is Dictionary and install_info.has("timestamp"):
+		return install_info["timestamp"]
+	return 0
+
+## Handle sync timeout - check for silent updates via timestamp changes
+func _on_sync_timeout() -> void:
+	if not _sync_in_progress:
+		return
+	
+	_log("Sync timeout reached. Checking for silent updates...")
+	
+	var steam = _get_steam_api()
+	if steam:
+		var silent_updates := 0
+		for file_id in _initial_timestamps:
+			var old_ts = _initial_timestamps[file_id]
+			var new_ts = _get_item_timestamp(steam, file_id)
+			
+			if new_ts > old_ts:
+				_log("Detected silent update for item " + str(file_id) + " (Timestamp changed: " + str(old_ts) + " -> " + str(new_ts) + ")")
+				silent_updates += 1
+		
+		if silent_updates > 0:
+			_log("Found " + str(silent_updates) + " items updated silently.")
+			_successful_count += silent_updates
+	
+	_pending_downloads.clear()
+	_finish_sync()
 
 ## Get number of subscribed items (handles API differences)
 func _get_num_subscribed_items(steam) -> int:
@@ -244,17 +280,6 @@ func _start_sync_timer() -> void:
 	_sync_timer.start(SYNC_TIMEOUT_SECONDS)
 	_log("Sync timeout started (" + str(SYNC_TIMEOUT_SECONDS) + " seconds)")
 
-## Handle sync timeout - assume Steam handled downloads in background
-func _on_sync_timeout() -> void:
-	if not _sync_in_progress:
-		return
-	
-	_log("Sync timeout reached. Stopping wait.")
-	
-	# Don't blindly assume success - only trust explicit callbacks.
-	# If Steam was silent, it likely means nothing needed updating.
-	_pending_downloads.clear()
-	_finish_sync()
 
 ## Trigger download for a specific item
 func _trigger_download(steam, file_id: int) -> void:
