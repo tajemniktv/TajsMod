@@ -249,10 +249,10 @@ func _on_sync_timeout() -> void:
 	if not _sync_in_progress:
 		return
 	
-	_log("Sync timeout reached. Assuming Steam handled downloads.")
+	_log("Sync timeout reached. Stopping wait.")
 	
-	# Assume all triggered downloads were successful (Steam doesn't reliably callback)
-	_successful_count = _total_triggered
+	# Don't blindly assume success - only trust explicit callbacks.
+	# If Steam was silent, it likely means nothing needed updating.
 	_pending_downloads.clear()
 	_finish_sync()
 
