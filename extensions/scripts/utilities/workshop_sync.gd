@@ -19,6 +19,7 @@ const STATE_DOWNLOAD_PENDING := 32
 # Settings
 var sync_on_startup := true
 var high_priority_downloads := true
+var force_download_all := true # Bypass unreliable NeedsUpdate flag
 
 # State
 var _steam_available := false
@@ -141,9 +142,16 @@ func start_sync() -> void:
 		var state_str := _state_to_string(state)
 		_log("Item " + str(file_id) + " state: " + str(state) + " (" + state_str + ")")
 		
-		var needs_download := _should_download(state)
+		# Force download all bypasses unreliable NeedsUpdate flag
+		var should_trigger := false
+		if force_download_all:
+			# Always download subscribed items (Steam handles if already up-to-date)
+			should_trigger = (state & STATE_SUBSCRIBED) != 0
+		else:
+			# Only download if state indicates it's needed
+			should_trigger = _should_download(state)
 		
-		if needs_download:
+		if should_trigger:
 			_trigger_download(steam, file_id)
 	
 	if _total_triggered == 0:

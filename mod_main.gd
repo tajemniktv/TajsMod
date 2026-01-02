@@ -137,6 +137,7 @@ func _init() -> void:
     workshop_sync.name = "WorkshopSync"
     workshop_sync.sync_on_startup = config.get_value("workshop_sync_on_startup", true)
     workshop_sync.high_priority_downloads = config.get_value("workshop_high_priority", true)
+    workshop_sync.force_download_all = config.get_value("workshop_force_all", true)
     workshop_sync.set_restart_callback(_show_restart_required_window)
     workshop_sync.set_debug_log_callback(_add_debug_log)
     add_child(workshop_sync)
@@ -739,6 +740,13 @@ func _build_settings_menu() -> void:
         if workshop_sync:
             workshop_sync.high_priority_downloads = v
     , "Use high priority for Workshop downloads to speed up updates.")
+    
+    # Force Download All toggle (bypasses unreliable NeedsUpdate flag)
+    _settings_toggles["workshop_force_all"] = ui.add_toggle(modmgr_vbox, "Force Download All Items", config.get_value("workshop_force_all", true), func(v):
+        config.set_value("workshop_force_all", v)
+        if workshop_sync:
+            workshop_sync.force_download_all = v
+    , "Always request downloads for ALL subscribed items. Recommended ON - Steam's update detection is unreliable.")
     
     # Force Sync Now button
     ui.add_button(modmgr_vbox, "Force Workshop Sync Now", func():
