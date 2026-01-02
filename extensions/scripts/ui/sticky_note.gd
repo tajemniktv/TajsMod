@@ -140,10 +140,7 @@ func _build_ui() -> void:
     add_child(_title_panel)
     
     # Pattern Drawer for Title
-    var title_pattern = PatternDrawerScript.new()
-    title_pattern.set_anchors_preset(Control.PRESET_FULL_RECT)
-    _title_panel.add_child(title_pattern)
-    pattern_drawers.append(title_pattern)
+    # Pattern removed from TitlePanel
     
     # Title container
     var title_container = HBoxContainer.new()

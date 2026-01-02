@@ -42,13 +42,7 @@ func _ready() -> void:
     # Inject Pattern Drawer into TitlePanel
     var title_panel = get_node_or_null("TitlePanel")
     if title_panel:
-        var title_drawer = PatternDrawerScript.new()
-        title_drawer.set_anchors_preset(Control.PRESET_FULL_RECT)
-        title_drawer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-        title_panel.add_child(title_drawer)
-        title_panel.move_child(title_drawer, 0)
-        pattern_drawers.append(title_drawer)
-        
+        # Pattern removed from TitlePanel
         var title_container = title_panel.get_node_or_null("TitleContainer")
         if title_container:
             # === Pattern Button (opens pattern picker) ===
