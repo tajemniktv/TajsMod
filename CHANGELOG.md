@@ -1,3 +1,17 @@
+## [0.3.9] - 2026-01-02
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- False positive restart window.
+
 ## [0.3.8] - 2026-01-02
 
 ### Added
