@@ -30,6 +30,8 @@ const UpgradeManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/
 const StickyNoteManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/sticky_note_manager.gd")
 const SmoothScrollManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/smooth_scroll_manager.gd")
 const UndoManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/undo/undo_manager.gd")
+const WorkshopSyncScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/workshop_sync.gd")
+const RestartRequiredWindowScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/restart_required_window.gd")
 
 # Components
 var config # ConfigManager instance
@@ -50,6 +52,7 @@ var sticky_note_manager # StickyNoteManager instance
 var upgrade_manager # UpgradeManager instance
 var smooth_scroll_manager # SmoothScrollManager instance
 var undo_manager # UndoManager instance
+var workshop_sync # WorkshopSync instance
 
 # State
 var mod_dir_path: String = ""
@@ -128,6 +131,19 @@ func _init() -> void:
     undo_manager = UndoManagerScript.new()
     undo_manager.name = "UndoManager"
     add_child(undo_manager)
+    
+    # Init Workshop Sync (runs early to trigger downloads ASAP)
+    workshop_sync = WorkshopSyncScript.new()
+    workshop_sync.name = "WorkshopSync"
+    workshop_sync.sync_on_startup = config.get_value("workshop_sync_on_startup", true)
+    workshop_sync.high_priority_downloads = config.get_value("workshop_high_priority", true)
+    workshop_sync.set_restart_callback(_show_restart_required_window)
+    workshop_sync.set_debug_log_callback(_add_debug_log)
+    add_child(workshop_sync)
+    
+    # Trigger sync on startup if enabled
+    if workshop_sync.sync_on_startup:
+        call_deferred("_start_workshop_sync")
     
     # Init Wire Color Overrides (applied in _ready when Data is loaded)
     wire_colors = WireColorOverridesScript.new()
@@ -505,6 +521,27 @@ func _setup_sticky_notes() -> void:
     ModLoaderLog.info("Sticky Notes feature initialized", LOG_NAME)
 
 
+## Start Workshop Sync (deferred call)
+func _start_workshop_sync() -> void:
+    if workshop_sync:
+        workshop_sync.start_sync()
+
+
+## Show the Restart Required modal window
+func _show_restart_required_window() -> void:
+    var window = RestartRequiredWindowScript.new()
+    window.name = "RestartRequiredWindow"
+    
+    # Set dismiss callback to trigger the settings banner
+    window.set_dismiss_callback(func():
+        if ui:
+            ui.show_restart_banner()
+    )
+    
+    get_tree().root.add_child(window)
+    ModLoaderLog.info("Showing Restart Required window", LOG_NAME)
+
+
 func _build_settings_menu() -> void:
     # --- GENERAL ---
     var gen_vbox = ui.add_tab("General", "res://textures/icons/cog.png")
@@ -685,6 +722,44 @@ func _build_settings_menu() -> void:
     var cheat_vbox = ui.add_tab("Cheats", "res://textures/icons/money.png")
     cheat_manager = CheatManagerScript.new()
     cheat_manager.build_cheats_tab(cheat_vbox)
+    
+    # --- MOD MANAGER ---
+    var modmgr_vbox = ui.add_tab("Mod Manager", "res://textures/icons/network.png")
+    
+    # Workshop Sync on Startup toggle
+    _settings_toggles["workshop_sync_on_startup"] = ui.add_toggle(modmgr_vbox, "Workshop Sync on Startup", config.get_value("workshop_sync_on_startup", true), func(v):
+        config.set_value("workshop_sync_on_startup", v)
+        if workshop_sync:
+            workshop_sync.sync_on_startup = v
+    , "Automatically check and trigger downloads for outdated Workshop mods at game startup.")
+    
+    # High Priority Downloads toggle
+    _settings_toggles["workshop_high_priority"] = ui.add_toggle(modmgr_vbox, "High Priority Downloads", config.get_value("workshop_high_priority", true), func(v):
+        config.set_value("workshop_high_priority", v)
+        if workshop_sync:
+            workshop_sync.high_priority_downloads = v
+    , "Use high priority for Workshop downloads to speed up updates.")
+    
+    # Force Sync Now button
+    ui.add_button(modmgr_vbox, "Force Workshop Sync Now", func():
+        if workshop_sync:
+            workshop_sync.start_sync()
+            Signals.notify.emit("download", "Workshop sync started...")
+        else:
+            Signals.notify.emit("cross", "Workshop Sync not available")
+    )
+    
+    # Status info
+    var steam_status = Label.new()
+    steam_status.add_theme_font_size_override("font_size", 20)
+    steam_status.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8, 0.8))
+    if workshop_sync and workshop_sync.is_steam_available():
+        steam_status.text = "✓ Steam Workshop available"
+        steam_status.add_theme_color_override("font_color", Color(0.5, 0.8, 0.5, 0.9))
+    else:
+        steam_status.text = "✗ Steam not available"
+        steam_status.add_theme_color_override("font_color", Color(0.8, 0.5, 0.5, 0.9))
+    modmgr_vbox.add_child(steam_status)
     
     # --- DEBUG ---
     var debug_vbox = ui.add_tab("Debug", "res://textures/icons/bug.png")
