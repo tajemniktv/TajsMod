@@ -30,7 +30,7 @@ var _total_triggered := 0
 var _completed_count := 0
 var _successful_count := 0
 var _sync_timer: Timer = null
-const SYNC_TIMEOUT_SECONDS := 10.0 # Auto-complete sync after this many seconds
+const SYNC_TIMEOUT_SECONDS := 7.0 # Auto-complete sync after this many seconds
 
 # Callbacks
 var _on_restart_required: Callable = Callable() # Called when we need to show restart window
@@ -66,7 +66,7 @@ func _get_steam_api() -> Object:
 
 ## Check if Steam is initialized and logged on
 func _check_steam_availability() -> void:
-	# The game uses GlobalSteam autoload which wraps the Steam singleton
+	# The game uses GlobalSteam autoload which wraps the Steam singleton ?
 	# Check if GlobalSteam exists and is initialized
 	if Engine.get_main_loop() and Engine.get_main_loop().root.has_node("GlobalSteam"):
 		var global_steam = Engine.get_main_loop().root.get_node("GlobalSteam")
