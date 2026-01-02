@@ -9,7 +9,6 @@ const LOG_NAME = "TajsModded:UpgradeManager"
 # const _BUTTON_PATH = "TitlePanel/TitleContainer/UpgradeButton" # Old path
 
 var _config: Object # Was ConfigFile but Mod uses wrapper
-var _debug_mode: bool = false
 var _tree: SceneTree
 
 func setup(tree: SceneTree, config: Object) -> void:
