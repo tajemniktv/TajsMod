@@ -29,6 +29,8 @@ var _pending_downloads: Dictionary = {} # PublishedFileId -> true (waiting for c
 var _total_triggered := 0
 var _completed_count := 0
 var _successful_count := 0
+var _sync_timer: Timer = null
+const SYNC_TIMEOUT_SECONDS := 30.0 # Auto-complete sync after this many seconds
 
 # Callbacks
 var _on_restart_required: Callable = Callable() # Called when we need to show restart window
@@ -97,7 +99,16 @@ func _connect_steam_signals() -> void:
 			steam.connect("item_downloaded", _on_item_downloaded)
 			_log("Connected to item_downloaded signal.")
 	else:
-		_log("item_downloaded signal not found. Will poll for completion.")
+		_log("item_downloaded signal not found. Will use timeout.")
+
+## Cancel an in-progress sync (for stuck syncs or manual cancel)
+func cancel_sync() -> void:
+	if _sync_in_progress:
+		_log("Sync cancelled.")
+		_sync_in_progress = false
+		_pending_downloads.clear()
+		if _sync_timer and is_instance_valid(_sync_timer):
+			_sync_timer.stop()
 
 ## Start the sync process
 func start_sync() -> void:
@@ -106,8 +117,8 @@ func start_sync() -> void:
 		return
 	
 	if _sync_in_progress:
-		_log("Sync already in progress.")
-		return
+		_log("Sync already in progress. Cancelling previous sync...")
+		cancel_sync()
 	
 	_sync_in_progress = true
 	_total_triggered = 0
@@ -162,6 +173,9 @@ func start_sync() -> void:
 	else:
 		_log("Triggered downloads for " + str(_total_triggered) + " items.")
 		Signals.notify.emit("download", "Workshop updates started (" + str(_total_triggered) + " items)")
+		
+		# Start timeout timer - if callbacks don't fire, we'll assume Steam handled it
+		_start_sync_timer()
 
 ## Get number of subscribed items (handles API differences)
 func _get_num_subscribed_items(steam) -> int:
@@ -218,6 +232,29 @@ func _state_to_string(state: int) -> String:
 	if flags.is_empty():
 		return "None"
 	return ", ".join(flags)
+
+## Start the sync timeout timer
+func _start_sync_timer() -> void:
+	if _sync_timer == null:
+		_sync_timer = Timer.new()
+		_sync_timer.one_shot = true
+		_sync_timer.timeout.connect(_on_sync_timeout)
+		add_child(_sync_timer)
+	
+	_sync_timer.start(SYNC_TIMEOUT_SECONDS)
+	_log("Sync timeout started (" + str(SYNC_TIMEOUT_SECONDS) + " seconds)")
+
+## Handle sync timeout - assume Steam handled downloads in background
+func _on_sync_timeout() -> void:
+	if not _sync_in_progress:
+		return
+	
+	_log("Sync timeout reached. Assuming Steam handled downloads.")
+	
+	# Assume all triggered downloads were successful (Steam doesn't reliably callback)
+	_successful_count = _total_triggered
+	_pending_downloads.clear()
+	_finish_sync()
 
 ## Trigger download for a specific item
 func _trigger_download(steam, file_id: int) -> void:
