@@ -18,12 +18,22 @@ const COLOR_BORDER = Color(0.3, 0.5, 0.7, 0.6)
 const COLOR_HEADER = Color(0.12, 0.15, 0.2, 1.0)
 const COLOR_SECTION_BG = Color(0.1, 0.12, 0.16, 0.6)
 
+# Code values - dynamically loaded from game source
+var _code_values: Dictionary = {}
+
 # UI References
 var _title_label: Label
 var _shape_label: Label
 var _color_swatch: ColorRect
 var _color_name_label: Label
 var _description_label: Label
+
+# Properties section
+var _properties_section: VBoxContainer
+var _quality_label: Label
+var _value_label: Label
+var _size_label: Label
+var _research_label: Label
 
 var _current_resource_id: String = ""
 var _current_shape: String = ""
@@ -36,7 +46,23 @@ func _init() -> void:
     name = "ResourceDefinitionPanel"
     size_flags_horizontal = Control.SIZE_EXPAND_FILL
     size_flags_vertical = Control.SIZE_EXPAND_FILL
+    _load_code_values()
     _build_ui()
+
+
+func _load_code_values() -> void:
+    # Load the window_commit.gd script to get the 'values' constant
+    var commit_script = load("res://scenes/windows/window_commit.gd")
+    if commit_script and "values" in commit_script:
+        _code_values = commit_script.values.duplicate()
+    else:
+        # Fallback to known values if script loading fails
+        _code_values = {
+            "code_bugfix": 1.0,
+            "code_optimization": 4.0,
+            "code_application": 16.0,
+            "code_driver": 64.0
+        }
 
 
 func _input(event: InputEvent) -> void:
@@ -171,6 +197,34 @@ func _build_ui() -> void:
     _description_label.autowrap_mode = TextServer.AUTOWRAP_WORD
     desc_section.add_child(_description_label)
     
+    # Properties section (for Files and Code)
+    _properties_section = _create_section("Properties", content_vbox)
+    _properties_section.visible = false
+    
+    _quality_label = Label.new()
+    _quality_label.text = "Quality: 1.0"
+    _quality_label.add_theme_font_size_override("font_size", 16)
+    _quality_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+    _properties_section.add_child(_quality_label)
+    
+    _value_label = Label.new()
+    _value_label.text = "Value: 0"
+    _value_label.add_theme_font_size_override("font_size", 16)
+    _value_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+    _properties_section.add_child(_value_label)
+    
+    _size_label = Label.new()
+    _size_label.text = "Size: 0b"
+    _size_label.add_theme_font_size_override("font_size", 16)
+    _size_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+    _properties_section.add_child(_size_label)
+    
+    _research_label = Label.new()
+    _research_label.text = "Research: 0"
+    _research_label.add_theme_font_size_override("font_size", 16)
+    _research_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+    _properties_section.add_child(_research_label)
+    
     # Action buttons section
     var actions_section = _create_section("Find Related Nodes", content_vbox)
     
@@ -274,6 +328,9 @@ func display_resource(resource_id: String, shape: String, color: String, label: 
             description += "\n(Found Data Keys: %s)" % str(res_data.keys())
         
     _description_label.text = description
+    
+    # Update Properties section
+    _update_properties(resource_id, 0) # variation=0 for base display
 
 
 func _find_resource_data(id: String, shape: String, label: String) -> Dictionary:
@@ -369,3 +426,56 @@ func _resolve_color(shape: String, color_key: String) -> Color:
         
     # 3. Fallback
     return Color.WHITE
+
+
+func _update_properties(resource_id: String, variation: int) -> void:
+    # Check if this is a File resource (in Data.files)
+    if Data.files.has(resource_id):
+        _properties_section.visible = true
+        _size_label.visible = true
+        _research_label.visible = true
+        
+        var quality = Utils.get_variation_quality_multiplier(variation)
+        var value = Utils.get_file_value(resource_id, variation)
+        var size = Utils.get_file_size(resource_id, variation)
+        var research = Utils.get_file_research(resource_id, variation)
+        
+        _quality_label.text = tr("quality") + ": %.1f" % quality
+        _value_label.text = tr("value") + ": " + Utils.print_string(value, false)
+        _size_label.text = tr("size") + ": " + Utils.print_metric(size, false) + "b"
+        _research_label.text = tr("research") + ": " + Utils.print_string(research, false)
+        return
+    
+    # Check if this is a Code resource
+    if _code_values.has(resource_id):
+        _properties_section.visible = true
+        _size_label.visible = false # No size defined for Code
+        _research_label.visible = false # No research defined for Code
+        
+        var base_value = _code_values[resource_id]
+        var quality = Utils.get_code_value_multiplier(variation)
+        var value = base_value * quality
+        
+        _quality_label.text = tr("quality") + ": %.1f" % quality
+        _value_label.text = tr("value") + ": " + Utils.print_string(value, false)
+        return
+    
+    # Check if resource has "code" symbols (other code types)
+    if Data.resources.has(resource_id):
+        var res_data = Data.resources[resource_id]
+        if res_data.has("symbols") and res_data.symbols == "code":
+            _properties_section.visible = true
+            _size_label.visible = false
+            _research_label.visible = false
+            
+            var quality = Utils.get_code_value_multiplier(variation)
+            # Default base value for unknown code types
+            var base_value = 1.0
+            var value = base_value * quality
+            
+            _quality_label.text = tr("quality") + ": %.1f" % quality
+            _value_label.text = tr("value") + ": " + Utils.print_string(value, false)
+            return
+    
+    # Not a File or Code resource - hide properties
+    _properties_section.visible = false
