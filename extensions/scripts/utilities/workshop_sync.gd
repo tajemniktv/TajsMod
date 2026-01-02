@@ -249,5 +249,5 @@ func is_syncing() -> bool:
 ## Internal logging
 func _log(message: String) -> void:
 	ModLoaderLog.info(message, LOG_NAME)
-	if _debug_log_callback.is_valid():
-		_debug_log_callback.call("[WorkshopSync] " + message)
+	# Debug callback is for UI display only, don't duplicate to log
+	# (the callback in mod_main also logs, causing double output)
