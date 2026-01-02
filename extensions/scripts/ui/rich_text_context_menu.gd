@@ -41,7 +41,6 @@ var _current_submenu: Control = null
 # ColorPickerPanel reference for "Custom..." color
 var _color_picker_layer: CanvasLayer = null
 var _color_picker: Control = null
-const ColorPickerPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/color_picker_panel.gd")
 
 
 func _init() -> void:
@@ -291,7 +290,6 @@ func _open_size_submenu(trigger_btn: Button) -> void:
     submenu.position = Vector2(size.x - 4, trigger_btn.position.y)
     
     _current_submenu = submenu
-    _size_submenu = submenu
 
 
 func _apply_submenu_style(submenu: PanelContainer) -> void:
@@ -311,7 +309,6 @@ func _close_current_submenu() -> void:
         _current_submenu.queue_free()
     _current_submenu = null
     _color_submenu = null
-    _size_submenu = null
 
 
 func _open_color_picker() -> void:

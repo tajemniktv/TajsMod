@@ -44,7 +44,7 @@ var _title_button: Button
 var _title_edit: LineEdit
 var _body_edit: TextEdit
 var _body_display: RichTextLabel # Rich text view (shown when not editing)
-var _context_menu: Control = null # RichTextContextMenu instance
+var _context_menu = null # RichTextContextMenu instance
 var _context_menu_layer: CanvasLayer = null
 var _color_btn: Button
 var _pattern_btn: Button
@@ -59,9 +59,9 @@ var _resize_handles: Dictionary = {}
 
 # Pickers
 var _color_picker_layer: CanvasLayer = null
-var _color_picker: Control = null
+var _color_picker = null
 var _pattern_picker_layer: CanvasLayer = null
-var _pattern_picker: Control = null
+var _pattern_picker = null
 
 # State
 var _is_dragging := false
