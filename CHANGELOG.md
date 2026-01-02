@@ -1,3 +1,17 @@
+## [0.3.2] - 2026-01-02
+
+### Added
+- N/A
+
+### Changed
+- Added more debugging code for workshop sync.
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.3.1] - 2026-01-02
 
 ### Added
