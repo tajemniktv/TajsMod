@@ -9,10 +9,13 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - **Smooth Scrolling** — Added a new manager and UI toggle for smooth scrolling
+- **DEF Command** — Added DEF commands to the command palette showing information about nodes
+- **Sticky Notes Editor** — Added a way to edit text inside sticky notes
 
 ### Changed
 
 - Change sticky note resizing handlers color to #ff8500
+- Remove pattern drawer from title panel
 
 ### Removed
 
@@ -21,6 +24,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Fixed issue where Sticky Notes could be selected through other overlapping UI elements
+- **Wire Drop Menu** — No longer opens when dropping a connection onto an existing node (improves compatibility with SmartConnections and similar)
 
 ---
 
