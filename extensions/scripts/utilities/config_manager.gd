@@ -50,6 +50,7 @@ const DEFAULT_CONFIG := {
 	# Toast History / Notification Log
 	"notification_log_enabled": true,
 	# Debug tab
+	"debug_mode": false, # Enable verbose debug logging
 	"custom_boot_screen": true,
 }
 
