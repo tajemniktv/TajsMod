@@ -660,6 +660,8 @@ func show_node_picker(compatible_nodes: Array[Dictionary], origin_info: Dictiona
 	
 	_is_open = true
 	visible = true
+	if panel:
+		panel.visible = true
 	search_input.text = ""
 	search_input.placeholder_text = "Search nodes to add..."
 	_selected_index = 0
@@ -761,6 +763,8 @@ func show_group_picker(groups: Array, goto_group_manager) -> void:
 	if not _is_open:
 		_is_open = true
 		visible = true
+	if panel:
+		panel.visible = true
 	
 	search_input.text = ""
 	search_input.placeholder_text = "Search groups to jump to..."
@@ -889,6 +893,8 @@ func show_note_picker(notes: Array, sticky_manager) -> void:
 	if not _is_open:
 		_is_open = true
 		visible = true
+	if panel:
+		panel.visible = true
 	
 	search_input.text = ""
 	search_input.placeholder_text = "Search notes to jump to..."
