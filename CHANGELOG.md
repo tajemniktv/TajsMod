@@ -1,3 +1,17 @@
+## [0.3.11] - 2026-01-02
+
+### Added
+- New timestamp method.
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.3.10] - 2026-01-02
 
 ### Added
