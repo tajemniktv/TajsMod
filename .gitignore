@@ -46,3 +46,5 @@ docs/private/*
 
 
 .vscode/
+
+docs/.vscode

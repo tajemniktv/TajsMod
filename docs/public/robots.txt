@@ -3,5 +3,5 @@ Allow: /
 
 Sitemap: https://TajemnikTV.github.io/TajsMod/sitemap-index.xml
 
-# Taj's Mod Documentation Site
+# Taj's Mod GitHub Site
 # https://github.com/TajemnikTV/TajsMod
