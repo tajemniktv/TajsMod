@@ -56,20 +56,59 @@ func _apply_visibility() -> void:
 	
 	var hidden_count := 0
 	
+	# Categorize children by status
+	var claimable: Array = [] # Unlocked but not claimed (status == 1) - TOP
+	var locked: Array = [] # Not unlocked (status == 0) - MIDDLE
+	var claimed: Array = [] # Already claimed (status == 2) - BOTTOM
+	
 	for child in container.get_children():
-		# First, let vanilla logic determine base visibility
+		var status = Globals.achievements.get(child.name, 0)
+		if status == 1:
+			claimable.append(child)
+		elif status == 2:
+			claimed.append(child)
+		else:
+			locked.append(child)
+	
+	# Reorder children: claimable first, then locked, then claimed
+	var sort_index := 0
+	for child in claimable:
+		container.move_child(child, sort_index)
+		sort_index += 1
+	for child in locked:
+		container.move_child(child, sort_index)
+		sort_index += 1
+	for child in claimed:
+		container.move_child(child, sort_index)
+		sort_index += 1
+	
+	# Apply visibility
+	for child in container.get_children():
+		# Let vanilla logic update UI state
 		if child.has_method("update_all"):
 			child.update_all()
 		
-		# Now apply our additional filtering on top
-		if _is_hiding_claimed:
-			var is_claimed = Globals.achievements.get(child.name, 0) >= 1
-			if is_claimed:
-				# Use set_block_signals to prevent feedback loop
-				child.set_block_signals(true)
+		var status = Globals.achievements.get(child.name, 0)
+		
+		# Claimable achievements are ALWAYS visible (ignore hide toggle)
+		if status == 1:
+			child.set_block_signals(true)
+			child.visible = true
+			child.set_block_signals(false)
+		# Claimed achievements follow the hide toggle
+		elif status == 2:
+			child.set_block_signals(true)
+			if _is_hiding_claimed:
 				child.visible = false
-				child.set_block_signals(false)
 				hidden_count += 1
+			else:
+				child.visible = true
+			child.set_block_signals(false)
+		# Locked achievements are always visible
+		else:
+			child.set_block_signals(true)
+			child.visible = true
+			child.set_block_signals(false)
 	
 	if _counter_label:
 		_counter_label.text = "Hidden: " + str(hidden_count)

@@ -30,6 +30,10 @@ var locked: bool = false
 var _pattern_picker_layer: CanvasLayer = null
 var _pattern_picker: Control = null
 
+# Vanilla colors for achievement compatibility (same as base game's window_group.gd)
+# The Stylist achievement requires 7 distinct color INDICES, not color values
+const VANILLA_COLORS: Array[String] = ["1a202c", "1a2b22", "1a292b", "1a1b2b", "211a2b", "2b1a27", "2b1a1a"]
+
 # ==============================================================================
 # PatternDrawer - Draws patterns on group panels (supports 11 patterns)
 # ==============================================================================
@@ -241,10 +245,35 @@ func _on_pattern_selected(id: int) -> void:
 
 func _on_color_picked(new_color: Color) -> void:
     custom_color = new_color
+    # Map to nearest vanilla color INDEX for Stylist achievement compatibility
+    # The achievement checks for 7 distinct color indices (0-6)
+    color = _find_nearest_vanilla_color_index(new_color)
     update_color()
     color_changed.emit()
     group_changed.emit()
     Sound.play("click2")
+
+
+# Find the vanilla color index (0-6) that is closest to the given color.
+# This ensures the Stylist achievement can track distinct colors even when
+# using the custom color picker.
+func _find_nearest_vanilla_color_index(target: Color) -> int:
+    var best_index := 0
+    var best_distance := INF
+    
+    for i in range(VANILLA_COLORS.size()):
+        var vanilla_color = Color(VANILLA_COLORS[i])
+        # Use Euclidean distance in RGB space
+        var distance = sqrt(
+            pow(target.r - vanilla_color.r, 2) +
+            pow(target.g - vanilla_color.g, 2) +
+            pow(target.b - vanilla_color.b, 2)
+        )
+        if distance < best_distance:
+            best_distance = distance
+            best_index = i
+    
+    return best_index
 
 
 func cycle_pattern() -> void:
