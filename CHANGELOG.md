@@ -1,3 +1,18 @@
+## [0.3.13] - 2026-01-03
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Stylist achievement by mapping vanilla color swatches
+- Achievements hiding and unhiding
+
 ## [0.3.12] - 2026-01-02
 
 ### Added
