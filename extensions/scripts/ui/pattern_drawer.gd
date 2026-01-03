@@ -1,6 +1,6 @@
 # ==============================================================================
 # Taj's Mod - Upload Labs
-# PatternDrawer - Draws patterns on UI panels (supports 11 patterns)
+# PatternDrawer - Draws patterns on UI panels
 # Extracted from window_group.gd for reuse
 # ==============================================================================
 extends Control
