@@ -30,6 +30,14 @@ var _main_vbox: VBoxContainer = null # Reference to insert banner at top
 var _search_field: LineEdit = null
 var _searchable_rows: Array = [] # [{row: Control, label: String, tab_index: int}]
 
+# Sidebar Collapse State
+const SIDEBAR_WIDTH_COLLAPSED := 46.0 # Just enough for icon
+const SIDEBAR_WIDTH_EXPANDED := 180.0
+var _sidebar: Control = null
+var _sidebar_expanded := false
+var _sidebar_tween: Tween = null
+var _search_container: Control = null
+
 func _init(hud: Node, version: String):
     _hud_node = hud
     _mod_version = version
@@ -113,32 +121,109 @@ func _create_content_panel(parent: Control) -> void:
     content_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
     parent.add_child(content_panel)
     
-    var content_vbox := VBoxContainer.new()
-    content_vbox.add_theme_constant_override("separation", 10)
-    content_panel.add_child(content_vbox)
+    # Main horizontal split: Sidebar | Content (sidebar on LEFT)
+    var main_hbox := HBoxContainer.new()
+    main_hbox.add_theme_constant_override("separation", 0)
+    content_panel.add_child(main_hbox)
     
-    # Search Field
+    # === LEFT SIDEBAR (icons on left, expands right naturally) ===
+    var sidebar := VBoxContainer.new()
+    sidebar.name = "Sidebar"
+    sidebar.custom_minimum_size = Vector2(SIDEBAR_WIDTH_COLLAPSED, 0)
+    sidebar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+    sidebar.add_theme_constant_override("separation", 0)
+    sidebar.clip_contents = true # Clip text when collapsed
+    sidebar.mouse_filter = Control.MOUSE_FILTER_STOP
+    main_hbox.add_child(sidebar)
+    _sidebar = sidebar
+    
+    # Connect hover events for expand/collapse
+    sidebar.mouse_entered.connect(_on_sidebar_mouse_entered)
+    sidebar.mouse_exited.connect(_on_sidebar_mouse_exited)
+    
+    # Sidebar: Scrollable Tab Buttons
+    var tab_scroll := ScrollContainer.new()
+    tab_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    tab_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+    tab_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+    tab_scroll.mouse_entered.connect(_on_sidebar_mouse_entered)
+    tab_scroll.mouse_exited.connect(_on_sidebar_mouse_exited)
+    sidebar.add_child(tab_scroll)
+    
+    tab_buttons_container = VBoxContainer.new()
+    tab_buttons_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    tab_buttons_container.add_theme_constant_override("separation", 10)
+    tab_buttons_container.mouse_filter = Control.MOUSE_FILTER_PASS
+    tab_scroll.add_child(tab_buttons_container)
+    
+    # Separator between sidebar and content
+    var separator := VSeparator.new()
+    separator.add_theme_constant_override("separation", 2)
+    main_hbox.add_child(separator)
+    
+    # === RIGHT CONTENT AREA ===
+    var content_vbox := VBoxContainer.new()
+    content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    content_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    content_vbox.add_theme_constant_override("separation", 0)
+    main_hbox.add_child(content_vbox)
+    
+    # Search field at top of content area
     _create_search_field(content_vbox)
     
-    # Tab Container
     tab_container = TabContainer.new()
+    tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
     tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
     tab_container.theme_type_variation = "EmptyTabContainer"
     tab_container.tabs_visible = false
     content_vbox.add_child(tab_container)
+
+# --- Sidebar Collapse/Expand ---
+
+func _on_sidebar_mouse_entered() -> void:
+    _expand_sidebar()
+
+func _on_sidebar_mouse_exited() -> void:
+    _collapse_sidebar()
+
+func _expand_sidebar() -> void:
+    if _sidebar_expanded:
+        return
+    _sidebar_expanded = true
     
-    # Tab Buttons Area
-    var buttons_panel := Panel.new()
-    buttons_panel.custom_minimum_size = Vector2(0, 110)
-    buttons_panel.theme_type_variation = "MenuPanelTitle"
-    content_vbox.add_child(buttons_panel)
+    if _sidebar_tween and _sidebar_tween.is_valid():
+        _sidebar_tween.kill()
     
-    tab_buttons_container = HBoxContainer.new()
-    tab_buttons_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-    tab_buttons_container.offset_left = 15; tab_buttons_container.offset_top = 15
-    tab_buttons_container.offset_right = -15; tab_buttons_container.offset_bottom = -15
-    tab_buttons_container.add_theme_constant_override("separation", 10)
-    buttons_panel.add_child(tab_buttons_container)
+    _sidebar_tween = _sidebar.create_tween()
+    _sidebar_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+    _sidebar_tween.tween_property(_sidebar, "custom_minimum_size:x", SIDEBAR_WIDTH_EXPANDED, 0.2)
+    
+    # Show button text (icon on left, text on right)
+    for btn in _tab_buttons:
+        if is_instance_valid(btn):
+            var tab_name = btn.name.replace("Tab", "")
+            btn.text = "  " + tab_name # Space after icon, then text
+            btn.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+            btn.custom_minimum_size.x = SIDEBAR_WIDTH_EXPANDED
+
+func _collapse_sidebar() -> void:
+    if not _sidebar_expanded:
+        return
+    _sidebar_expanded = false
+    
+    if _sidebar_tween and _sidebar_tween.is_valid():
+        _sidebar_tween.kill()
+    
+    _sidebar_tween = _sidebar.create_tween()
+    _sidebar_tween.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+    _sidebar_tween.tween_property(_sidebar, "custom_minimum_size:x", SIDEBAR_WIDTH_COLLAPSED, 0.2)
+    
+    # Hide button text (icon only, centered)
+    for btn in _tab_buttons:
+        if is_instance_valid(btn):
+            btn.text = ""
+            btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+            btn.custom_minimum_size.x = SIDEBAR_WIDTH_COLLAPSED
 
 func _create_footer_panel(parent: Control) -> void:
     var version_panel := PanelContainer.new()
@@ -196,17 +281,21 @@ func add_tab(name: String, icon_path: String) -> VBoxContainer:
     
     tab_container.add_child(scroll)
     
-    # 2. Create button
+    # 2. Create sidebar button (icon-only when collapsed, text on expand)
     var btn := Button.new()
     btn.name = name + "Tab"
-    btn.text = name
-    btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    btn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+    btn.text = "" # Start collapsed (icon-only)
+    btn.custom_minimum_size = Vector2(SIDEBAR_WIDTH_COLLAPSED, 50) # Collapsed width, consistent height
     btn.focus_mode = Control.FOCUS_NONE
     btn.theme_type_variation = "TabButton"
     btn.toggle_mode = true
     btn.icon = load(icon_path)
-    btn.add_theme_constant_override("icon_max_width", 40)
+    btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER # Center icon when collapsed
+    btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+    btn.add_theme_constant_override("icon_max_width", 36) # Larger icons
+    btn.add_theme_constant_override("h_separation", 10)
+    btn.mouse_entered.connect(_on_sidebar_mouse_entered) # Forward hover events
+    btn.mouse_exited.connect(_on_sidebar_mouse_exited)
     
     var target_index = _tab_buttons.size()
     btn.pressed.connect(func(): _on_tab_selected(target_index))
@@ -285,6 +374,7 @@ func _create_search_field(parent: Control) -> void:
     search_container.theme_type_variation = "MenuPanelTitle"
     search_container.custom_minimum_size = Vector2(0, 50)
     parent.add_child(search_container)
+    _search_container = search_container
     
     var search_margin := MarginContainer.new()
     search_margin.add_theme_constant_override("margin_left", 15)
