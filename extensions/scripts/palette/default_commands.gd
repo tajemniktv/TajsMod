@@ -49,6 +49,13 @@ static func register_all(registry, refs: Dictionary) -> void:
     registry.register({
         "id": "cmd_calculator",
         "title": "Calculator",
+        "display_name": "calculator",
+        "aliases": ["calc"],
+        "description": "Quick inline math calculator for expressions.",
+        "usage": "calc <expression>",
+        "examples": ["calc 2+2", "calc sqrt(144)", "= pi * 2^3"],
+        "category": "General",
+        "tags": ["math", "compute", "calculator"],
         "category_path": [],
         "keywords": ["calculator", "calc", "math", "compute", "calculate"],
         "hint": "Open inline calculator (= 2+2)",
@@ -66,6 +73,13 @@ static func register_all(registry, refs: Dictionary) -> void:
     registry.register({
         "id": "cmd_node_def",
         "title": "Node Definition",
+        "display_name": "def",
+        "aliases": ["nodeinfo"],
+        "description": "Browse node details or open a node's definition panel.",
+        "usage": "def <node>",
+        "examples": ["def cpu", "def gpu", "def research"],
+        "category": "Navigation",
+        "tags": ["node", "definition", "info", "help"],
         "category_path": [],
         "keywords": ["def", "nodeinfo", "info", "help", "?", "wiki", "details"],
         "hint": "Show node details (or use 'def <name>')",
@@ -770,6 +784,13 @@ static func register_all(registry, refs: Dictionary) -> void:
     registry.register({
         "id": "cmd_show_all_commands",
         "title": "Show All Commands",
+        "display_name": "commands",
+        "aliases": ["list"],
+        "description": "List all registered commands in the console.",
+        "usage": "commands",
+        "examples": ["commands"],
+        "category": "Help",
+        "tags": ["help", "commands", "list"],
         "category_path": ["Help & Links"],
         "keywords": ["commands", "list", "all", "help", "reference"],
         "hint": "Display a list of all registered commands",
@@ -789,6 +810,29 @@ static func register_all(registry, refs: Dictionary) -> void:
                 Signals.notify.emit("check", "Commands logged to console (check F1 console)")
     })
     
+    registry.register({
+        "id": "cmd_palette_help_view",
+        "title": "Help",
+        "display_name": "help",
+        "aliases": ["commands"],
+        "description": "Show help for commands and how to use them.",
+        "usage": "help [query]",
+        "examples": ["help", "help def", "help screenshot"],
+        "category": "Help",
+        "tags": ["help", "commands", "reference"],
+        "category_path": ["Help & Links"],
+        "keywords": ["help", "commands", "list", "reference", "guide"],
+        "hint": "Open the built-in help view",
+        "icon_path": "res://textures/icons/question.png",
+        "badge": "SAFE",
+        "keep_open": true,
+        "run": func(ctx):
+            if controller and controller.overlay:
+                controller.overlay.search_input.text = "help"
+                controller.overlay.search_input.caret_column = controller.overlay.search_input.text.length()
+                controller.overlay._perform_search()
+    })
+
     registry.register({
         "id": "cmd_enable_tools",
         "title": "Enable Tools in Palette",

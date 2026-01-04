@@ -9,7 +9,8 @@ extends PanelContainer
 signal back_requested
 signal close_requested
 signal open_in_shop_requested(node_id: String)
-signal port_clicked(resource_id: String, shape: String, color: String, label: String)
+signal port_clicked(resource_id: String, shape: String, color: String, label: String, applied_modifiers: Array)
+signal modifier_clicked(modifier_id: String)
 
 const LOG_NAME = "TajsModded:NodeDefPanel"
 
@@ -29,8 +30,11 @@ var _inputs_container: VBoxContainer
 var _outputs_container: VBoxContainer
 var _unlock_label: Label
 var _shop_button: Button
+var _modifiers_panel: PanelContainer
+var _modifiers_container: VBoxContainer
 
 var _current_node_id: String = ""
+var _current_modifiers: Array = []
 
 func _init() -> void:
     name = "NodeDefinitionPanel"
@@ -165,6 +169,13 @@ func _build_ui() -> void:
     ports_grid.add_child(outputs_panel)
     _outputs_container = outputs_panel.get_meta("container")
     
+    # Modifiers Added
+    _modifiers_panel = _create_section_panel("Modifiers Added")
+    _modifiers_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _modifiers_panel.visible = false
+    body_vbox.add_child(_modifiers_panel)
+    _modifiers_container = _modifiers_panel.get_meta("container")
+    
     # Unlock Info
     var unlock_panel = PanelContainer.new()
     var unlock_style = StyleBoxFlat.new()
@@ -262,6 +273,7 @@ func _create_section_panel(title: String) -> PanelContainer:
 
 func display_node(data: Dictionary) -> void:
     _current_node_id = data.get("id", "")
+    _current_modifiers = data.get("modifiers_added", [])
     
     # Header
     _title_label.text = data.get("name", "Unknown Node")
@@ -285,6 +297,7 @@ func display_node(data: Dictionary) -> void:
     # Ports
     _clear_container(_inputs_container)
     _clear_container(_outputs_container)
+    _clear_container(_modifiers_container)
     
     var inputs = data.get("inputs", [])
     if inputs.is_empty():
@@ -299,6 +312,15 @@ func display_node(data: Dictionary) -> void:
     else:
         for port in outputs:
             _add_port_row(_outputs_container, port)
+    
+    # Modifiers
+    var modifiers = data.get("modifiers_added", [])
+    if modifiers.is_empty():
+        _modifiers_panel.visible = false
+    else:
+        _modifiers_panel.visible = true
+        for modifier in modifiers:
+            _add_modifier_row(_modifiers_container, modifier)
             
     # Unlock Info
     var unlock = data.get("unlock_info", {})
@@ -348,6 +370,21 @@ func _add_port_row(container: Control, port: Dictionary) -> void:
     var label_text = port.get("label", shape)
     var count = port.get("count", 1)
     
+    # Get the resource_id from port data (may be populated by filter)
+    var resource_id = port.get("resource_id", "")
+    var label_lower = label_text.to_lower()
+    var forced_any_file = false
+    
+    # Heuristic: some file inputs are defined as white square "Input" with no resource_id
+    # Only apply "File Wildcard" when there's no specific resource_id AND it looks generic
+    if resource_id == "" and shape == "square" and _is_generic_file_label(label_lower):
+        forced_any_file = true
+        var guessed_id = _guess_file_resource_id()
+        if guessed_id != "":
+            resource_id = guessed_id
+        label_text = "File Wildcard"
+        color_name = "white"
+    
     # Create clickable button for the port
     var btn = Button.new()
     btn.flat = true
@@ -359,11 +396,11 @@ func _add_port_row(container: Control, port: Dictionary) -> void:
     
     # If resource_id is present, use its localized name for the label
     # This fixes generic "Neuron" labels when the underlying resource is specific (e.g. "neuron_image")
-    var resource_id = port.get("resource_id", "")
     if resource_id != "" and Data.resources.has(resource_id):
-        var res = Data.resources[resource_id]
-        if res.has("name"):
-            label_text = tr(res.name)
+        if not forced_any_file:
+            var res = Data.resources[resource_id]
+            if res.has("name"):
+                label_text = tr(res.name)
     
     # Set button text
     btn.text = "%dx %s (%s)" % [count, label_text, shape]
@@ -441,8 +478,13 @@ func _add_port_row(container: Control, port: Dictionary) -> void:
     if port_res_id == "":
         port_res_id = color_name
     
+    # Determine modifiers to pass (only for outputs)
+    var modifiers_to_pass = []
+    if container == _outputs_container:
+        modifiers_to_pass = _current_modifiers
+    
     btn.pressed.connect(func():
-        port_clicked.emit(port_res_id, port_shape, port_color, port_label)
+        port_clicked.emit(port_res_id, port_shape, port_color, port_label, modifiers_to_pass)
         Sound.play("click")
     )
     
@@ -503,12 +545,98 @@ func _resolve_color(shape: String, color_key: String) -> Color:
     return Color(1, 1, 1)
 
 
+func _is_generic_file_label(label_lower: String) -> bool:
+    if label_lower.contains("input") or label_lower.contains("output"):
+        return true
+    if label_lower.contains("file") or label_lower.contains("empty"):
+        return true
+    return false
+
+
+func _guess_file_resource_id() -> String:
+    var best_id = ""
+    var best_score = -1
+    if not Data or not "resources" in Data:
+        return best_id
+    
+    for id in Data.resources:
+        var res = Data.resources[id]
+        if not (res is Dictionary):
+            continue
+        
+        var score = 0
+        if str(res.get("connection", "")).to_lower() == "square":
+            score += 50
+        if str(res.get("color", "")).to_lower() == "green":
+            score += 20
+        
+        var key = str(id).to_lower()
+        var name = str(res.get("name", id)).to_lower()
+        if "file" in key or "file" in name:
+            score += 30
+        
+        var desc = str(res.get("description", "")).to_lower()
+        if "file" in desc:
+            score += 10
+        
+        if score > best_score:
+            best_score = score
+            best_id = str(id)
+    
+    return best_id
+
+
 func _add_placeholder(container: Control, text: String) -> void:
     var label = Label.new()
     label.text = text
     label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
     label.add_theme_font_size_override("font_size", 12)
     container.add_child(label)
+
+
+func _add_modifier_row(container: Control, modifier: Dictionary) -> void:
+    var hbox = HBoxContainer.new()
+    hbox.add_theme_constant_override("separation", 8)
+    
+    # Icon (with proper sizing)
+    var icon_name = str(modifier.get("icon", ""))
+    if icon_name != "":
+        var icon_path = "res://textures/icons/" + icon_name + ".png"
+        if ResourceLoader.exists(icon_path):
+            var icon_rect = TextureRect.new()
+            icon_rect.texture = load(icon_path)
+            icon_rect.custom_minimum_size = Vector2(20, 20)
+            icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+            icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+            hbox.add_child(icon_rect)
+    
+    # Button for the text (clickable)
+    var row = Button.new()
+    row.flat = true
+    row.focus_mode = Control.FOCUS_NONE
+    row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+    row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+    row.add_theme_font_size_override("font_size", 16)
+    row.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
+    row.add_theme_color_override("font_hover_color", Color(0.9, 0.95, 1.0))
+    
+    var name = str(modifier.get("name", modifier.get("id", "Modifier")))
+    row.text = name
+    
+    var desc = str(modifier.get("description", "")).strip_edges()
+    if not desc.is_empty():
+        row.tooltip_text = desc
+        hbox.tooltip_text = desc
+    
+    var mod_id = str(modifier.get("id", ""))
+    row.pressed.connect(func():
+        if mod_id != "":
+            modifier_clicked.emit(mod_id)
+            Sound.play("click")
+    )
+    
+    hbox.add_child(row)
+    container.add_child(hbox)
 
 
 func _clear_container(container: Control) -> void:

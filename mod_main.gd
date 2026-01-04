@@ -571,6 +571,15 @@ func _build_settings_menu() -> void:
         if palette_controller:
             palette_controller.set_palette_enabled(v)
     , "Open a searchable command palette with Middle Mouse Button.")
+
+    # Palette Tab Autocomplete toggle
+    var tab_autocomplete_enabled = true
+    if palette_controller and palette_controller.palette_config:
+        tab_autocomplete_enabled = palette_controller.palette_config.get_value("tab_autocomplete", true)
+    _settings_toggles["palette_tab_autocomplete"] = ui.add_toggle(gen_vbox, "Palette: Tab Autocomplete", tab_autocomplete_enabled, func(v):
+        if palette_controller:
+            palette_controller.set_tab_autocomplete_enabled(v)
+    , "Use Tab to autocomplete command names in the palette (Ctrl+Space always works).")
     
     # Undo/Redo toggle
     _settings_toggles["undo_redo_enabled"] = ui.add_toggle(gen_vbox, "Undo/Redo (Ctrl+Z)", config.get_value("undo_redo_enabled", true), func(v):

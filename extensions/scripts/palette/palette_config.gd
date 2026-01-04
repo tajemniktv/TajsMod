@@ -14,7 +14,8 @@ const DEFAULT_CONFIG := {
 	"recents": [],
 	"tools_enabled": false,
 	"max_recents": 10,
-	"palette_onboarded": false
+	"palette_onboarded": false,
+	"tab_autocomplete": true
 }
 
 var _config: Dictionary = {}

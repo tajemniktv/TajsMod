@@ -12,6 +12,14 @@ const LOG_NAME = "TajsModded:CommandRegistry"
 # {
 #     "id": String,
 #     "title": String,
+#     "display_name": String, # Optional friendly command name (for help/autocomplete)
+#     "aliases": Array[String], # Optional alternate names
+#     "description": String, # Optional short description
+#     "usage": String, # Optional usage string (e.g. "def <node>")
+#     "examples": Array[String], # Optional examples
+#     "category": String, # Optional category label for help
+#     "tags": Array[String], # Optional tags for help/search
+#     "hidden": bool, # Optional flag to hide from help/autocomplete
 #     "category_path": Array[String],  # e.g. ["Taj's Mod", "Visuals"]
 #     "keywords": Array[String],
 #     "hint": String,
@@ -48,9 +56,21 @@ func register(data: Dictionary) -> void:
 		return
 	
 	# Set defaults
+	var has_metadata = data.has("display_name") or data.has("aliases") or data.has("description") \
+		or data.has("usage") or data.has("examples") or data.has("category") \
+		or data.has("tags") or data.has("hidden")
 	var command = {
 		"id": id,
 		"title": data.get("title", ""),
+		"display_name": data.get("display_name", ""),
+		"aliases": data.get("aliases", []),
+		"description": data.get("description", ""),
+		"usage": data.get("usage", ""),
+		"examples": data.get("examples", []),
+		"category": data.get("category", ""),
+		"tags": data.get("tags", []),
+		"hidden": data.get("hidden", false),
+		"_has_metadata": has_metadata,
 		"get_title": data.get("get_title", Callable()), # Dynamic title function
 		"category_path": data.get("category_path", []),
 		"keywords": data.get("keywords", []),

@@ -251,6 +251,7 @@ class NodeMetadataService extends RefCounted:
             "description": data.get("description", ""),
             "inputs": [],
             "outputs": [],
+            "modifiers_added": [],
             "scene_path": ""
         }
         
@@ -266,7 +267,179 @@ class NodeMetadataService extends RefCounted:
                     _add_port_to_list(details.outputs, _convert_filter_port(p))
         
         details.unlock_info = _get_unlock_info(node_id, data)
+        details.modifiers_added = _extract_modifiers(node_id, data)
         return details
+
+    # Hardcoded mapping of nodes to the modifiers they add
+    # This is necessary because modifiers are applied programmatically in scripts, not in JSON
+    const NODE_MODIFIERS = {
+        # Scanners / Antivirus
+        "virus_scanner": ["scanned", "infected"],
+        "antivirus_pro": ["scanned"],
+        "quarantine": ["scanned"],
+        # Verifiers
+        "verifier": ["validated", "corrupted"],
+        # Compressors
+        "compressor": ["compressed"],
+        "encompressor": ["compressed", "enhanced"],
+        # Enhancers
+        "enhancer": ["enhanced"],
+        # Processing
+        "refiner": ["refined"],
+        "analyzer": ["analyzed"],
+        "distillator": ["distilled"],
+        "decryptor": ["decrypted"],
+        # Virus/Hacking
+        "virus_extractor": ["infected"],
+        "trojan_injector": ["trojan"],
+        "data_lab": ["analyzed"],
+        # Torrent browsers
+        "torrent_browser_scanned": ["scanned"],
+        "torrent_browser_verified": ["validated"],
+        "torrent_browser_analyzed": ["analyzed"],
+        "torrent_browser_encrypted": ["encrypted"],
+        # Encryption
+        "encryptor": ["encrypted"],
+        # AI Generators (output AI-generated files)
+        "generator_text": ["ai"],
+        "generator_image": ["ai"],
+        "generator_sound": ["ai"],
+        "generator_video": ["ai"],
+        "generator_program": ["ai"],
+        "generator_game": ["ai"],
+    }
+
+    func _extract_modifiers(node_id: String, data: Dictionary) -> Array:
+        var modifier_ids: Array = []
+        var seen: Dictionary = {}
+        
+        var known_keys = [
+            "modifier",
+            "modifiers",
+            "adds_modifier",
+            "adds_modifiers",
+            "add_modifier",
+            "add_modifiers",
+            "file_modifier",
+            "file_modifiers",
+            "output_modifier",
+            "output_modifiers",
+            "input_modifier",
+            "input_modifiers",
+            "modifiers_add",
+            "modifier_add"
+        ]
+        
+        for key in known_keys:
+            if data.has(key):
+                _append_modifier_value(modifier_ids, seen, data[key])
+        
+        # Fallback: scan any key containing "modifier"
+        for key in data.keys():
+            if str(key).to_lower().find("modifier") == -1:
+                continue
+            _append_modifier_value(modifier_ids, seen, data[key])
+        
+        # If no modifiers found in data, check our hardcoded mapping
+        if modifier_ids.is_empty() and NODE_MODIFIERS.has(node_id):
+            for mod in NODE_MODIFIERS[node_id]:
+                if not seen.has(mod):
+                    seen[mod] = true
+                    modifier_ids.append(mod)
+        
+        var result: Array = []
+        for mid in modifier_ids:
+            var meta = _resolve_modifier_meta(mid)
+            result.append(meta)
+        
+        return result
+
+    func _append_modifier_value(list: Array, seen: Dictionary, value) -> void:
+        if value == null:
+            return
+        if value is String:
+            var id = str(value)
+            if not id.is_empty() and not seen.has(id):
+                seen[id] = true
+                list.append(id)
+        elif value is Array:
+            for entry in value:
+                _append_modifier_value(list, seen, entry)
+        elif value is Dictionary:
+            if value.has("id"):
+                _append_modifier_value(list, seen, value["id"])
+            elif value.has("modifier"):
+                _append_modifier_value(list, seen, value["modifier"])
+
+    # Known file modifiers from Utils.file_variations enum
+    # These don't exist in Data.modifiers, so we define them here
+    const FILE_MODIFIERS = {
+        "scanned": {"name": "Scanned", "icon": "antivirus", "description_key": "guide_file_modifiers_scanned"},
+        "validated": {"name": "Validated", "icon": "puzzle", "description_key": "guide_file_modifiers_validated"},
+        "compressed": {"name": "Compressed", "icon": "minimize", "description_key": "guide_file_modifiers_compressed"},
+        "enhanced": {"name": "Enhanced", "icon": "up_arrow", "description_key": "guide_file_modifiers_enhanced"},
+        "infected": {"name": "Infected", "icon": "virus", "description_key": "guide_file_modifiers_infected"},
+        "refined": {"name": "Refined", "icon": "filter", "description_key": "guide_file_modifiers_refined"},
+        "distilled": {"name": "Distilled", "icon": "connections", "description_key": "guide_file_modifiers_distilled"},
+        "analyzed": {"name": "Analyzed", "icon": "magnifying_glass", "description_key": "guide_file_modifiers_analyzed"},
+        "hacked": {"name": "Hacked", "icon": "hacker", "description_key": "guide_file_modifiers_hacked"},
+        "corrupted": {"name": "Corrupted", "icon": "warning", "description_key": "guide_file_modifiers_corrupted"},
+        "ai": {"name": "AI", "icon": "brain", "description_key": "guide_file_modifiers_ai"},
+        "encrypted": {"name": "Encrypted", "icon": "padlock", "description_key": "guide_file_modifiers_encrypted"},
+        "decrypted": {"name": "Decrypted", "icon": "padlock_open", "description_key": "guide_file_modifiers_decrypted"},
+        "trojan": {"name": "Trojan", "icon": "trojan", "description_key": "guide_file_modifiers_trojan"},
+    }
+    
+    func _resolve_modifier_meta(modifier_id: String) -> Dictionary:
+        var meta = {
+            "id": modifier_id,
+            "name": modifier_id.capitalize(),
+            "description": ""
+        }
+        
+        var id_lower = modifier_id.to_lower()
+        
+        # 1. Check our known file modifiers dictionary first
+        if FILE_MODIFIERS.has(id_lower):
+            var fm = FILE_MODIFIERS[id_lower]
+            meta.name = fm.get("name", modifier_id.capitalize())
+            meta.icon = fm.get("icon", "")
+            # Try to get translated description from guides
+            var desc_key = fm.get("description_key", "")
+            if desc_key != "":
+                var translated = tr(desc_key)
+                # Only use if translation exists (doesn't return the key itself)
+                if translated != desc_key:
+                    meta.description = translated
+            return meta
+        
+        # 2. Check Data.resources (for resources that might be modifiers)
+        if Data.resources.has(modifier_id):
+            var res = Data.resources[modifier_id]
+            if res is Dictionary:
+                meta.name = tr(res.get("name", modifier_id))
+                meta.description = tr(res.get("description", ""))
+                if res.has("icon"):
+                    meta.icon = res.get("icon", "")
+            return meta
+        
+        # 3. Check Data.items (if it exists)
+        if "items" in Data and Data.items.has(modifier_id):
+            var item = Data.items[modifier_id]
+            if item is Dictionary:
+                meta.name = tr(item.get("name", modifier_id))
+                meta.description = tr(item.get("description", ""))
+                if item.has("icon"):
+                    meta.icon = item.get("icon", "")
+            return meta
+        
+        # 4. Fallback: try guide translation key pattern
+        var guide_key = "guide_file_modifiers_" + id_lower
+        var translated = tr(guide_key)
+        if translated != guide_key:
+            meta.description = translated
+        
+        return meta
     
     func _convert_filter_port(filter_port: Dictionary) -> Dictionary:
         return {
@@ -448,6 +621,11 @@ func set_palette_enabled(enabled: bool) -> void:
     _palette_enabled = enabled
     if mod_config:
         mod_config.set_value("command_palette_enabled", enabled)
+
+## Set tab autocomplete enabled state
+func set_tab_autocomplete_enabled(enabled: bool) -> void:
+    if palette_config:
+        palette_config.set_value("tab_autocomplete", enabled)
 
 
 ## Handle wire dropped on empty canvas

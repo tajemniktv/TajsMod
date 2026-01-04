@@ -34,6 +34,7 @@ var _quality_label: Label
 var _value_label: Label
 var _size_label: Label
 var _research_label: Label
+var _modifiers_label: Label
 
 var _current_resource_id: String = ""
 var _current_shape: String = ""
@@ -201,6 +202,13 @@ func _build_ui() -> void:
     _properties_section = _create_section("Properties", content_vbox)
     _properties_section.visible = false
     
+    _modifiers_label = Label.new()
+    _modifiers_label.text = ""
+    _modifiers_label.add_theme_font_size_override("font_size", 16)
+    _modifiers_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+    _modifiers_label.visible = false
+    _properties_section.add_child(_modifiers_label)
+    
     _quality_label = Label.new()
     _quality_label.text = "Quality: 1.0"
     _quality_label.add_theme_font_size_override("font_size", 16)
@@ -267,32 +275,47 @@ func _create_section(title: String, parent: Control) -> VBoxContainer:
     return content
 
 
-func display_resource(resource_id: String, shape: String, color: String, label: String) -> void:
-    _current_resource_id = resource_id
+func display_resource(resource_id: String, shape: String, color: String, label: String, applied_modifiers: Array = []) -> void:
+    var resolved_id = resource_id
+    var resolved_color = color
+    var label_text = label
+    var is_any_file = false
+    
+    # Heuristic: white square "Input" is usually an any-file input
+    if resolved_id == "white" and shape == "square":
+        var label_lower = label_text.to_lower()
+        if _is_generic_file_label(label_lower) or label_lower.is_empty():
+            var guessed_id = _guess_file_resource_id()
+            if guessed_id != "":
+                resolved_id = guessed_id
+            label_text = "File Wildcard"
+            is_any_file = true
+    
+    _current_resource_id = resolved_id
     _current_shape = shape
-    _current_color = color
+    _current_color = resolved_color
     
     # Set title - try to find friendly name
-    var display_name = label if label != "" else resource_id
+    var display_name = label_text if label_text != "" else resolved_id
     
     # Check CONFIGURABLE_WIRES for friendly name
-    if Data.resources.has(resource_id):
-        var res_data = Data.resources[resource_id]
+    if Data.resources.has(resolved_id):
+        var res_data = Data.resources[resolved_id]
         if res_data.has("name"):
             display_name = tr(res_data.name)
     
     _title_label.text = display_name.capitalize()
     _shape_label.text = "Shape: %s" % shape
-    _color_name_label.text = color.capitalize()
+    _color_name_label.text = resolved_color.capitalize()
     
     # Set color swatch
-    var swatch_color = _resolve_color(shape, color)
+    var swatch_color = _resolve_color(shape, resolved_color)
     _color_swatch.color = swatch_color
     _color_name_label.add_theme_color_override("font_color", swatch_color)
     
     # Try to get description for this resource type
     var description = "A connector type used for node connections."
-    var res_data = _find_resource_data(resource_id, shape, label)
+    var res_data = _find_resource_data(resolved_id, shape, label_text)
     
     if not res_data.is_empty():
         # Update description
@@ -300,8 +323,11 @@ func display_resource(resource_id: String, shape: String, color: String, label: 
             description = tr(res_data.description)
             
         # Update title if it was just the ID
-        if label == "" and res_data.has("name"):
+        if label_text == "" and res_data.has("name"):
             _title_label.text = tr(res_data.name).capitalize()
+    
+    if is_any_file:
+        description = "Accepts any file type. " + description
             
     if description == "A connector type used for node connections.":
         var tried_keys = [resource_id, resource_id.to_lower()]
@@ -330,7 +356,18 @@ func display_resource(resource_id: String, shape: String, color: String, label: 
     _description_label.text = description
     
     # Update Properties section
-    _update_properties(resource_id, 0) # variation=0 for base display
+    var variation = _calculate_variation(applied_modifiers)
+    
+    if not applied_modifiers.is_empty():
+        var names = []
+        for mod in applied_modifiers:
+            names.append(str(mod.get("name", mod.get("id", "Modifier"))))
+        _modifiers_label.text = "Activated: " + ", ".join(names)
+        _modifiers_label.visible = true
+    else:
+        _modifiers_label.visible = false
+        
+    _update_properties(resolved_id, variation)
 
 
 func _find_resource_data(id: String, shape: String, label: String) -> Dictionary:
@@ -385,7 +422,8 @@ func _find_resource_data(id: String, shape: String, label: String) -> Dictionary
                 if best_match.is_empty():
                     best_match = item
 
-    # 3. Check Connectors (Lowest Priority - mostly just visual info)
+
+    # 4. Check Connectors (Lowest Priority - mostly just visual info)
     for key in keys_to_try:
         if Data.connectors.has(key):
             var conn = Data.connectors[key]
@@ -411,6 +449,47 @@ func _find_resource_data(id: String, shape: String, label: String) -> Dictionary
     return best_match
 
 
+func _is_generic_file_label(label_lower: String) -> bool:
+    if label_lower.contains("input") or label_lower.contains("output"):
+        return true
+    if label_lower.contains("file") or label_lower.contains("empty"):
+        return true
+    return false
+
+
+func _guess_file_resource_id() -> String:
+    var best_id = ""
+    var best_score = -1
+    if not Data or not "resources" in Data:
+        return best_id
+    
+    for id in Data.resources:
+        var res = Data.resources[id]
+        if not (res is Dictionary):
+            continue
+        
+        var score = 0
+        if str(res.get("connection", "")).to_lower() == "square":
+            score += 50
+        if str(res.get("color", "")).to_lower() == "green":
+            score += 20
+        
+        var key = str(id).to_lower()
+        var name = str(res.get("name", id)).to_lower()
+        if "file" in key or "file" in name:
+            score += 30
+        
+        var desc = str(res.get("description", "")).to_lower()
+        if "file" in desc:
+            score += 10
+        
+        if score > best_score:
+            best_score = score
+            best_id = str(id)
+    
+    return best_id
+
+
 func _resolve_color(shape: String, color_key: String) -> Color:
     # 1. Custom Overrides (highest priority)
     if _wire_colors:
@@ -426,6 +505,47 @@ func _resolve_color(shape: String, color_key: String) -> Color:
         
     # 3. Fallback
     return Color.WHITE
+
+
+func _calculate_variation(modifiers: Array) -> int:
+    var variation = 0
+    var counts = {} # Count occurrences of each modifier type
+    
+    for mod in modifiers:
+        var id = str(mod.get("id", "")).to_lower()
+        counts[id] = counts.get(id, 0) + 1
+        
+    # Apply bits based on counts (matches Utils.file_variations)
+    if counts.get("scanned", 0) > 0: variation |= (1 << 0)
+    if counts.get("validated", 0) > 0: variation |= (1 << 1)
+    
+    # Compressed (stacks up to 3)
+    var comp_count = counts.get("compressed", 0)
+    if comp_count >= 1: variation |= (1 << 2)
+    if comp_count >= 2: variation |= (1 << 3)
+    if comp_count >= 3: variation |= (1 << 4)
+    
+    # Enhanced (stacks up to 3)
+    var enh_count = counts.get("enhanced", 0)
+    if enh_count >= 1: variation |= (1 << 5)
+    if enh_count >= 2: variation |= (1 << 6)
+    if enh_count >= 3: variation |= (1 << 7)
+    
+    if counts.get("infected", 0) > 0: variation |= (1 << 8)
+    if counts.get("refined", 0) > 0: variation |= (1 << 9)
+    if counts.get("distilled", 0) > 0: variation |= (1 << 10)
+    if counts.get("analyzed", 0) > 0: variation |= (1 << 11)
+    if counts.get("hacked", 0) > 0: variation |= (1 << 12)
+    if counts.get("corrupted", 0) > 0: variation |= (1 << 13)
+    if counts.get("ai", 0) > 0: variation |= (1 << 14)
+    if counts.get("encrypted", 0) > 0: variation |= (1 << 15)
+    if counts.get("decrypted", 0) > 0: variation |= (1 << 16)
+    
+    # Code variations if relevant
+    # DEBUGGED (1), BUGGED (2), OPTIMIZED (4) etc. are for code
+    # We can add mapping for them if we want to support code modifiers too
+    
+    return variation
 
 
 func _update_properties(resource_id: String, variation: int) -> void:
