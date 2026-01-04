@@ -32,6 +32,9 @@ const SmoothScrollManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsMo
 const UndoManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/undo/undo_manager.gd")
 const WorkshopSyncScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/workshop_sync.gd")
 const RestartRequiredWindowScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/restart_required_window.gd")
+const KeybindsManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/keybinds/keybinds_manager.gd")
+const KeybindsUIScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/keybinds/keybinds_ui.gd")
+const KeybindsRegistrationScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/keybinds/keybinds_registration.gd")
 
 # Components
 var config # ConfigManager instance
@@ -53,6 +56,10 @@ var upgrade_manager # UpgradeManager instance
 var smooth_scroll_manager # SmoothScrollManager instance
 var undo_manager # UndoManager instance
 var workshop_sync # WorkshopSync instance
+var keybinds_manager # KeybindsManager instance
+var keybinds_ui # KeybindsUI instance
+var keybinds_registration # KeybindsRegistration instance
+
 
 # State
 var mod_dir_path: String = ""
@@ -133,6 +140,13 @@ func _init() -> void:
     undo_manager.name = "UndoManager"
     add_child(undo_manager)
     
+    # Init Keybinds Manager (MUST be early, before other components that need it)
+    keybinds_manager = KeybindsManagerScript.new()
+    keybinds_manager.name = "KeybindsManager"
+    add_child(keybinds_manager)
+    keybinds_manager.setup(config)
+
+    
     # Init Workshop Sync (runs early to trigger downloads ASAP)
     workshop_sync = WorkshopSyncScript.new()
     workshop_sync.name = "WorkshopSync"
@@ -153,6 +167,11 @@ func _init() -> void:
 func _ready() -> void:
     ModLoaderLog.info("TajsMod is ready to improve your game!", LOG_NAME)
     
+    # Setup Keybinds Global Reference & Registration
+    Globals.keybinds_manager = keybinds_manager
+    keybinds_registration = KeybindsRegistrationScript.new()
+    keybinds_registration.setup(keybinds_manager, self)
+
     # Init Shared Color Picker Overlay
     picker_canvas = CanvasLayer.new()
     picker_canvas.layer = 100 # High Z-index
@@ -213,6 +232,10 @@ func _on_picker_color_changed(c: Color) -> void:
     if _current_picker_callback.is_valid():
         _current_picker_callback.call(c)
 
+## Register all keybinds with the KeybindsManager
+# NOTE: Registration logic moved to extensions/scripts/keybinds/keybinds_registration.gd
+
+
 func _process(delta: float) -> void:
     # Persistent Patches (only try once on failure to avoid log spam)
     if !_desktop_patched and !_desktop_patch_failed:
@@ -237,25 +260,8 @@ func _input(event: InputEvent) -> void:
         if event is InputEventJoypadMotion or event is InputEventJoypadButton:
             get_viewport().set_input_as_handled()
             return
-
-    # Undo/Redo shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z)
-    if event is InputEventKey and event.is_released():
-        if config.get_value("undo_redo_enabled", true) and undo_manager:
-            # Don't intercept when text field is focused
-            var focused = get_viewport().gui_get_focus_owner()
-            if focused and (focused is LineEdit or focused is TextEdit or focused.is_class("LineEdit") or focused.is_class("TextEdit")):
-                # ModLoaderLog.info("Ignored Ctrl+Z due to focus: " + str(focused.get_class()), LOG_NAME)
-                pass # Let native text field handle it
-            elif Input.is_key_pressed(KEY_CTRL):
-                if event.keycode == KEY_Z and not event.shift_pressed:
-                    # ModLoaderLog.info("Undo Triggered. Focused: " + (str(focused.get_class()) if focused else "None"), LOG_NAME)
-                    undo_manager.undo()
-                    get_viewport().set_input_as_handled()
-                    return
-                elif event.keycode == KEY_Y or (event.keycode == KEY_Z and event.shift_pressed):
-                    undo_manager.redo()
-                    get_viewport().set_input_as_handled()
-                    return
+    
+    # NOTE: Undo/Redo is now handled by KeybindsManager
 
     # Global Slider Scroll Blocking (affects all sliders - mod and vanilla)
     if config.get_value("disable_slider_scroll", false):
@@ -362,6 +368,11 @@ func _setup_for_main(main_node: Node) -> void:
     # Initialize palette system
     palette_controller.initialize(get_tree(), config, ui, self)
     _register_palette_screenshot_command()
+    
+    # Connect palette signals to KeybindsManager for context tracking
+    if palette_controller and keybinds_manager:
+        palette_controller.palette_opened.connect(func(): keybinds_manager.set_palette_open(true))
+        palette_controller.palette_closed.connect(func(): keybinds_manager.set_palette_open(false))
     
     # Initialize Go To Group feature
     _setup_goto_group(hud)
@@ -732,6 +743,12 @@ func _build_settings_menu() -> void:
         config.set_value("ui_opacity", v)
         _apply_ui_opacity(v)
     )
+    
+    # --- KEYBINDS ---
+    var keybinds_vbox = ui.add_tab("Keys", "res://textures/icons/keyboard.png")
+    if keybinds_manager:
+        keybinds_ui = KeybindsUIScript.new()
+        keybinds_ui.setup(keybinds_manager, ui, keybinds_vbox)
     
     # --- CHEATS ---
     var cheat_vbox = ui.add_tab("Cheats", "res://textures/icons/money.png")

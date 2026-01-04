@@ -49,6 +49,10 @@ const DEFAULT_CONFIG := {
 	"highlight_disconnected_debug": false,
 	# Toast History / Notification Log
 	"notification_log_enabled": true,
+	# Undo/Redo
+	"undo_redo_enabled": true,
+	# Keybinds
+	"keybind_overrides": {}, # User-customized keybind mappings
 	# Debug tab
 	"debug_mode": false, # Enable verbose debug logging
 	"custom_boot_screen": true,

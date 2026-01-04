@@ -1,0 +1,239 @@
+# Keybinds Manager API Reference
+
+This document describes the public API for Taj's Mod's KeybindsManager, which allows other mods to register, query, and respond to keybinds.
+
+## Accessing the Manager
+
+```gdscript
+# Via Globals (preferred)
+var km = Globals.keybinds_manager
+
+# Check if available (for compatibility)
+if Globals.keybinds_manager:
+    var km = Globals.keybinds_manager
+```
+
+---
+
+## Registering Keybinds
+
+### `register_external_bind(mod_id: String, definition: Dictionary) -> bool`
+
+Register a keybind for your mod.
+
+**Parameters:**
+- `mod_id`: Your mod's unique identifier (e.g., `"my_cool_mod"`)
+- `definition`: A dictionary describing the keybind
+
+**Returns:** `true` if registration succeeded, `false` otherwise
+
+**Example:**
+```gdscript
+var km = Globals.keybinds_manager
+km.register_external_bind("my_mod", {
+    "id": "my_mod.open_menu",
+    "display_name": "Open My Menu",
+    "description": "Opens the custom menu for My Mod",
+    "category": "My Mod",
+    "default_binding": {
+        "type": "key",
+        "keycode": KEY_M,
+        "ctrl": true
+    },
+    "allow_rebind": true,
+    "context": km.Context.GLOBAL
+})
+```
+
+### Keybind Definition Schema
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | String | ✅ | Unique namespaced identifier (e.g., `"my_mod.action_name"`) |
+| `display_name` | String | ❌ | Human-readable name (defaults to id) |
+| `description` | String | ❌ | Tooltip text describing the action |
+| `category` | String | ❌ | Grouping in settings UI (defaults to "General") |
+| `default_binding` | Dictionary | ✅ | The default key/mouse binding |
+| `allow_rebind` | bool | ❌ | Whether user can change this (defaults to `true`) |
+| `context` | int | ❌ | When bind is active (defaults to `GLOBAL`) |
+
+### Binding Dictionary Schema
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | String | `"key"` or `"mouse"` |
+| `keycode` | int | Godot KEY_* constant (for type=key) |
+| `button` | int | MOUSE_BUTTON_* constant (for type=mouse) |
+| `ctrl` | bool | Ctrl modifier required |
+| `alt` | bool | Alt modifier required |
+| `shift` | bool | Shift modifier required |
+| `meta` | bool | Meta/Win modifier required |
+
+### Context Enum
+
+```gdscript
+enum Context {
+    GLOBAL,       # Always active (when not in text field)
+    IN_GAME,      # Only when playing (not in menus)
+    PALETTE_OPEN, # Only when command palette is open
+    TEXT_FOCUS    # Only when text field has focus
+}
+```
+
+---
+
+## Connecting Callbacks
+
+### `connect_bind(mod_id: String, bind_id: String, target: Object, method: String)`
+
+Connect a callback to be called when the keybind triggers.
+
+```gdscript
+km.connect_bind("my_mod", "my_mod.open_menu", self, "_on_open_menu")
+
+func _on_open_menu() -> void:
+    # Handle the keybind
+    my_menu.show()
+```
+
+### `disconnect_bind(mod_id: String, bind_id: String, target: Object, method: String)`
+
+Disconnect a previously connected callback.
+
+---
+
+## Signals
+
+Connect to these signals for global notifications:
+
+| Signal | Parameters | Description |
+|--------|------------|-------------|
+| `bind_triggered(bind_id: String)` | Bind ID | Emitted when any bind triggers |
+| `bind_registered(bind_id: String)` | Bind ID | Emitted when bind is registered |
+| `bind_unregistered(bind_id: String)` | Bind ID | Emitted when bind is removed |
+| `binding_changed(bind_id: String, new_binding: Dictionary)` | Bind ID + binding | Emitted when user rebinds |
+| `conflict_detected(bind_id1: String, bind_id2: String)` | Two conflicting IDs | Emitted on conflict |
+
+**Example:**
+```gdscript
+km.bind_triggered.connect(_on_any_bind_triggered)
+
+func _on_any_bind_triggered(bind_id: String) -> void:
+    if bind_id == "my_mod.open_menu":
+        _open_my_menu()
+```
+
+---
+
+## Querying Bindings
+
+### `get_binding(bind_id: String) -> Dictionary`
+
+Get the current effective binding (user override or default).
+
+### `get_all_binds() -> Array[Dictionary]`
+
+Get all registered keybinds.
+
+### `get_binds_by_category(category: String) -> Array[Dictionary]`
+
+Get keybinds in a specific category.
+
+### `get_categories() -> Array[String]`
+
+Get all category names.
+
+### `get_conflicts() -> Array[Dictionary]`
+
+Get list of current keybind conflicts.
+
+---
+
+## Modifying Bindings
+
+### `set_binding(bind_id: String, new_binding: Dictionary) -> bool`
+
+Set a custom binding (user override). Returns `false` if bind doesn't exist or doesn't allow rebinding.
+
+### `reset_binding(bind_id: String)`
+
+Reset a keybind to its default.
+
+### `reset_all_bindings()`
+
+Reset all keybinds to defaults.
+
+---
+
+## Unregistering
+
+### `unregister_external_bind(mod_id: String, bind_id: String)`
+
+Remove a keybind. Only the mod that registered it can unregister.
+
+---
+
+## Utility Methods
+
+### `get_binding_display_string(bind_id: String) -> String`
+
+Get human-readable string for a binding (e.g., "Ctrl+M").
+
+### `binding_to_display_string(binding: Dictionary) -> String`
+
+Convert any binding dictionary to display string.
+
+### `binding_from_event(event: InputEvent) -> Dictionary`
+
+Create a binding dictionary from an InputEvent (useful for custom rebind UI).
+
+---
+
+## Complete Example
+
+```gdscript
+extends Node
+
+const MY_MOD_ID = "my_cool_mod"
+
+func _ready() -> void:
+    # Wait for Taj's Mod to initialize
+    call_deferred("_register_keybinds")
+
+func _register_keybinds() -> void:
+    var km = Globals.keybinds_manager
+    if not km:
+        push_warning("KeybindsManager not available")
+        return
+    
+    # Register our keybind
+    km.register_external_bind(MY_MOD_ID, {
+        "id": "my_cool_mod.toggle_overlay",
+        "display_name": "Toggle Overlay",
+        "description": "Shows or hides the custom overlay",
+        "category": "My Cool Mod",
+        "default_binding": {
+            "type": "key",
+            "keycode": KEY_O,
+            "ctrl": true,
+            "shift": true
+        },
+        "allow_rebind": true,
+        "context": km.Context.GLOBAL
+    })
+    
+    # Connect callback
+    km.connect_bind(MY_MOD_ID, "my_cool_mod.toggle_overlay", self, "_toggle_overlay")
+    
+    print("My Cool Mod: Registered keybind (Ctrl+Shift+O)")
+
+func _toggle_overlay() -> void:
+    # Your action here
+    $Overlay.visible = !$Overlay.visible
+
+func _exit_tree() -> void:
+    # Clean up when mod unloads
+    var km = Globals.keybinds_manager
+    if km:
+        km.unregister_external_bind(MY_MOD_ID, "my_cool_mod.toggle_overlay")
+```

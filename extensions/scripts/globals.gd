@@ -9,3 +9,4 @@ var custom_node_limit: int = 400
 var select_all_enabled: bool = true
 var custom_upgrade_multiplier: int = 10
 var undo_manager = null
+var keybinds_manager = null # TajsModKeybindsManager reference

@@ -42,7 +42,7 @@ var _redo_stack: Array = []
 var _enabled: bool = true
 
 ## Transaction state
-var _in_transaction: bool = false
+var _transaction_depth: int = 0
 var _transaction_name: String = ""
 var _transaction_commands: Array = []
 
@@ -155,7 +155,7 @@ func clear_history() -> void:
     _undo_stack.clear()
     _redo_stack.clear()
     _transaction_commands.clear()
-    _in_transaction = false
+    _transaction_depth = 0
 
 
 ## Check if undo is available
@@ -236,21 +236,25 @@ func redo() -> bool:
 
 ## Begin a transaction (grouped action)
 func begin_action(action_name: String) -> void:
-    if _in_transaction:
-        push_warning("UndoManager: begin_action called while already in transaction")
+    _transaction_depth += 1
+    if _transaction_depth > 1:
+        # Nested transaction - just continue grouping
         return
-    _in_transaction = true
+    
     _transaction_name = action_name
     _transaction_commands.clear()
 
 
 ## Commit (finalize) the current transaction
 func commit_action() -> void:
-    if not _in_transaction:
+    if _transaction_depth <= 0:
         push_warning("UndoManager: commit_action called without begin_action")
         return
     
-    _in_transaction = false
+    _transaction_depth -= 1
+    if _transaction_depth > 0:
+        # Still inside a nested transaction
+        return
     
     if _transaction_commands.size() == 0:
         # No commands recorded, nothing to commit
@@ -269,7 +273,7 @@ func commit_action() -> void:
 
 ## Cancel the current transaction (discard pending commands)
 func cancel_action() -> void:
-    _in_transaction = false
+    _transaction_depth = 0
     _transaction_commands.clear()
 
 
@@ -278,7 +282,7 @@ func push_command(command) -> void:
     if not _enabled:
         return
     
-    if _in_transaction:
+    if _transaction_depth > 0:
         _transaction_commands.push_back(command)
     else:
         _push_to_undo_stack(command)

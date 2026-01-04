@@ -89,6 +89,7 @@ func initialize(tree: SceneTree, config, ui = null, mod_main_ref = null) -> void
     overlay.setup(registry, context, palette_config, node_metadata_service, mod_main.wire_colors if mod_main else null)
     
     # Connect signals
+    overlay.opened.connect(_on_palette_opened)
     overlay.closed.connect(_on_palette_closed)
     overlay.command_executed.connect(_on_command_executed)
     overlay.node_selected.connect(_on_node_selected)
@@ -537,25 +538,9 @@ func _register_default_commands() -> void:
 
 
 func _input(event: InputEvent) -> void:
-    if not _initialized:
-        return
-    
-    # Mouse button handling
-    if event is InputEventMouseButton and event.pressed:
-        match event.button_index:
-            MOUSE_BUTTON_MIDDLE:
-                # Only toggle palette if enabled
-                if _palette_enabled:
-                    toggle()
-                    get_viewport().set_input_as_handled()
-            MOUSE_BUTTON_XBUTTON1: # Mouse back button
-                if is_open():
-                    overlay._go_back()
-                    get_viewport().set_input_as_handled()
-            MOUSE_BUTTON_XBUTTON2: # Mouse forward button
-                if is_open():
-                    overlay._go_forward()
-                    get_viewport().set_input_as_handled()
+    # NOTE: Keybind handling (MMB, XButton1, XButton2) is now centralized in KeybindsManager
+    # This function is kept for any future input handling that shouldn't be rebindable
+    pass
 
 
 ## Toggle the palette
@@ -585,7 +570,6 @@ func open() -> void:
             overlay.node_metadata_service = node_metadata_service
 
     overlay.show_palette()
-    palette_opened.emit()
 
 
 ## Close the palette
@@ -659,6 +643,10 @@ func _on_node_selected(window_id: String, spawn_pos: Vector2, origin_info: Dicti
 
 func _on_palette_closed() -> void:
     palette_closed.emit()
+
+
+func _on_palette_opened() -> void:
+    palette_opened.emit()
 
 
 func _on_command_executed(command_id: String) -> void:

@@ -128,6 +128,7 @@ signal node_selected(window_id: String, spawn_pos: Vector2, origin_info: Diction
 signal group_selected(group) # Emitted when a group is selected in group picker mode
 signal note_picker_selected(note) # Emitted when a note is selected in note picker mode
 signal closed
+signal opened
 
 
 func _init() -> void:
@@ -1105,6 +1106,8 @@ func show_palette() -> void:
     # Play sound
     if Engine.has_singleton("Sound"):
         Sound.play("menu_open")
+    
+    opened.emit()
 
 
 func hide_palette() -> void:
@@ -2645,7 +2648,7 @@ func _on_background_input(event: InputEvent) -> void:
                 _go_back()
                 get_viewport().set_input_as_handled()
             MOUSE_BUTTON_XBUTTON2: # Mouse forward button
-                _enter_category()
+                _go_forward()
                 get_viewport().set_input_as_handled()
 
 
