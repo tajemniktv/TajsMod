@@ -1,3 +1,19 @@
+## [0.3.14] - 2026-01-04
+
+### Added
+- New help command
+- Expanded in-game documentation
+
+### Changed
+- Refactored palette system
+- Improved node definition command
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.3.13] - 2026-01-03
 
 ### Added
