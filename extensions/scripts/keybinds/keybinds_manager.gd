@@ -51,12 +51,27 @@ func _ready() -> void:
 	get_viewport().gui_focus_changed.connect(_on_focus_changed)
 
 
+var _mod_main_ref = null
+
 ## Initialize the manager with config reference
-func setup(config) -> void:
+func setup(config, mod_main_ref = null) -> void:
 	_config = config
+	_mod_main_ref = mod_main_ref
 	_load_overrides()
 	_initialized = true
-	ModLoaderLog.info("KeybindsManager initialized", LOG_NAME)
+	_log("KeybindsManager initialized")
+
+func _log(message: String, is_warning: bool = false, is_error: bool = false) -> void:
+	if _mod_main_ref and _mod_main_ref.has_method("_debug_log_wrapper"):
+		_mod_main_ref._debug_log_wrapper(message)
+	
+	# Also log to console based on severity
+	if is_error:
+		ModLoaderLog.error(message, LOG_NAME)
+	elif is_warning:
+		ModLoaderLog.warning(message, LOG_NAME)
+	else:
+		ModLoaderLog.info(message, LOG_NAME)
 
 
 ## Set enabled state (global on/off)
@@ -80,7 +95,7 @@ func register_bind(definition: Dictionary) -> bool:
 ## Returns true if registration succeeded
 func register_external_bind(mod_id: String, definition: Dictionary) -> bool:
 	if mod_id.is_empty():
-		ModLoaderLog.error("External bind registration requires mod_id", LOG_NAME)
+		_log("External bind registration requires mod_id", false, true)
 		return false
 	return _register_bind_internal(definition, mod_id)
 
@@ -89,17 +104,17 @@ func register_external_bind(mod_id: String, definition: Dictionary) -> bool:
 func _register_bind_internal(definition: Dictionary, mod_id: String) -> bool:
 	# Validate required fields
 	if not definition.has("id"):
-		ModLoaderLog.error("Keybind definition missing 'id'", LOG_NAME)
+		_log("Keybind definition missing 'id'", false, true)
 		return false
 	if not definition.has("default_binding"):
-		ModLoaderLog.error("Keybind definition missing 'default_binding' for: %s" % definition.id, LOG_NAME)
+		_log("Keybind definition missing 'default_binding' for: %s" % definition.id, false, true)
 		return false
 	
 	var bind_id: String = definition.id
 	
 	# Check for duplicates
 	if _binds.has(bind_id):
-		ModLoaderLog.warning("Keybind '%s' already registered, skipping" % bind_id, LOG_NAME)
+		_log("Keybind '%s' already registered, skipping" % bind_id, true)
 		return false
 	
 	# Build full definition with defaults
@@ -126,7 +141,7 @@ func _register_bind_internal(definition: Dictionary, mod_id: String) -> bool:
 	bind_registered.emit(bind_id)
 	
 	if _config and _config.get_value("debug_mode", false):
-		ModLoaderLog.info("Registered keybind: %s" % bind_id, LOG_NAME)
+		_log("Registered keybind: %s" % bind_id)
 	
 	return true
 
@@ -150,7 +165,7 @@ func unregister_external_bind(mod_id: String, bind_id: String) -> void:
 	
 	# Verify ownership
 	if _binds[bind_id].mod_id != mod_id:
-		ModLoaderLog.warning("Cannot unregister '%s' - wrong mod_id" % bind_id, LOG_NAME)
+		_log("Cannot unregister '%s' - wrong mod_id" % bind_id, true)
 		return
 	
 	unregister_bind(bind_id)
@@ -211,7 +226,7 @@ func set_binding(bind_id: String, new_binding: Dictionary) -> bool:
 		return false
 	
 	if not _binds[bind_id].allow_rebind:
-		ModLoaderLog.warning("Keybind '%s' does not allow rebinding" % bind_id, LOG_NAME)
+		_log("Keybind '%s' does not allow rebinding" % bind_id, true)
 		return false
 	
 	var normalized = _normalize_binding(new_binding)
@@ -339,7 +354,7 @@ func _check_conflicts(bind_id: String) -> void:
 		var other_key = _binding_to_key(other_binding, other_context)
 		if key == other_key:
 			conflict_detected.emit(bind_id, other_id)
-			ModLoaderLog.warning("Keybind conflict: '%s' and '%s' have same binding" % [bind_id, other_id], LOG_NAME)
+			_log("Keybind conflict: '%s' and '%s' have same binding" % [bind_id, other_id], true)
 
 
 ## Check if two contexts can overlap (and thus conflict)
@@ -480,7 +495,7 @@ func _event_matches_binding(event: InputEvent, binding: Dictionary) -> bool:
 ## Trigger a keybind
 func _trigger_bind(bind_id: String) -> void:
 	if _config and _config.get_value("debug_mode", false):
-		ModLoaderLog.info("Triggering keybind: %s" % bind_id, LOG_NAME)
+		_log("Triggering keybind: %s" % bind_id)
 	
 	# Emit global signal
 	bind_triggered.emit(bind_id)
@@ -514,7 +529,7 @@ func _load_overrides() -> void:
 	var saved = _config.get_value("keybind_overrides", {})
 	if saved is Dictionary:
 		_overrides = saved.duplicate()
-		ModLoaderLog.info("Loaded %d keybind overrides" % _overrides.size(), LOG_NAME)
+		_log("Loaded %d keybind overrides" % _overrides.size())
 
 
 ## Save overrides to config  

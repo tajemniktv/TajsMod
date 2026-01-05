@@ -160,13 +160,17 @@ func _init() -> void:
     keybinds_manager = KeybindsManagerScript.new()
     keybinds_manager.name = "KeybindsManager"
     add_child(keybinds_manager)
-    keybinds_manager.setup(config)
+    keybinds_manager.setup(config, self)
 
     # Init Breach Threat Manager (auto-escalate threat levels)
     breach_threat_manager = BreachThreatManagerScript.new()
     breach_threat_manager.name = "BreachThreatManager"
     add_child(breach_threat_manager)
     breach_threat_manager.setup(config, config.get_value("debug_mode", false))
+    
+    # Init Cheat Manager
+    cheat_manager = CheatManagerScript.new()
+    cheat_manager.setup(self)
     
     # Init Workshop Sync (runs early to trigger downloads ASAP)
     workshop_sync = WorkshopSyncScript.new()
@@ -798,7 +802,7 @@ func _setup_upgrade_manager() -> void:
     add_child(upgrade_manager)
     
     # Initialize
-    upgrade_manager.setup(get_tree(), config)
+    upgrade_manager.setup(get_tree(), config, self)
     
     ModLoaderLog.info("Upgrade Manager initialized", LOG_NAME)
 

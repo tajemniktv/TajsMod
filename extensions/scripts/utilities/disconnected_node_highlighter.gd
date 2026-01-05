@@ -272,11 +272,17 @@ func recompute_disconnected() -> void:
     _cached_windows.clear() # Clear cache to avoid stale references
     
     if _is_debug_enabled():
-        ModLoaderLog.info("Connectivity Scan: Total Nodes: %d, Components: %d, Highlighted Windows: %d" %
-            [all_res_ids.size(), components.size(), _disconnected_windows.size()], LOG_NAME)
+        _log("Connectivity Scan: Total Nodes: %d, Components: %d, Highlighted Windows: %d" %
+            [all_res_ids.size(), components.size(), _disconnected_windows.size()])
 
     if _draw_control:
         _draw_control.queue_redraw()
+
+func _log(message: String) -> void:
+    if _mod_main and _mod_main.has_method("_debug_log_wrapper"):
+        _mod_main._debug_log_wrapper(message)
+    else:
+        ModLoaderLog.info(message, LOG_NAME)
 
 func _get_window_resources(node: Node, result: Array = []) -> Array:
     if node is ResourceContainer:

@@ -50,7 +50,12 @@ func setup(config, tree: SceneTree, mod_main = null) -> void:
 
 func _log(message: String, force: bool = false) -> void:
     if force or _debug_enabled:
-        ModLoaderLog.info(message, LOG_NAME)
+        if _mod_main and _mod_main.has_method("_debug_log_wrapper"):
+            # Use wrapper if available (handles both console and UI)
+            _mod_main._debug_log_wrapper(message, force)
+        else:
+            # Fallback
+            ModLoaderLog.info(message, LOG_NAME)
 
 func set_debug_enabled(enabled: bool) -> void:
     _debug_enabled = enabled

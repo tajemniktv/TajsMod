@@ -362,4 +362,5 @@ func is_syncing() -> bool:
 ## Internal logging
 func _log(message: String) -> void:
 	ModLoaderLog.info(message, LOG_NAME)
-	# Debug callback is for UI display only, don't duplicate to log
+	if _debug_log_callback.is_valid():
+		_debug_log_callback.call(message)

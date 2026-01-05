@@ -30,6 +30,18 @@ const MIN_AMOUNTS := {
 # Fixed values for attribute cheats
 const FIXED_VALUES := [1, 3, 5, 10]
 
+var _mod_main_ref = null
+
+func setup(mod_main_ref = null) -> void:
+    _mod_main_ref = mod_main_ref
+    _log("Cheat Manager initialized")
+
+func _log(message: String) -> void:
+    if _mod_main_ref and _mod_main_ref.has_method("_debug_log_wrapper"):
+        _mod_main_ref._debug_log_wrapper(message)
+    else:
+        ModLoaderLog.info(message, LOG_NAME)
+
 
 func build_cheats_tab(parent: Control) -> void:
     # Warning label
@@ -149,13 +161,13 @@ func set_to_zero(type: String, is_attribute: bool = false) -> void:
     """Set a resource to zero."""
     if is_attribute:
         if not Attributes.attributes.has(type):
-            ModLoaderLog.error("Attribute type not found: " + type, LOG_NAME)
+            _log("Attribute type not found: " + type)
             return
         var current = Attributes.get_attribute(type)
         Attributes.attributes[type].add(-current, 0, 0, 0)
     else:
         if not Globals.currencies.has(type):
-            ModLoaderLog.error("Currency type not found: " + type, LOG_NAME)
+            _log("Currency type not found: " + type)
             return
         Globals.currencies[type] = 0
     

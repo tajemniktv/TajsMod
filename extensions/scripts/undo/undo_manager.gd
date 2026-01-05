@@ -64,6 +64,7 @@ var _debug_enabled: bool = false
 ## Reference to config and tree
 var _config = null
 var _tree: SceneTree = null
+var _mod_main_ref = null
 
 
 ## Set debug logging enabled state
@@ -74,13 +75,17 @@ func set_debug_enabled(enabled: bool) -> void:
 ## Log a debug message (only if debug mode is on)
 func _log_debug(message: String) -> void:
     if _debug_enabled:
-        ModLoaderLog.info(message, LOG_NAME)
+        if _mod_main_ref and _mod_main_ref.has_method("_debug_log_wrapper"):
+            _mod_main_ref._debug_log_wrapper(message)
+        else:
+            ModLoaderLog.info(message, LOG_NAME)
 
 
 ## Setup the manager with tree and config references
 func setup(tree: SceneTree, config, mod_main_ref = null) -> void:
     _tree = tree
     _config = config
+    _mod_main_ref = mod_main_ref
     _enabled = config.get_value("undo_redo_enabled", true)
     
     # Connect to game signals for automatic tracking

@@ -18,13 +18,16 @@ var _breach_counts: Dictionary = {}
 
 ## Debug mode flag
 var _debug_enabled: bool = false
+## Callback for debug logging to UI
+var _log_callback: Callable = Callable()
 
 
 ## Initialize the manager with config values
-func setup(config, debug_enabled: bool = false) -> void:
+func setup(config, debug_enabled: bool = false, log_callback: Callable = Callable()) -> void:
     _enabled = config.get_value("breach_escalation_enabled", true)
     _threshold = config.get_value("breach_escalation_threshold", 3)
     _debug_enabled = debug_enabled
+    _log_callback = log_callback
     
     _log("Breach Threat Manager setup complete (enabled=%s, threshold=%d)" % [_enabled, _threshold])
 
@@ -92,3 +95,5 @@ func set_debug_enabled(enabled: bool) -> void:
 func _log(message: String, force: bool = false) -> void:
     if _debug_enabled or force:
         ModLoaderLog.info(message, LOG_NAME)
+        if _log_callback.is_valid():
+            _log_callback.call(message)

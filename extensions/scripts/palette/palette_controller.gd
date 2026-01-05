@@ -44,6 +44,15 @@ signal palette_opened
 signal palette_closed
 signal command_executed(command_id: String)
 
+func _log(message: String, is_error: bool = false) -> void:
+    if mod_main and mod_main.has_method("_debug_log_wrapper"):
+        mod_main._debug_log_wrapper(message)
+    
+    if is_error:
+        ModLoaderLog.error(message, LOG_NAME)
+    else:
+        ModLoaderLog.info(message, LOG_NAME)
+
 
 func _init() -> void:
     name = "PaletteController"
@@ -101,7 +110,7 @@ func initialize(tree: SceneTree, config, ui = null, mod_main_ref = null) -> void
     _register_default_commands()
     
     _initialized = true
-    ModLoaderLog.info("Palette system initialized with %d commands" % registry.get_count(), LOG_NAME)
+    _log("Palette system initialized with %d commands" % registry.get_count())
 
 
 ## Initialize wire drop detection and node spawning
@@ -116,7 +125,7 @@ func _init_wire_drop_system(config) -> void:
     
     # Node filter is now initialized in initialize() to support palette
     
-    ModLoaderLog.info("Wire drop system initialized", LOG_NAME)
+    _log("Wire drop system initialized")
 
 
 # Node Metadata Service (Inner Class to avoid loading issues)

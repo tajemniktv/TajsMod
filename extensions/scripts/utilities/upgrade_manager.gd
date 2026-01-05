@@ -10,10 +10,12 @@ const LOG_NAME = "TajsModded:UpgradeManager"
 
 var _config: Object # Was ConfigFile but Mod uses wrapper
 var _tree: SceneTree
+var _mod_main_ref = null
 
-func setup(tree: SceneTree, config: Object) -> void:
+func setup(tree: SceneTree, config: Object, mod_main_ref = null) -> void:
     _tree = tree
     _config = config
+    _mod_main_ref = mod_main_ref
     
     # Listen for new windows
     if Signals.has_signal("window_created"):
@@ -22,13 +24,19 @@ func setup(tree: SceneTree, config: Object) -> void:
     # Scan for existing windows (in case mod loaded after windows created)
     _scan_existing_windows()
 
-    ModLoaderLog.info("Upgrade Manager initialized", LOG_NAME)
+    _log("Upgrade Manager initialized")
+
+func _log(message: String) -> void:
+    if _mod_main_ref and _mod_main_ref.has_method("_debug_log_wrapper"):
+        _mod_main_ref._debug_log_wrapper(message)
+    else:
+        ModLoaderLog.info(message, LOG_NAME)
 
 func _scan_existing_windows() -> void:
     if not _tree: return
     var main = _tree.root.get_node_or_null("Main")
     if not main:
-        ModLoaderLog.debug("UpgradeManager: Main node not found during scan", LOG_NAME)
+        _log("UpgradeManager: Main node not found during scan")
         return
     
     # Path seems to be Main -> HUD -> Main -> MainContainer -> Windows
@@ -44,11 +52,11 @@ func _scan_existing_windows() -> void:
         windows_node = _find_node_by_name(main, "Windows")
         
     if windows_node:
-        ModLoaderLog.debug("UpgradeManager: Scanning " + str(windows_node.get_child_count()) + " existing windows in " + str(windows_node.get_path()), LOG_NAME)
+        _log("UpgradeManager: Scanning " + str(windows_node.get_child_count()) + " existing windows in " + str(windows_node.get_path()))
         for child in windows_node.get_children():
             _on_window_created(child)
     else:
-        ModLoaderLog.debug("UpgradeManager: 'Windows' container not found anywhere in Main", LOG_NAME)
+        _log("UpgradeManager: 'Windows' container not found anywhere in Main")
 
 ## Helper to find a node by name recursively
 func _find_node_by_name(root: Node, target_name: String) -> Node:
@@ -83,7 +91,7 @@ func _on_window_created(window: Node) -> void:
         var node = window.get_node_or_null(path)
         if node and node is BaseButton:
             upgrade_btn = node
-            ModLoaderLog.info("Found upgrade button at: " + path + " for window: " + window.name, LOG_NAME)
+            _log("Found upgrade button at: " + path + " for window: " + window.name)
             break
             
     if not upgrade_btn:
@@ -95,7 +103,7 @@ func _on_window_created(window: Node) -> void:
         # Avoid duplicate connections
         if not upgrade_btn.pressed.is_connected(_on_upgrade_button_pressed.bind(window)):
             upgrade_btn.pressed.connect(_on_upgrade_button_pressed.bind(window))
-            ModLoaderLog.info("Connected modifier upgrade logic to window: " + window.name, LOG_NAME)
+            _log("Connected modifier upgrade logic to window: " + window.name)
             
         # Update tooltip
         _update_upgrade_tooltip(upgrade_btn)
@@ -196,7 +204,7 @@ func _on_upgrade_button_pressed(window: Node) -> void:
         total_extra += 1
         
     if total_extra > 0:
-        ModLoaderLog.info("Modifier upgrade: Performed " + str(total_extra) + " extra upgrades.", LOG_NAME)
+        _log("Modifier upgrade: Performed " + str(total_extra) + " extra upgrades.")
         pass
     else:
         # ModLoaderLog.debug("Modifier upgrade: No extra upgrades performed.", LOG_NAME)
