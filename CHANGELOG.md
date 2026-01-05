@@ -1,3 +1,18 @@
+## [0.4.0] - 2026-01-05
+
+### Added
+- Mod list and toggles for mods in the mod manager
+- User-friendly names for mods in the mod manager
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Mod manager toggle status no longer switches if the toggle operation fails
+
 ## [0.3.15] - 2026-01-05
 
 ### Added
