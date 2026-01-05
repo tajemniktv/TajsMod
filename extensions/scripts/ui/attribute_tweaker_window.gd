@@ -14,9 +14,13 @@ var _attribute_editors: Dictionary = {} # key -> SpinBox/LineEdit/CheckButton
 var _dragging := false
 var _drag_offset := Vector2.ZERO
 
+# Lock State
+var _is_locked := true
+var _password_input: LineEdit
+
 func _init() -> void:
     name = "AttributeTweakerLayer"
-    layer = 100 # Ensure it's on top of everything
+    layer = 100
     
     # Load Game Theme
     var game_theme = load("res://themes/main.tres")
@@ -26,12 +30,11 @@ func _init() -> void:
     _panel.name = "TweakerPanel"
     if game_theme:
         _panel.theme = game_theme
-        
-    _panel.custom_minimum_size = Vector2(480, 550)
     
-    # Styling to match window_base.gd / main.tres
-    # Background: Color(0.102, 0.125, 0.173) -> #1a202c (approx)
-    # Border: Color(0.27, 0.332, 0.457) -> #455575 (approx)
+    # Initial size for password prompt (will expand later)
+    _panel.custom_minimum_size = Vector2(400, 200)
+    
+    # Styling
     var style = StyleBoxFlat.new()
     style.bg_color = Color(0.102, 0.125, 0.173, 0.98)
     style.border_width_left = 2
@@ -48,6 +51,99 @@ func _init() -> void:
     _panel.add_theme_stylebox_override("panel", style)
     
     add_child(_panel)
+
+func _ready() -> void:
+    if _is_locked:
+        _build_lock_ui()
+    else:
+        _build_tweaker_ui()
+    _center_window()
+
+func _center_window() -> void:
+    var viewport_size = get_viewport().get_visible_rect().size
+    if viewport_size.x == 0: viewport_size = Vector2(1920, 1080)
+    _panel.position = (viewport_size - _panel.custom_minimum_size) / 2
+    _panel.position = _panel.position.max(Vector2.ZERO)
+
+func _build_lock_ui() -> void:
+    for child in _panel.get_children():
+        child.queue_free()
+        
+    var vbox = VBoxContainer.new()
+    vbox.add_theme_constant_override("separation", 15)
+    vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+    # Add some margin
+    var margin = MarginContainer.new()
+    margin.add_theme_constant_override("margin_left", 30)
+    margin.add_theme_constant_override("margin_right", 30)
+    margin.add_theme_constant_override("margin_top", 30)
+    margin.add_theme_constant_override("margin_bottom", 30)
+    _panel.add_child(margin)
+    margin.add_child(vbox)
+    
+    var label = Label.new()
+    label.text = "Developer Access"
+    label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+    label.add_theme_font_size_override("font_size", 20)
+    vbox.add_child(label)
+    
+    _password_input = LineEdit.new()
+    _password_input.placeholder_text = "Password"
+    _password_input.secret = true
+    _password_input.custom_minimum_size = Vector2(0, 40)
+    _password_input.text_submitted.connect(_on_password_submitted)
+    vbox.add_child(_password_input)
+    
+    var btn_hbox = HBoxContainer.new()
+    btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+    btn_hbox.add_theme_constant_override("separation", 10)
+    vbox.add_child(btn_hbox)
+    
+    var submit_btn = Button.new()
+    submit_btn.text = "Unlock"
+    submit_btn.custom_minimum_size = Vector2(100, 40)
+    submit_btn.pressed.connect(func(): _on_password_submitted(_password_input.text))
+    btn_hbox.add_child(submit_btn)
+    
+    var close_btn = Button.new()
+    close_btn.text = "Cancel"
+    close_btn.custom_minimum_size = Vector2(80, 40)
+    close_btn.pressed.connect(queue_free)
+    btn_hbox.add_child(close_btn)
+    
+    # Allow dragging on the lock screen too
+    _panel.gui_input.connect(_on_header_input)
+
+func _on_password_submitted(text: String) -> void:
+    var salt = _get_salt()
+    var input_hash = (text + salt).sha256_text()
+    
+    #print("Input: '%s' | Salt: '%s' | Hash: '%s'" % [text, salt, input_hash])
+    
+    if input_hash == _get_expected_hash():
+        _is_locked = false
+        _panel.gui_input.disconnect(_on_header_input)
+        _build_tweaker_ui()
+        _center_window()
+    else:
+        _password_input.text = ""
+        _password_input.placeholder_text = "Incorrect Password"
+
+func _get_salt() -> String:
+    return "T@j" + "M0d_" + "S3cur1ty" + "_" + "S@lt"
+
+func _get_expected_hash() -> String:
+    var p1 = "6bff2147ee621d3e"
+    var p2 = "d175a1b9812e2a1f"
+    var p3 = "b3801ba9202bb3cd"
+    var p4 = "a89e2b578af89ebb"
+    return p1 + p2 + p3 + p4
+
+func _build_tweaker_ui() -> void:
+    for child in _panel.get_children():
+        child.queue_free()
+    
+    _panel.custom_minimum_size = Vector2(480, 550)
     
     # Inner Margin
     var margin = MarginContainer.new()
@@ -66,10 +162,6 @@ func _init() -> void:
     # --- Header (Draggable Area) ---
     var header = PanelContainer.new()
     var header_style = StyleBoxFlat.new()
-    # Header BG: Slightly lighter than main BG? Or transparent?
-    # WindowBase doesn't seem to have a distinct header bg, it's just the panel.
-    # But we want a draggable area indication or just use the whole top.
-    # Let's use a subtle highlight or just transparent with a bottom border.
     header_style.bg_color = Color(0.13, 0.15, 0.2, 1.0)
     header_style.border_width_bottom = 2
     header_style.border_color = Color(0.27, 0.332, 0.457)
@@ -102,7 +194,6 @@ func _init() -> void:
     var close_btn = Button.new()
     close_btn.text = "✕"
     close_btn.custom_minimum_size = Vector2(32, 32)
-    # Use theme button style? It's automatic if theme is set on panel and propagates.
     close_btn.pressed.connect(queue_free)
     header_hbox.add_child(close_btn)
     
@@ -170,15 +261,8 @@ func _init() -> void:
     apply_btn.custom_minimum_size = Vector2(0, 50)
     apply_btn.pressed.connect(_apply_changes)
     footer.add_child(apply_btn)
-
-func _ready() -> void:
-    _populate_list()
     
-    # Centering
-    var viewport_size = get_viewport().get_visible_rect().size
-    if viewport_size.x == 0: viewport_size = Vector2(1920, 1080)
-    _panel.position = (viewport_size - _panel.custom_minimum_size) / 2
-    _panel.position = _panel.position.max(Vector2.ZERO)
+    _populate_list()
 
 func _on_header_input(event: InputEvent) -> void:
     if event is InputEventMouseButton:
