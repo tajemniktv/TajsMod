@@ -377,7 +377,9 @@ func build_settings_menu() -> void:
 			
 		
 		toggle.toggled.connect(func(active):
+			# Optimistically update text
 			toggle.text = "Enabled" if active else "Disabled"
+			
 			var success = false
 			if active:
 				success = ModLoaderUserProfile.enable_mod(mod_id)
@@ -385,7 +387,8 @@ func build_settings_menu() -> void:
 				success = ModLoaderUserProfile.disable_mod(mod_id)
 				
 			if !success:
-				toggle.set_pressed_no_signal(!active) # Revert
+				toggle.set_pressed_no_signal(!active) # Revert toggle state
+				toggle.text = "Enabled" if !active else "Disabled" # Revert text
 				Signals.notify.emit("error", "Failed to change mod state")
 			else:
 				# Check if any mod state has changed from initial
