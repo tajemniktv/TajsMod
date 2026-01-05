@@ -36,6 +36,7 @@ const KeybindsManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded
 const KeybindsUIScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/keybinds/keybinds_ui.gd")
 const KeybindsRegistrationScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/keybinds/keybinds_registration.gd")
 const ModSettingsScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/mod_settings.gd")
+const AttributeTweakerWindowScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/attribute_tweaker_window.gd")
 
 # Components
 var config # ConfigManager instance

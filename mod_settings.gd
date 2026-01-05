@@ -466,6 +466,23 @@ func build_settings_menu() -> void:
 		add_debug_log("Max Money: " + str(Globals.max_money), true)
 		add_debug_log("Max Research: " + str(Globals.max_research), true)
 	)
+
+	# Attribute Tweaker Button
+	ui.add_button(debug_vbox, "Open Attribute Tweaker", func():
+		# Check if already open (Toggle behavior)
+		var existing = mod_main.get_tree().root.get_node_or_null("AttributeTweakerLayer")
+		if existing:
+			existing.queue_free()
+			return
+
+		# Instantiate and show the tweaker window
+		var tweaker_script = load("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/attribute_tweaker_window.gd")
+		if tweaker_script:
+			var tweaker = tweaker_script.new()
+			mod_main.get_tree().root.add_child(tweaker)
+		else:
+			Signals.notify.emit("error", "Failed to load Attribute Tweaker")
+	)
 	
 	# Debug log label
 	var log_label = Label.new()
