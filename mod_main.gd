@@ -772,3 +772,7 @@ func _setup_upgrade_manager() -> void:
     upgrade_manager.setup(get_tree(), config)
     
     ModLoaderLog.info("Upgrade Manager initialized", LOG_NAME)
+
+## API: Returns the user-friendly name of this mod
+func get_mod_name() -> String:
+    return "Taj's Mod"

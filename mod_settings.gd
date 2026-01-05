@@ -306,6 +306,110 @@ func build_settings_menu() -> void:
 		steam_status.add_theme_color_override("font_color", Color(0.8, 0.5, 0.5, 0.9))
 	modmgr_vbox.add_child(steam_status)
 	
+	modmgr_vbox.add_child(HSeparator.new())
+	
+	var mods_label = Label.new()
+	mods_label.text = "Installed Mods"
+	mods_label.add_theme_font_size_override("font_size", 24)
+	modmgr_vbox.add_child(mods_label)
+	
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 300)
+	modmgr_vbox.add_child(scroll)
+	
+	var mods_list = VBoxContainer.new()
+	mods_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(mods_list)
+	
+	# Populate Mod List
+	var all_mods = ModLoaderMod.get_mod_data_all()
+	
+	# Store initial states for restart check
+	var mod_initial_states = {}
+	for mod_id in all_mods:
+		mod_initial_states[mod_id] = all_mods[mod_id].is_active
+
+	# Sort mods: TajemnikTV-TajsModded first, then alphabetical by name
+	var sorted_mods = all_mods.keys()
+	sorted_mods.sort_custom(func(a, b):
+		if a == "TajemnikTV-TajsModded": return true
+		if b == "TajemnikTV-TajsModded": return false
+		return all_mods[a].manifest.name.naturalnocasecmp_to(all_mods[b].manifest.name) < 0
+	)
+
+	for mod_id in sorted_mods:
+		var mod_data = all_mods[mod_id]
+		var manifest = mod_data.manifest
+		
+		var row = HBoxContainer.new()
+		mods_list.add_child(row)
+		
+		# Determine friendly name
+		var display_name = manifest.name
+		
+		# Friendly Name Access
+		var ml_node = mod_main.get_node_or_null("/root/ModLoader")
+		if ml_node and ml_node.has_node(mod_id):
+			var mod_instance = ml_node.get_node(mod_id)
+			if mod_instance and mod_instance.has_method("get_mod_name"):
+				display_name = mod_instance.get_mod_name()
+				
+		var name_label = Label.new()
+		name_label.text = "%s v%s" % [display_name, manifest.version_number]
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_label)
+		
+		# Identifier label (gray)
+		var id_label = Label.new()
+		id_label.text = "(%s)" % mod_id
+		id_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		row.add_child(id_label)
+		
+		var toggle = CheckButton.new()
+		toggle.text = "Enabled" if mod_data.is_active else "Disabled"
+		toggle.button_pressed = mod_data.is_active
+		
+		# Disable toggle to prevent accidental self-disable
+		if mod_id == "TajemnikTV-TajsModded":
+			toggle.disabled = true
+			toggle.tooltip_text = "You cannot disable the mod you are currently using settings from."
+			
+		
+		toggle.toggled.connect(func(active):
+			toggle.text = "Enabled" if active else "Disabled"
+			var success = false
+			if active:
+				success = ModLoaderUserProfile.enable_mod(mod_id)
+			else:
+				success = ModLoaderUserProfile.disable_mod(mod_id)
+				
+			if !success:
+				toggle.set_pressed_no_signal(!active) # Revert
+				Signals.notify.emit("error", "Failed to change mod state")
+			else:
+				# Check if any mod state has changed from initial
+				var mod_restart_required = false
+				var current_profile = ModLoaderUserProfile.get_current()
+				var current_enabled_mods = current_profile.mod_list
+				
+				for m_id in mod_initial_states:
+					var originally_enabled = mod_initial_states[m_id]
+					var currently_enabled = current_enabled_mods.has(m_id)
+					
+					if currently_enabled != originally_enabled:
+						mod_restart_required = true
+						break
+				
+				# Update banner based on both mods and config
+				if mod_restart_required:
+					ui.show_restart_banner()
+				else:
+					# Fallback to standard config check
+					_check_restart_required()
+		)
+		row.add_child(toggle)
+	
 	# --- DEBUG ---
 	var debug_vbox = ui.add_tab("Debug", "res://textures/icons/bug.png")
 	
