@@ -251,7 +251,7 @@ func build_settings_menu() -> void:
     )
     
     # --- KEYBINDS ---
-    var keybinds_vbox = ui.add_tab("Keybinds", "res://mods-unpacked/TajemnikTV-TajsModded/textures/icons/Keyboard.svg")
+    var keybinds_vbox = ui.add_tab("Keybinds", "res://mods-unpacked/TajemnikTV-TajsModded/textures/icons/Keyboard.png")
     if keybinds_manager:
         keybinds_ui = mod_main.KeybindsUIScript.new()
         keybinds_ui.setup(keybinds_manager, ui, keybinds_vbox)
@@ -265,7 +265,7 @@ func build_settings_menu() -> void:
     _add_workspace_settings_section(cheat_vbox)
     
     # --- MOD MANAGER ---
-    var modmgr_vbox = ui.add_tab("Mod Manager", "res://mods-unpacked/TajemnikTV-TajsModded/textures/icons/Module-Puzzle-2.svg")
+    var modmgr_vbox = ui.add_tab("Mod Manager", "res://mods-unpacked/TajemnikTV-TajsModded/textures/icons/Module-Puzzle-2.png")
     
     # Workshop Sync on Startup toggle
     _settings_toggles["workshop_sync_on_startup"] = ui.add_toggle(modmgr_vbox, "Workshop Sync on Startup", config.get_value("workshop_sync_on_startup", true), func(v):
