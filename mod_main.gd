@@ -101,9 +101,11 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/paint.gd")
     
     # WindowContainer hooks (cannot use extensions due to class_name, using Script Hooks API instead)
-    const WindowContainerHooks = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/hooks/window_container_hooks.gd")
-    ModLoaderMod.add_hook(WindowContainerHooks.hook_on_gui_input, "res://scenes/windows/window_container.gd", "_on_gui_input")
-    ModLoaderMod.add_hook(WindowContainerHooks.hook_ready, "res://scenes/windows/window_container.gd", "_ready")
+    # NOTE: Expanded workspace feature shelved - hooks don't work in shipped builds without game dev preprocessing
+    # ModLoaderMod.install_script_hooks(
+    #     "res://scenes/windows/window_container.gd",
+    #     "res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/window_container.hooks.gd"
+    # )
     
     
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)

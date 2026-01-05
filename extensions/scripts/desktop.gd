@@ -5,7 +5,6 @@
 # =============================================================================
 extends "res://scripts/desktop.gd"
 
-
 func paste(data: Dictionary) -> void:
     if Globals.undo_manager:
         Globals.undo_manager.begin_action("Paste")
