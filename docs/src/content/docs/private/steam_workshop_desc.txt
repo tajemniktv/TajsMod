@@ -1,52 +1,64 @@
-[img]https://raw.githubusercontent.com/tajemniktv/TajsMod/refs/heads/master/TajsModHeader.png[/img]
+[url=https://tajemniktv.github.io/TajsMod/][img]https://raw.githubusercontent.com/tajemniktv/TajsMod/refs/heads/master/TajsModHeader.png[/img][/url]
 [hr]
+[url=https://tajemniktv.github.io/TajsMod/]Official Taj's Mod Website[/url]
 Right now it’s a growing collection of [b]Utility / QoL + Visual Tweaks[/b], without overhauling the whole core gameplay loop.
 The plan is simple: keep expanding it into a “make the game better” toolbox - more settings, more convenience features, more polish, hopefully without turning it into bloat.
 
 If something feels missing, annoying, or you want a specific option/toggle, let me know. I actively read feedback for the game itself, and I’ll do the same for the mod - your suggestion might end up in the next update.
 
+[hr]
 [h1]✨ Features[/h1]
 A clean bundle of QoL, visuals, and power-user tools — with any gameplay-affecting stuff kept strictly [b]opt-in[/b].
 
 [hr]
 
+[h2]📦 Mod Manager & Sync[/h2]
+[list]
+[*][b]In-Game Mod Manager[/b] — Enable/Disable mods directly from the settings menu.
+[*][b]Workshop Sync[/b] — Automatically checks and downloads mod updates on startup.
+[*][b]Update Fixes[/b] — Includes "Force Download" options to bypass reliable Steam update issues.
+[*][b]Friendly Names[/b] — Displays human-readable names for mods instead of folder IDs.
+[/list]
+
 [h2]🎛️ General / QoL[/h2]
 [list]
-[*][b]Command Palette (MMB/Space)[/b] — Fuzzy search for commands, settings, and navigation.
-[*][b]Mod Settings Panel[/b] — A deeper settings menu accessible via the puzzle piece icon.
+[*][b]Command Palette (MMB)[/b] — Fuzzy search for commands, settings, and nodes. Now with [b]Tab Autocomplete[/b] and [b]Help[/b] command.
+[*][b]Keybinds Manager[/b] — Fully rebindable hotkeys for menus, actions, and sidebars.
+[*][b]Settings Search[/b] — Quickly find any option in the mod settings with a search bar.
+[*][b]Smooth Scrolling[/b] — Silky smooth scrolling for all lists and containers.
 [*][b]Toast History[/b] — Missed a notification? Check the log via the bell icon.
 [*][b]Mute on Focus Loss[/b] — Auto-mute game audio when you tab out (configurable volume).
-[*][b]Real-time Node Counter[/b] — Track your node usage vs the limit.
-[*][b]Smart Screenshots[/b] — HQ capture overrides, and resolution settings.
+[*][b]Smart Screenshots[/b] — HQ capture with optional watermarks and resolution settings.
+[*][b]Slider Safety[/b] — Option to disable mouse wheel on sliders to prevent accidental changes.
 [/list]
 
 [h2]🎨 Visuals[/h2]
 [list]
-[*][b]Group Node Patterns[/b] — Custom patterns (Dots, Stripes, Zipzag, etc.) with adjustable opacity and colors.
-[*][b]Wire Colors[/b] — Customize wire colors by resource type (Power, Data, etc.).
+[*][b]Wire Colors[/b] — Customize wire colors by resource type (Power, Data, AI, etc.).
+[*][b]Group Node Patterns[/b] — Choose from Dots, Stripes, Waves, Zigzag, and more. Adjustable opacity/colors.
 [*][b]Disconnected Node Highlighter[/b] — Visual aids (`Pulse` or `Outline` style) to find unconnected nodes.
 [*][b]Extra Glow & Bloom[/b] — Tweak intensity, bloom, and sensitivity of game visuals.
 [*][b]UI Opacity[/b] — Adjust HUD transparency.
-[*][b]Custom Boot Screen[/b] — A modded startup screen.
+[*][b]Custom Boot Screen[/b] — A modded startup screen (toggleable).
 [/list]
 
 [h2]🔧 Tools & Utilities[/h2]
 [list]
-[*][b]Wire Drop Menu[/b] — Drop a wire on empty space to instantly open a compatible node spawner.
-[*][b]Quick Navigation[/b] — "Jump to Group" and "Jump to Note" commands to zoom to specific areas.
+[*][b]Wire Drop Menu[/b] — Smart context menu when dropping wires on empty space.
+[*][b]Quick Navigation[/b] — "Jump to Group" panel and commands to zoom to specific areas.
 [*][b]Screenshot Selection[/b] — Capture only the currently selected nodes.
-[*][b]Sticky Notes[/b] — Place colored text notes on the canvas.
+[*][b]Sticky Notes[/b] — Place colored text notes on the canvas. Now editable!
 [*][b]Universal Clear Wires[/b] — Right-click output slots or use "Clear Wires" on a selection to clean up.
 [*][b]The Bin[/b] — A dedicated trash node for easy deletion.
-[*][b]6-Input Containers[/b] — Option to increase container inputs from 5 to 6.
 [/list]
 
 [h2]🎮 Gameplay & Cheats (Opt-in)[/h2]
 [list]
 [*][b]Buy Max Button[/b] — Smart button to buy max affordable upgrades (Lowest/Highest cost strategy).
+[*][b]6-Input Containers[/b] — toggle to increase container inputs from 5 to 6 (Requires Restart).
 [*][b]Node Limit Control[/b] — Increase limit up to 2000 or set to Unlimited (∞).
 [*][b]Disable Controller Input[/b] — Completely block gamepad input to prevent interference.
-[*][b]Cheats Panel[/b] — Modify Money, Research, and Tokens (Add/Remove %, Set to 0).
+[*][b]Cheats Panel[/b] — Modify Money, Research, and Tokens.
 [/list]
 
 [quote]
@@ -56,21 +68,22 @@ A clean bundle of QoL, visuals, and power-user tools — with any gameplay-affec
 [h2]🐛 Debug/Troubleshooting[/h2]
 [list]
 [*][b]Debug Logging[/b] — Toggle verbose logs for troubleshooting.
+[*][b]Attribute Tweaker[/b] — Inspect and modify node attributes in real-time.
 [*][b]Reset All Settings[/b] — One click back to defaults.
-[*][b]Debug Info[/b] — Logs current currency values and limits.
 [/list]
 
 [hr]
 [h2]Controls[/h2]
 [table]
-[tr][th]Action[/th][th]Input[/th][/tr]
-[tr][td]Open Command Palette[/td][td]Middle-click[/td][/tr]
-[tr][td]Navigate Palette[/td][td]Arrow keys/Mouse[/td][/tr]
-[tr][td]Go Back (Palette)[/td][td]Mouse Back Button[/td][/tr]
-[tr][td]Go Forward (Palette)[/td][td]Mouse Forward Button[/td][/tr]
+[tr][th]Action[/th][th]Input (Default)[/th][/tr]
+[tr][td]Command Palette[/td][td]Middle-click[/td][/tr]
+[tr][td]Mod Settings[/td][td]F1[/td][/tr]
+[tr][td]Side Menus[/td][td]Ctrl + 1-4[/td][/tr]
+[tr][td]Build Menus[/td][td]1-9[/td][/tr]
+[tr][td]Undo / Redo[/td][td]Ctrl+Z / Ctrl+Y[/td][/tr]
+[tr][td]Select All[/td][td]Ctrl+A[/td][/tr]
+[tr][td]Navigate Palette[/td][td]Arrow keys/TAB[/td][/tr]
 [tr][td]Clear Wires[/td][td]Right-click on connector[/td][/tr]
-[tr][td]Sticky Note Context[/td][td]WIP[/td][/tr]
-[tr][td]Buy Max[/td][td]Click (Dropdown for options)[/td][/tr]
 [/table]
 
 [hr]
