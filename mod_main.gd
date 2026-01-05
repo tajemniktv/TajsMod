@@ -94,6 +94,17 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/upgrades_tab.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/resource_description.gd")
     
+    # Workspace Bounds Extensions (Expanded Board)
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/camera_2d.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/main_2d.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/lines.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/paint.gd")
+    
+    # WindowContainer hooks (cannot use extensions due to class_name, using Script Hooks API instead)
+    const WindowContainerHooks = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/hooks/window_container_hooks.gd")
+    ModLoaderMod.add_hook(WindowContainerHooks.hook_on_gui_input, "res://scenes/windows/window_container.gd", "_on_gui_input")
+    ModLoaderMod.add_hook(WindowContainerHooks.hook_ready, "res://scenes/windows/window_container.gd", "_ready")
+    
     
     ModLoaderLog.info("TajsModded Initialization...", LOG_NAME)
     mod_dir_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
@@ -101,6 +112,13 @@ func _init() -> void:
     
     # Init Config
     config = ConfigManager.new()
+    
+    # Init Workspace Bounds from config
+    const WorkspaceBoundsScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/workspace_bounds.gd")
+    WorkspaceBoundsScript.initialize(
+        config.get_value("expanded_workspace_enabled", false),
+        config.get_value("workspace_multiplier", 1.0)
+    )
     
     # Init Screenshot Manager (tree set in _ready)
     screenshot_manager = ScreenshotManagerScript.new()

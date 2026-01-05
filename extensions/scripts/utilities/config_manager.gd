@@ -53,6 +53,9 @@ const DEFAULT_CONFIG := {
 	"undo_redo_enabled": true,
 	# Keybinds
 	"keybind_overrides": {}, # User-customized keybind mappings
+	# Workspace / Board Size (Expanded Workspace)
+	"expanded_workspace_enabled": false, # Allow placing nodes beyond vanilla bounds
+	"workspace_multiplier": 1.0, # 1.0 = vanilla, 2.0 = double size, etc.
 	# Debug tab
 	"debug_mode": false, # Enable verbose debug logging
 	"custom_boot_screen": true,
