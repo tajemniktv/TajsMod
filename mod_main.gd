@@ -37,6 +37,7 @@ const KeybindsUIScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/exte
 const KeybindsRegistrationScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/keybinds/keybinds_registration.gd")
 const ModSettingsScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/mod_settings.gd")
 const AttributeTweakerWindowScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/attribute_tweaker_window.gd")
+const BreachThreatManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/breach_threat_manager.gd")
 
 # Components
 var config # ConfigManager instance
@@ -62,6 +63,7 @@ var keybinds_manager # KeybindsManager instance
 var keybinds_ui # KeybindsUI instance
 var keybinds_registration # KeybindsRegistration instance
 var settings # TajsModSettings instance
+var breach_threat_manager # BreachThreatManager instance
 
 
 # State
@@ -160,6 +162,11 @@ func _init() -> void:
     add_child(keybinds_manager)
     keybinds_manager.setup(config)
 
+    # Init Breach Threat Manager (auto-escalate threat levels)
+    breach_threat_manager = BreachThreatManagerScript.new()
+    breach_threat_manager.name = "BreachThreatManager"
+    add_child(breach_threat_manager)
+    breach_threat_manager.setup(config, config.get_value("debug_mode", false))
     
     # Init Workshop Sync (runs early to trigger downloads ASAP)
     workshop_sync = WorkshopSyncScript.new()
@@ -395,7 +402,8 @@ func _setup_for_main(main_node: Node) -> void:
         "keybinds_ui": keybinds_ui,
         "node_group_z_fix": node_group_z_fix,
         "buy_max_manager": buy_max_manager,
-        "goto_group_panel": goto_group_panel
+        "goto_group_panel": goto_group_panel,
+        "breach_threat_manager": breach_threat_manager
     })
     settings.build_settings_menu()
     

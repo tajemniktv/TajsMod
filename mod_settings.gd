@@ -29,6 +29,7 @@ var keybinds_ui
 var node_group_z_fix
 var buy_max_manager
 var goto_group_panel
+var breach_threat_manager
 
 # State
 var _debug_mode := false
@@ -64,6 +65,7 @@ func setup(p_mod_main, p_config, p_ui, components: Dictionary) -> void:
     node_group_z_fix = components.get("node_group_z_fix")
     buy_max_manager = components.get("buy_max_manager")
     goto_group_panel = components.get("goto_group_panel")
+    breach_threat_manager = components.get("breach_threat_manager")
 
 
 ## Build the complete settings menu with all tabs
@@ -164,6 +166,9 @@ func build_settings_menu() -> void:
         config.set_value("notification_log_enabled", v)
         mod_main._set_notification_log_visible(v)
     , "Show a bell icon to view recent notifications and messages.")
+    
+    # Breach Threat Escalation section
+    _add_breach_escalation_section(gen_vbox)
     
     # Highlight Disconnected Nodes section
     _add_disconnected_highlight_section(gen_vbox)
@@ -448,6 +453,8 @@ func build_settings_menu() -> void:
         sticky_note_manager.set_debug_enabled(saved_debug)
     if undo_manager:
         undo_manager.set_debug_enabled(saved_debug)
+    if breach_threat_manager:
+        breach_threat_manager.set_debug_enabled(saved_debug)
     
     var debug_toggle = ui.add_toggle(debug_vbox, "Enable Debug Logging", saved_debug, func(v):
         _debug_mode = v
@@ -456,6 +463,8 @@ func build_settings_menu() -> void:
             sticky_note_manager.set_debug_enabled(v)
         if undo_manager:
             undo_manager.set_debug_enabled(v)
+        if breach_threat_manager:
+            breach_threat_manager.set_debug_enabled(v)
         add_debug_log("Debug mode " + ("enabled" if v else "disabled"), true)
     , "Log extra debug information to the console and debug tab.")
     
@@ -501,6 +510,44 @@ func build_settings_menu() -> void:
 # ==============================================================================
 # SETTINGS SECTIONS
 # ==============================================================================
+
+func _add_breach_escalation_section(parent: Control) -> void:
+    var breach_container = VBoxContainer.new()
+    breach_container.add_theme_constant_override("separation", 10)
+    parent.add_child(breach_container)
+    
+    # Sub-settings (shown when toggle is on)
+    var breach_sub = MarginContainer.new()
+    breach_sub.name = "breach_escalation_sub"
+    breach_sub.add_theme_constant_override("margin_left", 20)
+    breach_sub.visible = config.get_value("breach_escalation_enabled", true)
+    
+    var breach_sub_vbox = VBoxContainer.new()
+    breach_sub_vbox.add_theme_constant_override("separation", 8)
+    breach_sub.add_child(breach_sub_vbox)
+    
+    var sub_ref = breach_sub
+    var manager_ref = breach_threat_manager
+    
+    # Main toggle
+    _settings_toggles["breach_escalation_enabled"] = ui.add_toggle(breach_container, "Auto Threat Escalation", config.get_value("breach_escalation_enabled", true), func(v):
+        config.set_value("breach_escalation_enabled", v)
+        sub_ref.visible = v
+        if manager_ref:
+            manager_ref.set_enabled(v)
+    , "Automatically increase breach threat level after successful breaches.")
+    
+    breach_container.add_child(breach_sub)
+    
+    # Threshold slider
+    var cfg = config
+    var mgr = manager_ref
+    ui.add_slider(breach_sub_vbox, "Escalation Threshold", config.get_value("breach_escalation_threshold", 3), 1, 10, 1, " breaches", func(v):
+        cfg.set_value("breach_escalation_threshold", int(v))
+        if mgr:
+            mgr.set_threshold(int(v))
+    )
+
 
 func _add_disconnected_highlight_section(parent: Control) -> void:
     var highlight_container = VBoxContainer.new()

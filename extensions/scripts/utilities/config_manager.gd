@@ -56,6 +56,9 @@ const DEFAULT_CONFIG := {
 	# Workspace / Board Size (Expanded Workspace)
 	"expanded_workspace_enabled": false, # Allow placing nodes beyond vanilla bounds
 	"workspace_multiplier": 1.0, # 1.0 = vanilla, 2.0 = double size, etc.
+	# Breach Threat Escalation
+	"breach_escalation_enabled": true, # Auto-increase threat level after X breaches
+	"breach_escalation_threshold": 3, # Number of successful breaches before level-up
 	# Debug tab
 	"debug_mode": false, # Enable verbose debug logging
 	"custom_boot_screen": true,
