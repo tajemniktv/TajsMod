@@ -1,0 +1,35 @@
+---
+title: User-Friendly Mod Names API
+description: Taj's Mod Settings Manager supports displaying user-friendly names for mods in the "Mod Manager" list, instead of just the internal Mod ID or Manifest Name.
+---
+
+## How to Implement
+
+To give your mod a custom display name, simply define a public `get_mod_name()` function in your mod's main script (the script that extends `Node` and is loaded by ModLoader).
+
+### Example (`mod_main.gd`)
+
+```gdscript
+extends Node
+
+# ... your existing code ...
+
+## API: Returns the user-friendly name of this mod
+func get_mod_name() -> String:
+    return "My Awesome Mod"
+```
+
+## How it Works
+
+When the "Mod Manager" tab is built:
+1. It iterates through all active mods.
+2. It attempts to find the main instance of your mod in the `ModLoader` system.
+3. It checks if your main instance has a method called `get_mod_name`.
+4. If found, it calls this method and uses the returned String as the display name.
+5. If not found, it falls back to the name defined in your `manifest.json`.
+
+## Best Practices
+
+- Keep the name concise.
+- You can include versioning if you want, but the list already displays the version number from the manifest automatically.
+- This is purely visual and does not affect Mod IDs or dependencies.
