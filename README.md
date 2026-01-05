@@ -135,7 +135,7 @@ Pull requests are welcome! Please check [CONTRIBUTING.md](CONTRIBUTING.md) for g
 
 **Author:** [TajemnikTV](https://github.com/tajemniktv)
 
-_More credits TBD_
+**Free icons** from [Streamline](https://streamlinehq.com)
 
 ---
 
