@@ -68,7 +68,7 @@ func _build_ui() -> void:
 func _add_category_header(category: String) -> void:
     var header = Label.new()
     header.text = category
-    header.add_theme_font_size_override("font_size", 22)
+    header.add_theme_font_size_override("font_size", 26)
     header.add_theme_color_override("font_color", COLOR_CATEGORY)
     
     var margin = MarginContainer.new()
@@ -99,7 +99,7 @@ func _add_bind_row(bind: Dictionary, has_conflict: bool) -> void:
     
     name_label.text = display_name
     name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    name_label.add_theme_font_size_override("font_size", 18)
+    name_label.add_theme_font_size_override("font_size", 22)
     
     # Tooltip with description
     var desc = bind.get("description", "")
@@ -114,7 +114,7 @@ func _add_bind_row(bind: Dictionary, has_conflict: bool) -> void:
     # Current binding display
     var binding_label = Label.new()
     binding_label.text = _manager.get_binding_display_string(bind.id)
-    binding_label.add_theme_font_size_override("font_size", 18)
+    binding_label.add_theme_font_size_override("font_size", 22)
     binding_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
     binding_label.custom_minimum_size.x = 150
     
@@ -127,7 +127,8 @@ func _add_bind_row(bind: Dictionary, has_conflict: bool) -> void:
     # Rebind button
     var rebind_btn = Button.new()
     rebind_btn.text = "Rebind"
-    rebind_btn.custom_minimum_size.x = 70
+    rebind_btn.add_theme_font_size_override("font_size", 16)
+    rebind_btn.custom_minimum_size.x = 60
     rebind_btn.disabled = not bind.allow_rebind
     rebind_btn.pressed.connect(_on_rebind_pressed.bind(bind.id))
     row.add_child(rebind_btn)
