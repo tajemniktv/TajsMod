@@ -1,3 +1,18 @@
+## [0.4.1] - 2026-01-05
+
+### Added
+- Expanded Workspace feature allowing players to increase their playing space/board.
+- Password-protected developer UI for live attribute tweaking.
+
+### Changed
+- Converted SVG assets to PNG format.
+
+### Removed
+- N/A
+
+### Fixed
+- Icons for keybinds and mod manager.
+
 ## [0.4.0] - 2026-01-05
 
 ### Added
