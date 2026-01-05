@@ -1,3 +1,22 @@
+## [0.3.15] - 2026-01-05
+
+### Added
+- Keybinds manager
+- New keybinds for opening build menus, side menus, and the mod menu
+- New icons from Streamline
+- Credits for Streamline icons
+
+### Changed
+- Redesigned settings UI
+- Updated icons on keybinds and mod manager
+- Increased font size on keybinds and decreased font size on rebind buttons
+
+### Removed
+- - N/A
+
+### Fixed
+- Old debug access
+
 ## [0.3.14] - 2026-01-04
 
 ### Added
