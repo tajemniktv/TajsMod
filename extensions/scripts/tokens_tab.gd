@@ -104,7 +104,7 @@ func _apply_visibility() -> void:
                 continue
             
             # Apply our additional filtering
-            if _is_hiding_purchased and _is_item_purchased(child.name):
+            if _is_hiding_purchased and _is_item_maxed(child.name):
                 child.set_block_signals(true)
                 child.visible = false
                 child.set_block_signals(false)
@@ -148,12 +148,36 @@ func _update_empty_message(container: Control, visible_count: int, tab_index: in
         _empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
         container.add_child(_empty_label)
 
-func _is_item_purchased(item_name: String) -> bool:
+func _is_item_maxed(item_name: String) -> bool:
     if not Globals.perks.has(item_name):
         return false
-    var val = Globals.perks[item_name]
-    if typeof(val) == TYPE_INT:
-        return val >= 1
-    if typeof(val) == TYPE_FLOAT:
-        return val >= 1.0
-    return false
+        
+    var current_level = Globals.perks[item_name]
+    var current_int = 0
+    
+    if typeof(current_level) == TYPE_INT:
+        current_int = current_level
+    elif typeof(current_level) == TYPE_FLOAT:
+        current_int = int(current_level)
+    else:
+        return false # Should not happen
+        
+    # Check if we can find max level data
+    var max_level = 1
+    var has_data = false
+    
+    # Check Data.perks safely
+    if "perks" in Data and Data.perks.has(item_name):
+        var perk_data = Data.perks[item_name]
+        if "limit" in perk_data:
+            max_level = int(perk_data.limit)
+            has_data = true
+    
+    # If we found Data, use it
+    if has_data:
+        if max_level <= 0: return false # Infinite or special?
+        return current_int >= max_level
+        
+    # Fallback if no Data found: hide if level >= 1 (old behavior)
+    # This sucks for multi-level perks but prevents crashes
+    return current_int >= 1
