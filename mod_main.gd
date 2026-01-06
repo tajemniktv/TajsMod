@@ -542,6 +542,10 @@ func _setup_buy_max() -> void:
     await get_tree().create_timer(0.1).timeout
     buy_max_manager.setup(get_tree(), config)
     
+    # Apply initial visibility state (fixes race condition on startup)
+    var enabled = config.get_value("buy_max_enabled", true)
+    _set_buy_max_visible(enabled)
+    
     ModLoaderLog.info("Buy Max feature initialized", LOG_NAME)
 
 
@@ -684,8 +688,8 @@ func _set_goto_group_visible(visible: bool) -> void:
 
 ## Helper to show/hide Buy Max button
 func _set_buy_max_visible(visible: bool) -> void:
-    if buy_max_manager and is_instance_valid(buy_max_manager._buy_max_button):
-        buy_max_manager._buy_max_button.visible = visible
+    if buy_max_manager and is_instance_valid(buy_max_manager):
+        buy_max_manager.set_visible(visible)
 
 
 ## Helper to show/hide Notification Log panel

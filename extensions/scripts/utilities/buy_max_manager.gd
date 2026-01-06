@@ -91,6 +91,12 @@ func get_strategy() -> int:
 	return current_strategy
 
 
+## Toggle visibility of the Buy Max UI
+func set_visible(visible: bool) -> void:
+	if _buy_max_container:
+		_buy_max_container.visible = visible
+
+
 ## Recursively find the upgrades tab (VBoxContainer with ButtonsPanel/ButtonsContainer + TabContainer)
 func _find_upgrades_tab(node: Node) -> VBoxContainer:
 	if node is VBoxContainer:
