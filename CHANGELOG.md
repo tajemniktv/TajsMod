@@ -1,3 +1,17 @@
+## [0.4.2] - 2026-01-06
+
+### Added
+- N/A
+
+### Changed
+- Increased threat level for auto breach
+
+### Removed
+- N/A
+
+### Fixed
+- Fixed an issue where the tokens shop would hide perks that were partially purchased
+
 ## [0.4.1] - 2026-01-05
 
 ### Added
