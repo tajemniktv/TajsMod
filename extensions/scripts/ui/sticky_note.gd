@@ -524,6 +524,9 @@ func _input(event: InputEvent) -> void:
             if not get_global_rect().has_point(get_global_mouse_position()) and not on_handle:
                 _set_selected(false)
 
+# Grid size for snapping (matches game's node grid)
+const GRID_SIZE = 50.0
+
 # Handle GUI Input (Blocks Camera!)
 func _on_handle_gui_input(event: InputEvent, dir: Vector2) -> void:
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
@@ -536,6 +539,11 @@ func _on_handle_gui_input(event: InputEvent, dir: Vector2) -> void:
         else:
             if _is_resizing:
                 _is_resizing = false
+                # Snap final position and size to grid
+                position = position.snappedf(GRID_SIZE)
+                size = size.snappedf(GRID_SIZE)
+                size = size.max(_min_size) # Ensure minimum size
+                _update_handle_positions()
                 _emit_changed()
                 queue_redraw()
                 accept_event()
@@ -564,8 +572,11 @@ func _on_handle_gui_input(event: InputEvent, dir: Vector2) -> void:
                 new_rect.position.y += actual_delta
                 new_rect.size.y -= actual_delta
             
-            position = new_rect.position
-            size = new_rect.size
+            # Snap to grid during resize for visual feedback
+            position = new_rect.position.snappedf(GRID_SIZE)
+            size = new_rect.size.snappedf(GRID_SIZE)
+            size = size.max(_min_size) # Ensure minimum size after snapping
+            
             if not is_nan(position.x) and not is_nan(position.y):
                 _update_handle_positions()
                 queue_redraw()
@@ -619,12 +630,17 @@ func _on_title_panel_input(event: InputEvent) -> void:
         else:
             if _is_dragging:
                 _is_dragging = false
+                # Snap to grid when drag ends
+                global_position = global_position.snappedf(GRID_SIZE)
+                _update_handle_positions()
                 drag_ended.emit()
                 _emit_changed()
         accept_event() # Stop inputs on title
     
     elif event is InputEventMouseMotion and _is_dragging:
-        global_position = get_global_mouse_position() - _drag_offset
+        # Snap to grid during drag for visual feedback
+        var new_pos = get_global_mouse_position() - _drag_offset
+        global_position = new_pos.snappedf(GRID_SIZE)
         _update_handle_positions()
         accept_event()
 
