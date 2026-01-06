@@ -1,3 +1,17 @@
+## [0.4.3] - 2026-01-06
+
+### Added
+- Two new logos.
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- Buy Max Manager setting persistence now correctly saves and loads across sessions.
+
 ## [0.4.2] - 2026-01-06
 
 ### Added
