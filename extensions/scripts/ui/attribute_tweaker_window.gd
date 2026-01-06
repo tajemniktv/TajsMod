@@ -1,3 +1,8 @@
+# ==============================================================================
+# Taj's Mod - Upload Labs
+# Attribute Tweaker Window
+# Author: TajemnikTV
+# ==============================================================================
 extends CanvasLayer
 
 const LOG_NAME = "TajsModded:AttributeTweaker"
