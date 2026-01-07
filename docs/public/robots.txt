@@ -1,7 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://TajemnikTV.github.io/TajsMod/sitemap-index.xml
-
-# Taj's Mod GitHub Site
-# https://github.com/TajemnikTV/TajsMod
