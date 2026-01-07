@@ -284,21 +284,28 @@ func _load_icon_safe(icon_path: String, tab_name: String) -> Texture2D:
 
 ## Load a texture directly from disk as PNG (for mod files in shipped builds)
 func _load_texture_from_disk(res_path: String) -> Texture2D:
-    # Try globalize_path first
+    # Use ModLoaderMod.get_unpacked_dir() to get the actual filesystem path
+    # This is the correct way to access mod files in shipped builds
+    if res_path.contains("mods-unpacked"):
+        # Extract the mod-relative path from res://mods-unpacked/ModName/...
+        var parts = res_path.replace("res://mods-unpacked/", "").split("/", false, 1)
+        if parts.size() >= 2:
+            var mod_name = parts[0]
+            var relative_path = parts[1]
+            var mod_base = ModLoaderMod.get_unpacked_dir().path_join(mod_name)
+            var full_path = mod_base.path_join(relative_path)
+            
+            if FileAccess.file_exists(full_path):
+                var image = Image.new()
+                var err = image.load(full_path)
+                if err == OK:
+                    return ImageTexture.create_from_image(image)
+    
+    # Fallback: Try globalize_path (works in some cases)
     var global_path = ProjectSettings.globalize_path(res_path)
     if FileAccess.file_exists(global_path):
         var image = Image.new()
         var err = image.load(global_path)
-        if err == OK:
-            return ImageTexture.create_from_image(image)
-    
-    # Try constructing path from executable location
-    var exe_path = OS.get_executable_path().get_base_dir()
-    var relative = res_path.replace("res://", "")
-    var manual_path = exe_path.path_join(relative)
-    if FileAccess.file_exists(manual_path):
-        var image = Image.new()
-        var err = image.load(manual_path)
         if err == OK:
             return ImageTexture.create_from_image(image)
     
@@ -354,7 +361,13 @@ func add_tab(name: String, icon_path: String) -> VBoxContainer:
     btn.focus_mode = Control.FOCUS_NONE
     btn.theme_type_variation = "TabButton"
     btn.toggle_mode = true
-    btn.icon = load(icon_path)
+    
+    # Use safe loading for mod icons, direct load for base game icons
+    if icon_path.contains("mods-unpacked"):
+        btn.icon = _load_icon_safe(icon_path, name)
+    else:
+        btn.icon = load(icon_path)
+    
     btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER # Center icon when collapsed
     btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
     btn.add_theme_constant_override("icon_max_width", 36) # Larger icons

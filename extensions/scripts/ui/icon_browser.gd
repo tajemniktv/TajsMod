@@ -9,21 +9,19 @@ extends RefCounted
 ## Signal emitted when an icon is selected
 signal icon_selected(icon_name: String, icon_path: String)
 
-## Icon directories to scan
-const ICON_DIRECTORIES: Array[String] = [
-	"res://textures/icons/",
-	"res://mods-unpacked/TajemnikTV-TajsModded/textures/icons/"
-]
+const MOD_DIR = "TajemnikTV-TajsModded"
 
 ## Icon data structure
 class IconData:
 	var name: String
-	var path: String
+	var path: String # Can be res:// path OR absolute filesystem path
 	var texture: Texture2D
+	var is_filesystem_path: bool = false # True if path is absolute filesystem path
 	
-	func _init(p_name: String, p_path: String) -> void:
+	func _init(p_name: String, p_path: String, p_is_fs: bool = false) -> void:
 		name = p_name
 		path = p_path
+		is_filesystem_path = p_is_fs
 
 ## All discovered icons
 var all_icons: Array[IconData] = []
@@ -52,8 +50,11 @@ func _scan_all_icons() -> void:
 	all_icons.clear()
 	var seen_names: Dictionary = {}
 	
-	for dir_path in ICON_DIRECTORIES:
-		_scan_directory(dir_path, seen_names)
+	# 1. Scan base game icons (use res:// path - these are packed in the game)
+	_scan_base_game_icons(seen_names)
+	
+	# 2. Scan mod icons using ModLoader's unpacked directory (real filesystem path)
+	_scan_mod_icons_filesystem(seen_names)
 	
 	# Sort icons alphabetically by name
 	all_icons.sort_custom(func(a: IconData, b: IconData) -> bool:
@@ -63,10 +64,11 @@ func _scan_all_icons() -> void:
 	filtered_icons = all_icons.duplicate()
 	ModLoaderLog.info("Icon Browser: Discovered %d icons" % all_icons.size(), "TajsModded:IconBrowser")
 
-## Scans a single directory for PNG icons
-## Works in both editor and exported builds
-func _scan_directory(dir_path: String, seen_names: Dictionary) -> void:
-	# First try DirAccess (works in editor and for unpacked mod folders)
+## Scans base game icons at res://textures/icons/
+func _scan_base_game_icons(seen_names: Dictionary) -> void:
+	var dir_path = "res://textures/icons/"
+	
+	# Try DirAccess first (works in editor)
 	var dir = DirAccess.open(dir_path)
 	if dir:
 		dir.list_dir_begin()
@@ -75,122 +77,62 @@ func _scan_directory(dir_path: String, seen_names: Dictionary) -> void:
 		while file_name != "":
 			if not dir.current_is_dir() and file_name.ends_with(".png"):
 				var icon_name = file_name.get_basename()
-				# Skip if we've already seen this icon name (base game takes priority)
 				if not seen_names.has(icon_name):
 					var full_path = dir_path + file_name
-					all_icons.append(IconData.new(icon_name, full_path))
+					all_icons.append(IconData.new(icon_name, full_path, false))
 					seen_names[icon_name] = true
 			file_name = dir.get_next()
 		
 		dir.list_dir_end()
 		return
 	
-	# Fallback: For packed resources, use ResourceLoader to check known icon paths
-	# In exported builds, we can't list directories, so we use a known list
-	# This scans for .import files which indicate what resources exist
-	ModLoaderLog.info("Falling back to resource check for: " + dir_path, "TajsModded:IconBrowser")
-	
-	# Try to load a manifest or known icons list for packed resources
-	# For base game icons at res://textures/icons/, try loading directly
-	if dir_path == "res://textures/icons/":
-		_scan_base_game_icons(dir_path, seen_names)
-	elif dir_path.contains("mods-unpacked"):
-		_scan_mod_icons(dir_path, seen_names)
-
-## Scan base game icons by checking known common icon names
-func _scan_base_game_icons(dir_path: String, seen_names: Dictionary) -> void:
-	# Base game has a known set of icons - we load them via resource check
-	# Common base game icon names (extracted from the game's icon usage)
-	var known_base_icons: Array[String] = [
+	# Fallback for packed builds: Use a known list of common icons
+	var known_icons: Array[String] = [
 		"blueprint", "cog", "eye_ball", "money", "bug", "puzzle", "reload",
 		"magnifying_glass", "research", "speed", "cpu", "gpu", "network",
 		"factory", "hacking", "coding", "battery", "time", "star", "warning",
-		"check", "cross", "info", "download", "upload", "save", "load",
-		"pause", "play", "stop", "forward", "backward", "plus", "minus",
-		"lock", "unlock", "trash", "folder", "file", "copy", "paste",
-		"cut", "undo", "redo", "home", "settings", "search", "filter",
-		"sort", "grid", "list", "expand", "collapse", "maximize", "minimize"
+		"check", "cross", "info", "download", "upload", "save", "load"
 	]
 	
-	for icon_name in known_base_icons:
+	for icon_name in known_icons:
 		if seen_names.has(icon_name):
 			continue
 		var full_path = dir_path + icon_name + ".png"
 		if ResourceLoader.exists(full_path):
-			all_icons.append(IconData.new(icon_name, full_path))
+			all_icons.append(IconData.new(icon_name, full_path, false))
 			seen_names[icon_name] = true
 
-## Scan mod icons directory using the pre-generated icon list
-func _scan_mod_icons(dir_path: String, seen_names: Dictionary) -> void:
-	# For mod icons, we use a curated list that's generated at export time
-	# or check for common patterns
-	var mod_icon_names: Array[String] = _get_mod_icon_list()
+## Scans mod icons using ModLoader's unpacked directory (real filesystem path)
+## This is critical for shipped builds where mods are delivered as .zip files
+func _scan_mod_icons_filesystem(seen_names: Dictionary) -> void:
+	# Get the actual filesystem path using ModLoader API
+	var mod_base_path = ModLoaderMod.get_unpacked_dir().path_join(MOD_DIR)
+	var icons_dir = mod_base_path.path_join("textures/icons")
 	
-	for icon_name in mod_icon_names:
-		if seen_names.has(icon_name):
-			continue
-		var full_path = dir_path + icon_name + ".png"
-		if ResourceLoader.exists(full_path):
-			all_icons.append(IconData.new(icon_name, full_path))
-			seen_names[icon_name] = true
-
-## Returns a list of mod icon names (curated from the icons folder)
-## This list must be kept in sync with the actual icons in textures/icons/
-func _get_mod_icon_list() -> Array[String]:
-	# This is a representative subset - full list would be too long
-	# The main icons that users would commonly search for
-	return [
-		"Keyboard", "Module-Puzzle-2", "Cog", "Check", "Delete", "Save",
-		"Analytics-Bars-3-D", "Analytics-Graph-Lines-2", "Analytics-Pie-3",
-		"Award-Trophy-1", "Award-Medal-4", "Award-Badge-Star",
-		"Book-Open-Bookmark", "Book-Search", "Book-Star",
-		"Browser-Page-Layout", "Browser-Com",
-		"Button-Play", "Button-Stop", "Button-Loop", "Button-Fast-Forward-1",
-		"Calculator", "Calendar-3", "Camera-Small", "Camera-Tripod",
-		"Cash-Briefcase", "Cash-Network", "Cash-Payment-Bill",
-		"Check-Badge", "Check-Square", "Checklist",
-		"Cloud-Add", "Cloud-Data-Transfer", "Cloud-File", "Cloud-Loading",
-		"Cog", "Cog-Search-1", "Cog-Hand-Give-1",
-		"Computer-Chip-32", "Computer-Chip-Core", "Computer-Chip-Flash",
-		"Controls-Pause", "Controls-Forward", "Controls-Previous",
-		"Crypto-Currency-Bitcoin-Chip", "Crypto-Currency-Bitcoin-Code",
-		"Database-1", "Database-2", "Database-Disable", "Database-Share-1",
-		"Delete", "Delete-2", "Duplicate",
-		"Email-Action-Add", "Email-Action-Search-1",
-		"Factory-Building-1", "Factory-Industrial-Robot-Arm-1",
-		"Filter-1", "Filter-2-1",
-		"Floppy-Disk-1", "Flow-1", "Flow-Chart-Hierachy",
-		"Folder-Add", "Folder-Share",
-		"Gateway", "Gauge-Dashboard",
-		"Gift-Box-1", "Gold-Bars",
-		"Hard-Drive-1", "Harddrive-Download-2",
-		"Information-Circle", "Insurance-Hand",
-		"Keyboard", "Keyboard-Wireless", "Keyboard-Option",
-		"Lab-Tube", "Lab-Tube-Experiment",
-		"Laptop", "Laptop-Clock", "Laptop-Download",
-		"Layout", "Layout-Dashboard", "Layout-Content",
-		"Loading", "Loading-Circle", "Lock-5", "Lock-Shield",
-		"Module-Puzzle-2", "Module-Three", "Module-Hands-Puzzle",
-		"Monitor", "Monitor-Download", "Monitor-Flash", "Monitor-Sync",
-		"Network-Browser", "Network-Pin", "Network-Search", "Network-Signal",
-		"Notes-Book", "Notes-Tasks", "Notes-Upload",
-		"Office-Chair", "Office-Drawer", "Office-Employee",
-		"Power-Button", "Programming-Book", "Programming-Browser-1",
-		"Receipt", "Receipt-Dollar",
-		"Router-Signal", "Rss-Feed",
-		"Safety-Float", "Satellite", "Scanner", "Science-Molecule",
-		"Server-Add", "Server-Refresh-1", "Server-Share",
-		"Settings-Slider-Desktop-Horizontal", "Shape-Cube", "Shapes",
-		"Share", "Share-2", "Shield-Check-1",
-		"Startup-Product-Rocket-Box", "Stopwatch",
-		"Tag-Dollar", "Tags-1", "Tags-Favorite",
-		"Time-Clock-Circle", "Timer-10", "Tool-Box",
-		"Touch-Id", "Tracking",
-		"Upload-Circle", "Usb-Cable", "User-Network",
-		"Video-Call", "Video-Player-Movie",
-		"Warehouse-Storage-2", "Web-Hook",
-		"Wifi-Signal-2", "Wifi-Signal-4"
-	]
+	ModLoaderLog.info("Scanning mod icons from filesystem: " + icons_dir, "TajsModded:IconBrowser")
+	
+	var dir = DirAccess.open(icons_dir)
+	if not dir:
+		ModLoaderLog.warning("Could not open mod icons directory: " + icons_dir, "TajsModded:IconBrowser")
+		return
+	
+	dir.list_dir_begin()
+	var file_name = dir.get_next()
+	var count = 0
+	
+	while file_name != "":
+		if not dir.current_is_dir() and file_name.ends_with(".png"):
+			var icon_name = file_name.get_basename()
+			if not seen_names.has(icon_name):
+				# Store the ABSOLUTE filesystem path, not res:// path
+				var full_path = icons_dir.path_join(file_name)
+				all_icons.append(IconData.new(icon_name, full_path, true))
+				seen_names[icon_name] = true
+				count += 1
+		file_name = dir.get_next()
+	
+	dir.list_dir_end()
+	ModLoaderLog.info("Found %d mod icons" % count, "TajsModded:IconBrowser")
 
 ## Builds the icon browser UI and injects it into the parent container
 func build_ui(parent_container: Control) -> void:
@@ -286,8 +228,15 @@ func _create_icon_button(icon_data: IconData, index: int) -> Button:
 	btn.expand_icon = true
 	btn.tooltip_text = icon_data.name.replace("-", " ").replace("_", " ")
 	
-	# Load icon texture with fallback for shipped builds
-	var texture = _load_texture_robust(icon_data.path)
+	# Load icon texture based on path type
+	var texture: Texture2D = null
+	if icon_data.is_filesystem_path:
+		# Load directly from filesystem (mod icons in shipped builds)
+		texture = _load_texture_from_file(icon_data.path)
+	else:
+		# Load from resources (base game icons)
+		texture = load(icon_data.path)
+	
 	if texture:
 		btn.icon = texture
 		icon_data.texture = texture
@@ -296,52 +245,17 @@ func _create_icon_button(icon_data: IconData, index: int) -> Button:
 	
 	return btn
 
-## Robustly load a texture, with fallback for loose mod files
-func _load_texture_robust(res_path: String) -> Texture2D:
-	# Strategy 1: Standard resource load (works for base game and properly imported resources)
-	var texture = load(res_path)
-	if texture:
-		return texture
+## Load a texture directly from a filesystem path
+func _load_texture_from_file(file_path: String) -> Texture2D:
+	if not FileAccess.file_exists(file_path):
+		return null
 	
-	# Strategy 2: Load PNG directly from disk (for loose mod files in shipped builds)
-	# Convert res:// path to absolute filesystem path
-	var absolute_path = _res_to_absolute_path(res_path)
-	if absolute_path != "" and FileAccess.file_exists(absolute_path):
-		var image = Image.new()
-		var err = image.load(absolute_path)
-		if err == OK:
-			var img_texture = ImageTexture.create_from_image(image)
-			return img_texture
-	
-	# Strategy 3: Check if it's a mod path and try the global path
-	if res_path.contains("mods-unpacked"):
-		var global_path = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(global_path):
-			var image = Image.new()
-			var err = image.load(global_path)
-			if err == OK:
-				var img_texture = ImageTexture.create_from_image(image)
-				return img_texture
+	var image = Image.new()
+	var err = image.load(file_path)
+	if err == OK:
+		return ImageTexture.create_from_image(image)
 	
 	return null
-
-## Convert a res:// path to an absolute filesystem path
-func _res_to_absolute_path(res_path: String) -> String:
-	# For mod resources, they're usually in the game's mods folder
-	if res_path.begins_with("res://mods-unpacked/"):
-		# Try globalize_path first (works if resource is registered)
-		var global_path = ProjectSettings.globalize_path(res_path)
-		if FileAccess.file_exists(global_path):
-			return global_path
-		
-		# Fallback: Construct path manually from executable location
-		var exe_path = OS.get_executable_path().get_base_dir()
-		var relative = res_path.replace("res://", "")
-		var manual_path = exe_path.path_join(relative)
-		if FileAccess.file_exists(manual_path):
-			return manual_path
-	
-	return ""
 
 ## Handles search text changes
 func _on_search_text_changed(new_text: String) -> void:
