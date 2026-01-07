@@ -6,6 +6,10 @@
 extends "res://scripts/desktop.gd"
 
 func paste(data: Dictionary) -> void:
+    # DEBUG: Log that modded paste() is being called
+    ModLoaderLog.info("[PASTE DEBUG] Modded paste() called!", "TajsModded:Desktop")
+    ModLoaderLog.info("[PASTE DEBUG] custom_node_limit = %s, max_window_count = %s" % [str(Globals.custom_node_limit), str(Globals.max_window_count)], "TajsModded:Desktop")
+    
     var seed: int = randi() / 10
     var new_windows: Dictionary
     var to_connect: Dictionary[String, Array]
@@ -28,8 +32,11 @@ func paste(data: Dictionary) -> void:
 
     # MOD MATCH: Use Globals.custom_node_limit instead of Utils.MAX_WINDOW
     # Check limit only if NOT unlimited (-1)
+    ModLoaderLog.info("[PASTE DEBUG] Required nodes = %d, Available space = %s" % [required, str(Globals.custom_node_limit - Globals.max_window_count) if Globals.custom_node_limit != -1 else "UNLIMITED"], "TajsModded:Desktop")
+    
     if Globals.custom_node_limit != -1:
         if required > Globals.custom_node_limit - Globals.max_window_count:
+            ModLoaderLog.info("[PASTE DEBUG] LIMIT EXCEEDED! Showing error.", "TajsModded:Desktop")
             Signals.notify.emit("exclamation", "build_limit_reached")
             Sound.play("error")
             return

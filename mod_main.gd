@@ -382,6 +382,8 @@ func _hijack_desktop_schematic_signal() -> void:
 
 ## Modded place_schematic handler - enforces custom node limit
 func _on_place_schematic_modded(schematic_name: String) -> void:
+    ModLoaderLog.info("[SCHEMATIC] Modded handler called for: " + schematic_name, LOG_NAME)
+    
     if not is_instance_valid(Globals.desktop):
         ModLoaderLog.error("[SCHEMATIC] Desktop not valid!", LOG_NAME)
         return
@@ -396,16 +398,20 @@ func _on_place_schematic_modded(schematic_name: String) -> void:
     var limit = Globals.custom_node_limit
     var current = Globals.max_window_count
     
+    ModLoaderLog.info("[SCHEMATIC] Required: %d, Current: %d, Limit: %s" % [
+        required, current, "UNLIMITED" if limit == -1 else str(limit)
+    ], LOG_NAME)
+    
     # Check limit (skip check if unlimited)
     if limit != -1:
         if required > limit - current:
-            ModLoaderLog.info("Schematic '%s' blocked: %d nodes required, only %d available" % [schematic_name, required, limit - current], LOG_NAME)
+            ModLoaderLog.info("[SCHEMATIC] BLOCKED - would exceed limit (%d + %d > %d)" % [current, required, limit], LOG_NAME)
             Signals.notify.emit("exclamation", "build_limit_reached")
             Sound.play("error")
             return
     
     # Limit OK or unlimited - call the actual paste via desktop
-    ModLoaderLog.info("Placing schematic '%s' (%d nodes)" % [schematic_name, required], LOG_NAME)
+    ModLoaderLog.info("[SCHEMATIC] Allowed - calling desktop.paste()", LOG_NAME)
     Globals.desktop.paste(schematic_data)
 
 
