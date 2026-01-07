@@ -240,6 +240,43 @@ func _create_footer_panel(parent: Control) -> void:
     version_panel.add_child(version_label)
 
 # ==============================================================================
+# Icon Loading Helpers
+# ==============================================================================
+
+## Safely load an icon with fallback support for shipped builds
+func _load_icon_safe(icon_path: String, tab_name: String) -> Texture2D:
+    # First try direct load
+    if ResourceLoader.exists(icon_path):
+        var texture = load(icon_path)
+        if texture:
+            return texture
+    
+    # Log the failure for debugging
+    ModLoaderLog.warning("Could not load icon: %s for tab %s" % [icon_path, tab_name], LOG_NAME)
+    
+    # Fallback to base game icons based on tab name
+    var fallback_icons: Dictionary = {
+        "Keybinds": "res://textures/icons/keyboard.png",
+        "Mod Manager": "res://textures/icons/puzzle.png",
+        "General": "res://textures/icons/cog.png",
+        "Visuals": "res://textures/icons/eye_ball.png",
+        "Cheats": "res://textures/icons/money.png",
+        "Debug": "res://textures/icons/bug.png"
+    }
+    
+    if fallback_icons.has(tab_name):
+        var fallback_path = fallback_icons[tab_name]
+        if ResourceLoader.exists(fallback_path):
+            return load(fallback_path)
+    
+    # Last resort: use a generic icon from base game
+    var generic_fallback = "res://textures/icons/cog.png"
+    if ResourceLoader.exists(generic_fallback):
+        return load(generic_fallback)
+    
+    return null
+
+# ==============================================================================
 # Public API
 # ==============================================================================
 
@@ -289,7 +326,12 @@ func add_tab(name: String, icon_path: String) -> VBoxContainer:
     btn.focus_mode = Control.FOCUS_NONE
     btn.theme_type_variation = "TabButton"
     btn.toggle_mode = true
-    btn.icon = load(icon_path)
+    
+    # Robust icon loading with fallback
+    var icon_texture = _load_icon_safe(icon_path, name)
+    if icon_texture:
+        btn.icon = icon_texture
+    
     btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER # Center icon when collapsed
     btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
     btn.add_theme_constant_override("icon_max_width", 36) # Larger icons

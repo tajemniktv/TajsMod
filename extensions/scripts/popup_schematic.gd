@@ -46,7 +46,7 @@ func _expand_popup_size() -> void:
     # Use anchor-based sizing for responsive fullscreen-ish layout
     anchors_preset = Control.PRESET_FULL_RECT
     anchor_left = 0.05
-    anchor_top = 0.05
+    anchor_top = 0.08 # Moved down slightly from 0.05
     anchor_right = 0.95
     anchor_bottom = 0.95
     offset_left = 0
