@@ -1,3 +1,18 @@
+## [0.4.4] - 2026-01-07
+
+### Added
+- ~1200 new icons for schematic builder and custom schematic builder
+- Grid snapping for sticky notes when moving and resizing
+
+### Changed
+- Undo system no longer records bulk actions
+
+### Removed
+- - N/A
+
+### Fixed
+- Patcher issue preventing it from correctly patching desktop
+
 ## [0.4.3] - 2026-01-06
 
 ### Added
