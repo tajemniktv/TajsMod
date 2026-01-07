@@ -264,11 +264,15 @@ func _on_picker_color_changed(c: Color) -> void:
 func _process(delta: float) -> void:
     # Persistent Patches (only try once on failure to avoid log spam)
     if !_desktop_patched and !_desktop_patch_failed:
-        var result = Patcher.patch_desktop_script("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd")
-        if result:
-            _desktop_patched = true
+        if not is_instance_valid(Globals.desktop):
+            # Desktop not yet valid - keep trying
+            pass
         else:
-            _desktop_patch_failed = true # Don't spam retries
+            var result = Patcher.patch_desktop_script("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/desktop.gd")
+            if result:
+                _desktop_patched = true
+            else:
+                _desktop_patch_failed = true # Don't spam retries
         
     # Update UI Logic
     if settings:
@@ -354,6 +358,57 @@ func _is_control_visible_in_tree(control: Control) -> bool:
 # SETUP
 # ==============================================================================
 
+## Hijack the desktop's place_schematic signal handler
+## Disconnect base game's handler and use our own that respects custom node limit
+func _hijack_desktop_schematic_signal() -> void:
+    if not is_instance_valid(Globals.desktop):
+        ModLoaderLog.warning("Cannot hijack schematic signal - desktop not valid", LOG_NAME)
+        return
+    
+    # Check if already hijacked (avoid double connection)
+    if Signals.place_schematic.is_connected(_on_place_schematic_modded):
+        return
+    
+    # Disconnect the base game's handler from desktop
+    # The base desktop connects: Signals.place_schematic.connect(_on_place_schematic)
+    if Signals.place_schematic.is_connected(Globals.desktop._on_place_schematic):
+        Signals.place_schematic.disconnect(Globals.desktop._on_place_schematic)
+        ModLoaderLog.info("Disconnected base game's place_schematic handler", LOG_NAME)
+    
+    # Connect our modded handler
+    Signals.place_schematic.connect(_on_place_schematic_modded)
+    ModLoaderLog.info("Connected modded place_schematic handler with custom node limit", LOG_NAME)
+
+
+## Modded place_schematic handler - enforces custom node limit
+func _on_place_schematic_modded(schematic_name: String) -> void:
+    if not is_instance_valid(Globals.desktop):
+        ModLoaderLog.error("[SCHEMATIC] Desktop not valid!", LOG_NAME)
+        return
+    
+    if not Data.schematics.has(schematic_name):
+        ModLoaderLog.error("[SCHEMATIC] Schematic not found: " + schematic_name, LOG_NAME)
+        return
+    
+    var schematic_data = Data.schematics[schematic_name].duplicate(true)
+    var required: int = schematic_data.windows.size() if schematic_data.has("windows") else 0
+    
+    var limit = Globals.custom_node_limit
+    var current = Globals.max_window_count
+    
+    # Check limit (skip check if unlimited)
+    if limit != -1:
+        if required > limit - current:
+            ModLoaderLog.info("Schematic '%s' blocked: %d nodes required, only %d available" % [schematic_name, required, limit - current], LOG_NAME)
+            Signals.notify.emit("exclamation", "build_limit_reached")
+            Sound.play("error")
+            return
+    
+    # Limit OK or unlimited - call the actual paste via desktop
+    ModLoaderLog.info("Placing schematic '%s' (%d nodes)" % [schematic_name, required], LOG_NAME)
+    Globals.desktop.paste(schematic_data)
+
+
 func _sanitize() -> void:
     Patcher.sanitize_schematics()
 
@@ -375,6 +430,10 @@ func _setup_for_main(main_node: Node) -> void:
     # Check if already set up by looking for our container in Overlay
     var overlay = hud.get_node_or_null("Main/MainContainer/Overlay")
     if overlay and overlay.has_node("TajsModdedMenus"): return
+    
+    # === CRITICAL: Hijack desktop's place_schematic signal ===
+    # This is necessary because the desktop.gd runtime patching may not work reliably
+    _hijack_desktop_schematic_signal()
     
     # Init UI
     ui = SettingsUI.new(hud, mod_version)

@@ -155,6 +155,25 @@ func is_enabled() -> bool:
     return _enabled
 
 
+## Bulk operation flag - when true, skip all recording
+var _bulk_operation: bool = false
+
+
+## Pause recording for bulk operations (doesn't clear history)
+func pause_recording() -> void:
+    _bulk_operation = true
+
+
+## Resume recording after bulk operations
+func resume_recording() -> void:
+    _bulk_operation = false
+
+
+## Check if recording is paused
+func is_recording_paused() -> bool:
+    return _bulk_operation
+
+
 ## Clear all history
 func clear_history() -> void:
     _undo_stack.clear()
@@ -391,7 +410,7 @@ func _create_move_command_if_changed() -> void:
 
 ## Handle connection created
 func _on_connection_created(output_id: String, input_id: String) -> void:
-    if not _enabled:
+    if not _enabled or _bulk_operation:
         return
     
     # Don't record if we're currently in an undo/redo operation
@@ -415,7 +434,9 @@ func _on_connection_created(output_id: String, input_id: String) -> void:
     var cmd = ConnectCommandScript.new()
     cmd.setup(str(output_window.name), output_path, str(input_window.name), input_path)
     push_command(cmd)
-    _log_debug("Recorded connection: %s(%s) -> %s(%s)" % [output_window.name, output_path, input_window.name, input_path])
+    # Only log if NOT inside a transaction (avoid flooding during paste)
+    if _transaction_depth == 0:
+        _log_debug("Recorded connection: %s(%s) -> %s(%s)" % [output_window.name, output_path, input_window.name, input_path])
 
 
 ## Handle connection deleted
@@ -468,7 +489,7 @@ func _get_window_from_resource_id(resource_id: String) -> WindowContainer:
 
 ## Handle window created (node spawned)
 func _on_window_created(window: WindowContainer) -> void:
-    if not _enabled:
+    if not _enabled or _bulk_operation:
         return
     
     # Don't record if we're currently in an undo/redo operation
@@ -482,12 +503,14 @@ func _on_window_created(window: WindowContainer) -> void:
     var cmd = NodeCreatedCommandScript.new()
     cmd.setup(str(window.name))
     push_command(cmd)
-    _log_debug("Recorded window creation: %s" % window.name)
+    # Only log if NOT inside a transaction (avoid flooding during paste)
+    if _transaction_depth == 0:
+        _log_debug("Recorded window creation: %s" % window.name)
 
 
 ## Handle window deleted (node removed)
 func _on_window_deleted(window: WindowContainer) -> void:
-    if not _enabled:
+    if not _enabled or _bulk_operation:
         return
     
     # Don't record if we're currently in an undo/redo operation

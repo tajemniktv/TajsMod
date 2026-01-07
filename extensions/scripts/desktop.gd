@@ -6,9 +6,6 @@
 extends "res://scripts/desktop.gd"
 
 func paste(data: Dictionary) -> void:
-    if Globals.undo_manager:
-        Globals.undo_manager.begin_action("Paste")
-        
     var seed: int = randi() / 10
     var new_windows: Dictionary
     var to_connect: Dictionary[String, Array]
@@ -35,9 +32,17 @@ func paste(data: Dictionary) -> void:
         if required > Globals.custom_node_limit - Globals.max_window_count:
             Signals.notify.emit("exclamation", "build_limit_reached")
             Sound.play("error")
-            if Globals.undo_manager:
-                Globals.undo_manager.cancel_action()
             return
+    
+    # For large pastes (50+ nodes), pause undo recording to prevent freezing
+    # The overhead of tracking hundreds of operations is too high
+    var use_undo: bool = required < 50 and Globals.undo_manager != null
+    
+    if use_undo:
+        Globals.undo_manager.begin_action("Paste")
+    elif Globals.undo_manager != null:
+        # Temporarily pause recording for large operations (doesn't clear history)
+        Globals.undo_manager.pause_recording()
 
     data.windows = new_windows
     var windows_added: Array[WindowContainer]
@@ -64,8 +69,11 @@ func paste(data: Dictionary) -> void:
 
     $Connectors.connector_data.clear()
     
-    if Globals.undo_manager:
+    if use_undo:
         Globals.undo_manager.commit_action()
+    elif Globals.undo_manager != null:
+        # Resume recording after large operation
+        Globals.undo_manager.resume_recording()
 
 
 func _input(event: InputEvent) -> void:
