@@ -530,22 +530,58 @@ func _add_breach_escalation_section(parent: Control) -> void:
     var manager_ref = breach_threat_manager
     
     # Main toggle
-    _settings_toggles["breach_escalation_enabled"] = ui.add_toggle(breach_container, "Auto Threat Escalation", config.get_value("breach_escalation_enabled", true), func(v):
+    _settings_toggles["breach_escalation_enabled"] = ui.add_toggle(breach_container, "Auto Threat Adjustment", config.get_value("breach_escalation_enabled", true), func(v):
         config.set_value("breach_escalation_enabled", v)
         sub_ref.visible = v
         if manager_ref:
             manager_ref.set_enabled(v)
-    , "Automatically increase breach threat level after successful breaches.")
+    , "Automatically adjust breach threat level based on consecutive successes/failures.")
     
     breach_container.add_child(breach_sub)
     
-    # Threshold slider
+    # Escalation Threshold slider
     var cfg = config
     var mgr = manager_ref
-    ui.add_slider(breach_sub_vbox, "Escalation Threshold", config.get_value("breach_escalation_threshold", 3), 1, 10, 1, " breaches", func(v):
+    ui.add_slider(breach_sub_vbox, "Escalation Threshold", config.get_value("breach_escalation_threshold", 3), 1, 15, 1, " in a row", func(v):
         cfg.set_value("breach_escalation_threshold", int(v))
         if mgr:
             mgr.set_threshold(int(v))
+    )
+    
+    # De-escalation sub-section
+    var deesc_sub = MarginContainer.new()
+    deesc_sub.name = "breach_deescalation_sub"
+    deesc_sub.add_theme_constant_override("margin_left", 20)
+    deesc_sub.visible = config.get_value("breach_deescalation_enabled", true)
+    
+    var deesc_sub_vbox = VBoxContainer.new()
+    deesc_sub_vbox.add_theme_constant_override("separation", 8)
+    deesc_sub.add_child(deesc_sub_vbox)
+    
+    var deesc_sub_ref = deesc_sub
+    
+    # De-escalation toggle
+    _settings_toggles["breach_deescalation_enabled"] = ui.add_toggle(breach_sub_vbox, "Auto De-escalation", config.get_value("breach_deescalation_enabled", true), func(v):
+        cfg.set_value("breach_deescalation_enabled", v)
+        deesc_sub_ref.visible = v
+        if mgr:
+            mgr.set_deescalation_enabled(v)
+    , "Reduce threat level after consecutive failed breaches.")
+    
+    breach_sub_vbox.add_child(deesc_sub)
+    
+    # De-escalation Threshold slider
+    ui.add_slider(deesc_sub_vbox, "De-escalation Threshold", config.get_value("breach_deescalation_threshold", 5), 1, 15, 1, " in a row", func(v):
+        cfg.set_value("breach_deescalation_threshold", int(v))
+        if mgr:
+            mgr.set_deescalation_threshold(int(v))
+    )
+    
+    # Escalation Cooldown slider (prevents immediate re-escalation after de-escalation)
+    ui.add_slider(deesc_sub_vbox, "Escalation Cooldown", config.get_value("breach_escalation_cooldown", 10), 0, 30, 1, " breaches", func(v):
+        cfg.set_value("breach_escalation_cooldown", int(v))
+        if mgr:
+            mgr.set_escalation_cooldown(int(v))
     )
 
 

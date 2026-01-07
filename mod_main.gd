@@ -102,6 +102,9 @@ func _init() -> void:
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/lines.gd")
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/paint.gd")
     
+    # Breach Window Extension (for failure signal)
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/window_breach.gd")
+    
     # WindowContainer hooks (cannot use extensions due to class_name, using Script Hooks API instead)
     # NOTE: Expanded workspace feature shelved - hooks don't work in shipped builds without game dev preprocessing
     # ModLoaderMod.install_script_hooks(
@@ -162,7 +165,7 @@ func _init() -> void:
     add_child(keybinds_manager)
     keybinds_manager.setup(config, self)
 
-    # Init Breach Threat Manager (auto-escalate threat levels)
+    # Init Breach Threat Manager (auto-adjust threat levels)
     breach_threat_manager = BreachThreatManagerScript.new()
     breach_threat_manager.name = "BreachThreatManager"
     add_child(breach_threat_manager)
@@ -194,6 +197,7 @@ func _ready() -> void:
     
     # Setup Keybinds Global Reference & Registration
     Globals.keybinds_manager = keybinds_manager
+    Globals.breach_threat_manager = breach_threat_manager
     keybinds_registration = KeybindsRegistrationScript.new()
     keybinds_registration.setup(keybinds_manager, self)
 

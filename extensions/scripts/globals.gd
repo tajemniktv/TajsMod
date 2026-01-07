@@ -10,3 +10,4 @@ var select_all_enabled: bool = true
 var custom_upgrade_multiplier: int = 10
 var undo_manager = null
 var keybinds_manager = null # TajsModKeybindsManager reference
+var breach_threat_manager = null # BreachThreatManager reference
