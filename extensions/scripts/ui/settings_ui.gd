@@ -243,73 +243,7 @@ func _create_footer_panel(parent: Control) -> void:
 # Icon Loading Helpers
 # ==============================================================================
 
-## Safely load an icon with fallback support for shipped builds
-func _load_icon_safe(icon_path: String, tab_name: String) -> Texture2D:
-    # Strategy 1: Direct resource load
-    if ResourceLoader.exists(icon_path):
-        var texture = load(icon_path)
-        if texture:
-            return texture
-    
-    # Strategy 2: Try loading PNG from disk (for mod resources in shipped builds)
-    if icon_path.contains("mods-unpacked"):
-        var tex = _load_texture_from_disk(icon_path)
-        if tex:
-            return tex
-    
-    # Log the failure for debugging
-    ModLoaderLog.warning("Could not load icon: %s for tab %s, using fallback" % [icon_path, tab_name], LOG_NAME)
-    
-    # Strategy 3: Fallback to base game icons based on tab name
-    var fallback_icons: Dictionary = {
-        "Keybinds": "res://textures/icons/keyboard.png",
-        "Mod Manager": "res://textures/icons/puzzle.png",
-        "General": "res://textures/icons/cog.png",
-        "Visuals": "res://textures/icons/eye_ball.png",
-        "Cheats": "res://textures/icons/money.png",
-        "Debug": "res://textures/icons/bug.png"
-    }
-    
-    if fallback_icons.has(tab_name):
-        var fallback_path = fallback_icons[tab_name]
-        if ResourceLoader.exists(fallback_path):
-            return load(fallback_path)
-    
-    # Last resort: use a generic icon from base game
-    var generic_fallback = "res://textures/icons/cog.png"
-    if ResourceLoader.exists(generic_fallback):
-        return load(generic_fallback)
-    
-    return null
-
-## Load a texture directly from disk as PNG (for mod files in shipped builds)
-func _load_texture_from_disk(res_path: String) -> Texture2D:
-    # Use ModLoaderMod.get_unpacked_dir() to get the actual filesystem path
-    # This is the correct way to access mod files in shipped builds
-    if res_path.contains("mods-unpacked"):
-        # Extract the mod-relative path from res://mods-unpacked/ModName/...
-        var parts = res_path.replace("res://mods-unpacked/", "").split("/", false, 1)
-        if parts.size() >= 2:
-            var mod_name = parts[0]
-            var relative_path = parts[1]
-            var mod_base = ModLoaderMod.get_unpacked_dir().path_join(mod_name)
-            var full_path = mod_base.path_join(relative_path)
-            
-            if FileAccess.file_exists(full_path):
-                var image = Image.new()
-                var err = image.load(full_path)
-                if err == OK:
-                    return ImageTexture.create_from_image(image)
-    
-    # Fallback: Try globalize_path (works in some cases)
-    var global_path = ProjectSettings.globalize_path(res_path)
-    if FileAccess.file_exists(global_path):
-        var image = Image.new()
-        var err = image.load(global_path)
-        if err == OK:
-            return ImageTexture.create_from_image(image)
-    
-    return null
+# Helper functions removed as they were unnecessary. Icon loading is now handled directly by standard load().
 
 # ==============================================================================
 # Public API
@@ -361,12 +295,7 @@ func add_tab(name: String, icon_path: String) -> VBoxContainer:
     btn.focus_mode = Control.FOCUS_NONE
     btn.theme_type_variation = "TabButton"
     btn.toggle_mode = true
-    
-    # Use safe loading for mod icons, direct load for base game icons
-    if icon_path.contains("mods-unpacked"):
-        btn.icon = _load_icon_safe(icon_path, name)
-    else:
-        btn.icon = load(icon_path)
+    btn.icon = load(icon_path)
     
     btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER # Center icon when collapsed
     btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
