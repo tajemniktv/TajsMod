@@ -1,3 +1,18 @@
+## [0.6.0] - 2026-01-07
+
+### Added
+- Extended Caps, allowing players to upgrade nodes to higher values than in vanilla.
+- Sticky note icon and title selector.
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.5.2] - 2026-01-07
 
 ### Added
