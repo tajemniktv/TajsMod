@@ -286,8 +286,8 @@ func _create_icon_button(icon_data: IconData, index: int) -> Button:
 	btn.expand_icon = true
 	btn.tooltip_text = icon_data.name.replace("-", " ").replace("_", " ")
 	
-	# Load icon texture (lazy loading)
-	var texture = load(icon_data.path)
+	# Load icon texture with fallback for shipped builds
+	var texture = _load_texture_robust(icon_data.path)
 	if texture:
 		btn.icon = texture
 		icon_data.texture = texture
@@ -295,6 +295,53 @@ func _create_icon_button(icon_data: IconData, index: int) -> Button:
 	btn.pressed.connect(_on_icon_button_pressed.bind(index))
 	
 	return btn
+
+## Robustly load a texture, with fallback for loose mod files
+func _load_texture_robust(res_path: String) -> Texture2D:
+	# Strategy 1: Standard resource load (works for base game and properly imported resources)
+	var texture = load(res_path)
+	if texture:
+		return texture
+	
+	# Strategy 2: Load PNG directly from disk (for loose mod files in shipped builds)
+	# Convert res:// path to absolute filesystem path
+	var absolute_path = _res_to_absolute_path(res_path)
+	if absolute_path != "" and FileAccess.file_exists(absolute_path):
+		var image = Image.new()
+		var err = image.load(absolute_path)
+		if err == OK:
+			var img_texture = ImageTexture.create_from_image(image)
+			return img_texture
+	
+	# Strategy 3: Check if it's a mod path and try the global path
+	if res_path.contains("mods-unpacked"):
+		var global_path = ProjectSettings.globalize_path(res_path)
+		if FileAccess.file_exists(global_path):
+			var image = Image.new()
+			var err = image.load(global_path)
+			if err == OK:
+				var img_texture = ImageTexture.create_from_image(image)
+				return img_texture
+	
+	return null
+
+## Convert a res:// path to an absolute filesystem path
+func _res_to_absolute_path(res_path: String) -> String:
+	# For mod resources, they're usually in the game's mods folder
+	if res_path.begins_with("res://mods-unpacked/"):
+		# Try globalize_path first (works if resource is registered)
+		var global_path = ProjectSettings.globalize_path(res_path)
+		if FileAccess.file_exists(global_path):
+			return global_path
+		
+		# Fallback: Construct path manually from executable location
+		var exe_path = OS.get_executable_path().get_base_dir()
+		var relative = res_path.replace("res://", "")
+		var manual_path = exe_path.path_join(relative)
+		if FileAccess.file_exists(manual_path):
+			return manual_path
+	
+	return ""
 
 ## Handles search text changes
 func _on_search_text_changed(new_text: String) -> void:

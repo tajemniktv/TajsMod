@@ -245,16 +245,22 @@ func _create_footer_panel(parent: Control) -> void:
 
 ## Safely load an icon with fallback support for shipped builds
 func _load_icon_safe(icon_path: String, tab_name: String) -> Texture2D:
-    # First try direct load
+    # Strategy 1: Direct resource load
     if ResourceLoader.exists(icon_path):
         var texture = load(icon_path)
         if texture:
             return texture
     
-    # Log the failure for debugging
-    ModLoaderLog.warning("Could not load icon: %s for tab %s" % [icon_path, tab_name], LOG_NAME)
+    # Strategy 2: Try loading PNG from disk (for mod resources in shipped builds)
+    if icon_path.contains("mods-unpacked"):
+        var tex = _load_texture_from_disk(icon_path)
+        if tex:
+            return tex
     
-    # Fallback to base game icons based on tab name
+    # Log the failure for debugging
+    ModLoaderLog.warning("Could not load icon: %s for tab %s, using fallback" % [icon_path, tab_name], LOG_NAME)
+    
+    # Strategy 3: Fallback to base game icons based on tab name
     var fallback_icons: Dictionary = {
         "Keybinds": "res://textures/icons/keyboard.png",
         "Mod Manager": "res://textures/icons/puzzle.png",
@@ -273,6 +279,28 @@ func _load_icon_safe(icon_path: String, tab_name: String) -> Texture2D:
     var generic_fallback = "res://textures/icons/cog.png"
     if ResourceLoader.exists(generic_fallback):
         return load(generic_fallback)
+    
+    return null
+
+## Load a texture directly from disk as PNG (for mod files in shipped builds)
+func _load_texture_from_disk(res_path: String) -> Texture2D:
+    # Try globalize_path first
+    var global_path = ProjectSettings.globalize_path(res_path)
+    if FileAccess.file_exists(global_path):
+        var image = Image.new()
+        var err = image.load(global_path)
+        if err == OK:
+            return ImageTexture.create_from_image(image)
+    
+    # Try constructing path from executable location
+    var exe_path = OS.get_executable_path().get_base_dir()
+    var relative = res_path.replace("res://", "")
+    var manual_path = exe_path.path_join(relative)
+    if FileAccess.file_exists(manual_path):
+        var image = Image.new()
+        var err = image.load(manual_path)
+        if err == OK:
+            return ImageTexture.create_from_image(image)
     
     return null
 
@@ -326,12 +354,7 @@ func add_tab(name: String, icon_path: String) -> VBoxContainer:
     btn.focus_mode = Control.FOCUS_NONE
     btn.theme_type_variation = "TabButton"
     btn.toggle_mode = true
-    
-    # Robust icon loading with fallback
-    var icon_texture = _load_icon_safe(icon_path, name)
-    if icon_texture:
-        btn.icon = icon_texture
-    
+    btn.icon = load(icon_path)
     btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER # Center icon when collapsed
     btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
     btn.add_theme_constant_override("icon_max_width", 36) # Larger icons
