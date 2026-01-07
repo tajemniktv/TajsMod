@@ -1,3 +1,17 @@
+## [0.5.2] - 2026-01-07
+
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- The icon browser.
+
 ## [0.5.1] - 2026-01-07
 
 ### Added
