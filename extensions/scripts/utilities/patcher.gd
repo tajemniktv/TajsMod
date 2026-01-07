@@ -117,11 +117,9 @@ static func patch_boot_screen(boot_node: Node, mod_version: String, icon_path: S
 static func patch_desktop_script(desktop_script_path: String) -> bool:
 	if !is_instance_valid(Globals.desktop):
 		return false
-		
+	
 	if Globals.desktop.get_script().resource_path == desktop_script_path:
 		return true # Already patched
-
-	ModLoaderLog.info("Attempting to safely patch Desktop script...", LOG_NAME)
 	
 	# Save state
 	var old_resources = Globals.desktop.resources
@@ -140,7 +138,7 @@ static func patch_desktop_script(desktop_script_path: String) -> bool:
 		Globals.desktop.window_selections = old_win_selections
 		Globals.desktop.grabber_selections = old_grab_selections
 		
-		ModLoaderLog.info("Desktop script patched successfully!", LOG_NAME)
+		ModLoaderLog.info("Desktop script patched successfully", LOG_NAME)
 		return true
 	else:
 		ModLoaderLog.error("Failed to load desktop patch script", LOG_NAME)
