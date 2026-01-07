@@ -1,3 +1,17 @@
+## [0.5.0] - 2026-01-07
+
+### Added
+- Configurable breach threat auto-adjustment system featuring escalation and de-escalation mechanics.
+
+### Changed
+- N/A
+
+### Removed
+- N/A
+
+### Fixed
+- N/A
+
 ## [0.4.5] - 2026-01-07
 
 ### Added
