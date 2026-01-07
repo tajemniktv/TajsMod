@@ -1,3 +1,17 @@
+## [0.4.5] - 2026-01-07
+
+### Added
+- N/A
+
+### Changed
+- Restored debug logging.
+
+### Removed
+- N/A
+
+### Fixed
+- Icons for menu settings and the icon browser in the schematic creator.
+
 ## [0.4.4] - 2026-01-07
 
 ### Added
