@@ -269,6 +269,10 @@ func build_settings_menu() -> void:
     # --- WORKSPACE ---
     _add_workspace_settings_section(cheat_vbox)
     
+    # --- EXTENDED CAPS (New dedicated tab) ---
+    var extcaps_vbox = ui.add_tab("Extended Caps", "res://textures/icons/rocket.png")
+    _add_extended_caps_section(extcaps_vbox)
+    
     # --- MOD MANAGER ---
     var modmgr_vbox = ui.add_tab("Mod Manager", "res://mods-unpacked/TajemnikTV-TajsModded/textures/icons/Module-Puzzle-2.png")
     
@@ -987,6 +991,153 @@ func _update_workspace_size_label(label: Label) -> void:
     var limit = WorkspaceBounds.get_limit()
     var size = limit * 2
     label.text = "Board size: %d × %d (±%d from center)" % [int(size), int(size), int(limit)]
+
+
+func _add_extended_caps_section(parent: Control) -> void:
+    var info_label = Label.new()
+    info_label.text = "Allows upgrading CPU, GPU, Network, and DataLab nodes beyond their vanilla level caps.\nConfigure cost curves for post-cap upgrades."
+    info_label.add_theme_font_size_override("font_size", 18)
+    info_label.add_theme_color_override("font_color", Color(0.7, 0.8, 0.9))
+    info_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+    parent.add_child(info_label)
+    
+    parent.add_child(HSeparator.new())
+    
+    var container = VBoxContainer.new()
+    container.add_theme_constant_override("separation", 12)
+    parent.add_child(container)
+    
+    # System definitions
+    var systems = {
+        "processor": {"label": "CPU (Processor)", "base": 53, "default_ext": 100},
+        "gpu_cluster": {"label": "GPU Cluster", "base": 48, "default_ext": 96},
+        "network": {"label": "Network", "base": 112, "default_ext": 224},
+        "data_lab": {"label": "Data Lab", "base": 200, "default_ext": 400},
+    }
+    
+    var caps_mgr = mod_main.extended_caps_manager
+    var cfg = config
+    
+    for system_name in systems:
+        var sys_data = systems[system_name]
+        _add_system_caps_row(container, system_name, sys_data, caps_mgr, cfg)
+
+
+func _add_system_caps_row(parent: Control, system_name: String, sys_data: Dictionary, caps_mgr, cfg) -> void:
+    var system_container = VBoxContainer.new()
+    system_container.add_theme_constant_override("separation", 6)
+    parent.add_child(system_container)
+    
+    # Sub-settings container (hidden when disabled)
+    var sub_container = MarginContainer.new()
+    sub_container.add_theme_constant_override("margin_left", 20)
+    sub_container.visible = cfg.get_value("extended_caps_%s_enabled" % system_name, false)
+    
+    var sub_vbox = VBoxContainer.new()
+    sub_vbox.add_theme_constant_override("separation", 6)
+    sub_container.add_child(sub_vbox)
+    
+    var sub_ref = sub_container
+    var sys_name = system_name
+    
+    # Main toggle
+    var toggle_text = "%s (Base Cap: %d)" % [sys_data.label, sys_data.base]
+    var mode_opt_ref = null # Will be set later for bi-directional sync
+    var toggle = ui.add_toggle(system_container, toggle_text, cfg.get_value("extended_caps_%s_enabled" % system_name, false), func(v):
+        print("[ExtCaps:UI] Toggle %s = %s" % [sys_name, v])
+        cfg.set_value("extended_caps_%s_enabled" % sys_name, v)
+        sub_ref.visible = v
+        if caps_mgr:
+            caps_mgr.set_system_config(sys_name, "enabled", v)
+            print("[ExtCaps:UI] Updated manager: enabled = %s" % v)
+            # If enabling and mode is VANILLA (0), auto-switch to EXTENDED (1)
+            if v and cfg.get_value("extended_caps_%s_mode" % sys_name, 0) == 0:
+                cfg.set_value("extended_caps_%s_mode" % sys_name, 1)
+                caps_mgr.set_system_config(sys_name, "mode", 1)
+                print("[ExtCaps:UI] Auto-set mode to EXTENDED (1)")
+        else:
+            print("[ExtCaps:UI] WARNING: caps_mgr is null!")
+    , "Enable extended caps for %s. Remember to set Mode to Extended or Unlimited!" % sys_data.label)
+    
+    system_container.add_child(sub_container)
+    
+    # Mode dropdown
+    var mode_row = HBoxContainer.new()
+    mode_row.add_theme_constant_override("separation", 10)
+    sub_vbox.add_child(mode_row)
+    
+    var mode_label = Label.new()
+    mode_label.text = "Mode"
+    mode_label.add_theme_font_size_override("font_size", 20)
+    mode_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    mode_row.add_child(mode_label)
+    
+    # Cap slider container (needs to be created first for reference)
+    var cap_slider_container = HBoxContainer.new()
+    cap_slider_container.name = "cap_slider_container"
+    
+    var mode_option = OptionButton.new()
+    # Only Extended and Unlimited - no Vanilla (if player enables, they want non-vanilla)
+    mode_option.add_item("Extended", 1) # Value 1 = CapMode.EXTENDED
+    mode_option.add_item("Unlimited", 2) # Value 2 = CapMode.UNLIMITED
+    # Map stored value (1 or 2) to dropdown index (0 or 1)
+    var stored_mode = cfg.get_value("extended_caps_%s_mode" % system_name, 1)
+    mode_option.selected = 0 if stored_mode == 1 else 1 # 0=Extended, 1=Unlimited
+    mode_option.custom_minimum_size = Vector2(150, 40)
+    
+    var cap_slider_ref = cap_slider_container
+    mode_option.item_selected.connect(func(idx):
+        # Map dropdown index to actual mode value
+        var actual_mode = 1 if idx == 0 else 2 # 0->1 (Extended), 1->2 (Unlimited)
+        cfg.set_value("extended_caps_%s_mode" % sys_name, actual_mode)
+        if caps_mgr:
+            caps_mgr.set_system_config(sys_name, "mode", actual_mode)
+        # Hide cap slider when Unlimited
+        cap_slider_ref.visible = (actual_mode == 1)
+    )
+    mode_row.add_child(mode_option)
+    
+    # Cap slider (only for Extended mode, hidden for Unlimited)
+    var default_cap = sys_data.default_ext
+    cap_slider_container.visible = (stored_mode == 1) # Only visible for Extended mode
+    sub_vbox.add_child(cap_slider_container)
+    
+    ui.add_slider(cap_slider_container, "Extended Cap", cfg.get_value("extended_caps_%s_cap" % system_name, default_cap), sys_data.base, sys_data.base * 5, 1.0, "", func(v):
+        cfg.set_value("extended_caps_%s_cap" % sys_name, int(v))
+        if caps_mgr:
+            caps_mgr.set_system_config(sys_name, "extended_cap", int(v))
+    )
+    
+    # Cost curve dropdown
+    var curve_row = HBoxContainer.new()
+    curve_row.add_theme_constant_override("separation", 10)
+    sub_vbox.add_child(curve_row)
+    
+    var curve_label = Label.new()
+    curve_label.text = "Cost Curve"
+    curve_label.add_theme_font_size_override("font_size", 20)
+    curve_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    curve_row.add_child(curve_label)
+    
+    var curve_option = OptionButton.new()
+    curve_option.add_item("Off (No Extra Cost)", 0)
+    curve_option.add_item("Exponential", 1)
+    curve_option.add_item("Polynomial", 2)
+    curve_option.selected = cfg.get_value("extended_caps_%s_curve" % system_name, 1)
+    curve_option.custom_minimum_size = Vector2(170, 40)
+    curve_option.item_selected.connect(func(idx):
+        cfg.set_value("extended_caps_%s_curve" % sys_name, idx)
+        if caps_mgr:
+            caps_mgr.set_system_config(sys_name, "cost_curve", idx)
+    )
+    curve_row.add_child(curve_option)
+    
+    # Exponential multiplier slider
+    ui.add_slider(sub_vbox, "Exp Multiplier", cfg.get_value("extended_caps_%s_exp_mult" % system_name, 1.10), 1.01, 2.0, 0.01, "x", func(v):
+        cfg.set_value("extended_caps_%s_exp_mult" % sys_name, v)
+        if caps_mgr:
+            caps_mgr.set_system_config(sys_name, "exp_mult", v)
+    )
 
 
 # ==============================================================================

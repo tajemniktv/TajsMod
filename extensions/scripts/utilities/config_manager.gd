@@ -62,6 +62,29 @@ const DEFAULT_CONFIG := {
 	"breach_deescalation_enabled": true, # Auto-decrease threat level after X consecutive failures
 	"breach_deescalation_threshold": 5, # Number of consecutive failed breaches before level-down
 	"breach_escalation_cooldown": 10, # Breaches to wait after de-escalation before allowing escalation again
+	# Extended Upgrade Caps (Late-Game Feature)
+	"extended_caps_processor_enabled": false,
+	"extended_caps_processor_mode": 1, # 1=Extended, 2=Unlimited (no Vanilla option)
+	"extended_caps_processor_cap": 100,
+	"extended_caps_processor_curve": 1, # 0=Off, 1=Exponential, 2=Polynomial
+	"extended_caps_processor_exp_mult": 1.10,
+	"extended_caps_processor_poly_k": 0.05,
+	"extended_caps_processor_poly_p": 2.0,
+	"extended_caps_gpu_cluster_enabled": false,
+	"extended_caps_gpu_cluster_mode": 1,
+	"extended_caps_gpu_cluster_cap": 96,
+	"extended_caps_gpu_cluster_curve": 1,
+	"extended_caps_gpu_cluster_exp_mult": 1.10,
+	"extended_caps_network_enabled": false,
+	"extended_caps_network_mode": 1,
+	"extended_caps_network_cap": 224,
+	"extended_caps_network_curve": 1,
+	"extended_caps_network_exp_mult": 1.10,
+	"extended_caps_data_lab_enabled": false,
+	"extended_caps_data_lab_mode": 1,
+	"extended_caps_data_lab_cap": 400,
+	"extended_caps_data_lab_curve": 1,
+	"extended_caps_data_lab_exp_mult": 1.10,
 	# Debug tab
 	"debug_mode": false, # Enable verbose debug logging
 	"custom_boot_screen": true,

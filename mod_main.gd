@@ -38,6 +38,7 @@ const KeybindsRegistrationScript = preload("res://mods-unpacked/TajemnikTV-TajsM
 const ModSettingsScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/mod_settings.gd")
 const AttributeTweakerWindowScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/attribute_tweaker_window.gd")
 const BreachThreatManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/utilities/breach_threat_manager.gd")
+const ExtendedCapsManagerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/mechanics/extended_caps_manager.gd")
 
 # Components
 var config # ConfigManager instance
@@ -64,6 +65,7 @@ var keybinds_ui # KeybindsUI instance
 var keybinds_registration # KeybindsRegistration instance
 var settings # TajsModSettings instance
 var breach_threat_manager # BreachThreatManager instance
+var extended_caps_manager # ExtendedCapsManager instance
 
 
 # State
@@ -104,6 +106,12 @@ func _init() -> void:
     
     # Breach Window Extension (for failure signal)
     ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/window_breach.gd")
+    
+    # Extended Caps - Window Extensions (late-game upgrade cap overrides)
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/mod_window_processor.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/mod_window_gpu_cluster.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/mod_window_network.gd")
+    ModLoaderMod.install_script_extension("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scenes/windows/mod_window_data_lab.gd")
     
     # WindowContainer hooks (cannot use extensions due to class_name, using Script Hooks API instead)
     # NOTE: Expanded workspace feature shelved - hooks don't work in shipped builds without game dev preprocessing
@@ -171,6 +179,12 @@ func _init() -> void:
     add_child(breach_threat_manager)
     breach_threat_manager.setup(config, config.get_value("debug_mode", false))
     
+    # Init Extended Caps Manager (late-game upgrade cap overrides)
+    extended_caps_manager = ExtendedCapsManagerScript.new()
+    extended_caps_manager.name = "ExtendedCapsManager"
+    add_child(extended_caps_manager)
+    extended_caps_manager.setup(config, self)
+    
     # Init Cheat Manager
     cheat_manager = CheatManagerScript.new()
     cheat_manager.setup(self)
@@ -198,6 +212,7 @@ func _ready() -> void:
     # Setup Keybinds Global Reference & Registration
     Globals.keybinds_manager = keybinds_manager
     Globals.breach_threat_manager = breach_threat_manager
+    Globals.extended_caps_manager = extended_caps_manager
     keybinds_registration = KeybindsRegistrationScript.new()
     keybinds_registration.setup(keybinds_manager, self)
 
