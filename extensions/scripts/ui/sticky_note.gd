@@ -14,6 +14,7 @@ const ColorPickerPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModde
 const PatternPickerPanelScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/pattern_picker_panel.gd")
 const PatternDrawerScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/pattern_drawer.gd")
 const RichTextContextMenuScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/rich_text_context_menu.gd")
+const StickyNoteEditPopupScript = preload("res://mods-unpacked/TajemnikTV-TajsModded/extensions/scripts/ui/sticky_note_edit_popup.gd")
 
 # Signals for manager synchronization
 signal note_changed(note_id: String)
@@ -26,6 +27,7 @@ signal selection_changed(selected: bool)
 # Note properties
 var note_id: String = ""
 var title_text: String = "Note"
+var note_icon: String = "document" # Icon name for the note header
 var body_text: String = ""
 var note_color: Color = Color("1a202c")
 
@@ -40,8 +42,9 @@ var pattern_drawers: Array[Control] = []
 # UI References
 var _title_panel: Panel
 var _body_panel: Panel
-var _title_button: Button
-var _title_edit: LineEdit
+var _title_icon: TextureRect # Icon display in header
+var _title_label: Label # Title text label
+var _edit_title_btn: Button # Pen button to open edit popup
 var _body_edit: TextEdit
 var _body_display: RichTextLabel # Rich text view (shown when not editing)
 var _context_menu = null # RichTextContextMenu instance
@@ -50,6 +53,10 @@ var _color_btn: Button
 var _pattern_btn: Button
 var _duplicate_btn: Button
 var _delete_btn: Button
+
+# Edit popup
+var _edit_popup_layer: CanvasLayer = null
+var _edit_popup = null
 
 # Edit/View mode state
 var _is_edit_mode: bool = false
@@ -71,7 +78,6 @@ var _resize_dir := Vector2.ZERO # Direction of resize (-1, 0, 1)
 var _resize_start_rect := Rect2()
 var _resize_start_mouse := Vector2.ZERO
 var _min_size := Vector2(200, 100)
-var _is_editing_title := false
 var _is_hovered := false
 var _is_selected := false: set = _set_selected
 
@@ -96,8 +102,8 @@ func _ready() -> void:
     _setup_context_menu()
     
     # Apply initial content
-    if _title_button:
-        _title_button.text = title_text if title_text else "Note"
+    if _title_label:
+        _title_label.text = title_text if title_text else "Note"
     if _body_edit:
         _body_edit.text = body_text
     if _body_display:
@@ -172,51 +178,39 @@ func _build_ui() -> void:
     title_margin.add_child(title_container)
     _title_panel.add_child(title_margin)
     
-    # Note icon
-    var note_icon = Label.new()
-    note_icon.text = "📝"
-    note_icon.add_theme_font_size_override("font_size", 18)
-    note_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-    note_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-    title_container.add_child(note_icon)
+    # Note icon (TextureRect)
+    _title_icon = TextureRect.new()
+    _title_icon.name = "TitleIcon"
+    _title_icon.custom_minimum_size = Vector2(32, 32)
+    _title_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+    _title_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+    _title_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    _update_title_icon()
+    title_container.add_child(_title_icon)
     
-    # Title button
-    _title_button = Button.new()
-    _title_button.name = "TitleButton"
-    _title_button.text = "Note"
-    _title_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    _title_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-    _title_button.flat = true
-    _title_button.add_theme_font_size_override("font_size", 24) # Increased to 24
-    _title_button.add_theme_color_override("font_color", Color("b0cff9")) # Light blue #b0cff9
+    # Title label (non-interactive so dragging works on the entire title bar)
+    _title_label = Label.new()
+    _title_label.name = "TitleLabel"
+    _title_label.text = "Note"
+    _title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    _title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+    _title_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+    _title_label.add_theme_font_size_override("font_size", 24)
+    _title_label.add_theme_color_override("font_color", Color("b0cff9")) # Light blue
     
-    # Soft Shadow instead of Outline
-    _title_button.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.3))
-    _title_button.add_theme_constant_override("shadow_offset_x", 1)
-    _title_button.add_theme_constant_override("shadow_offset_y", 1)
+    # Soft Shadow
+    _title_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.3))
+    _title_label.add_theme_constant_override("shadow_offset_x", 1)
+    _title_label.add_theme_constant_override("shadow_offset_y", 1)
     
-    _title_button.add_theme_color_override("font_hover_color", Color(1, 1, 1))
-    _title_button.mouse_default_cursor_shape = Control.CURSOR_IBEAM
-    _title_button.pressed.connect(_start_title_edit)
-    title_container.add_child(_title_button)
+    # Make label non-interactive so clicks pass through to title panel for dragging
+    _title_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    title_container.add_child(_title_label)
     
-    # Title LineEdit
-    _title_edit = LineEdit.new()
-    _title_edit.name = "TitleEdit"
-    _title_edit.visible = false
-    _title_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-    _title_edit.add_theme_font_size_override("font_size", 16)
-    _title_edit.context_menu_enabled = false
-    # Make style invisible so it text just overlays
-    var edit_style = StyleBoxFlat.new()
-    edit_style.bg_color = Color(0, 0, 0, 0)
-    _title_edit.add_theme_stylebox_override("normal", edit_style)
-    _title_edit.add_theme_stylebox_override("focus", edit_style)
-    
-    _title_edit.text_submitted.connect(_finish_title_edit)
-    _title_edit.focus_exited.connect(_finish_title_edit_no_arg)
-    _title_edit.gui_input.connect(_on_title_edit_gui_input)
-    title_container.add_child(_title_edit)
+    # Edit title button (pen icon) - opens the edit popup
+    _edit_title_btn = _create_header_button("pen.png", "Edit Note")
+    _edit_title_btn.pressed.connect(_open_edit_popup)
+    title_container.add_child(_edit_title_btn)
     
     # Color button
     _color_btn = _create_header_button("contrast.png", "Change Color")
@@ -598,29 +592,88 @@ func _on_pattern_settings_changed(idx: int, c: Color, a: float, sp: float, th: f
     update_pattern()
     _emit_changed()
 
-func _start_title_edit() -> void:
-    _set_selected(true)
-    _is_editing_title = true
-    _title_button.visible = false
-    _title_edit.visible = true
-    _title_edit.text = title_text
-    _title_edit.grab_focus()
-    _title_edit.select_all()
+## Setup the edit popup
+func _setup_edit_popup() -> void:
+    _edit_popup_layer = CanvasLayer.new()
+    _edit_popup_layer.name = "NoteEditPopupLayer"
+    _edit_popup_layer.layer = 100
+    _edit_popup_layer.visible = false
+    get_tree().root.add_child(_edit_popup_layer)
+    
+    # Background overlay
+    var bg = ColorRect.new()
+    bg.color = Color(0, 0, 0, 0.4)
+    bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    bg.mouse_filter = Control.MOUSE_FILTER_STOP
+    bg.gui_input.connect(func(event):
+        if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+            _on_edit_cancelled()
+    )
+    _edit_popup_layer.add_child(bg)
+    
+    # Center container for the popup
+    var center = CenterContainer.new()
+    center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+    _edit_popup_layer.add_child(center)
+    
+    # The popup panel
+    _edit_popup = StickyNoteEditPopupScript.new()
+    _edit_popup.confirmed.connect(_on_edit_confirmed)
+    _edit_popup.cancelled.connect(_on_edit_cancelled)
+    center.add_child(_edit_popup)
 
-func _finish_title_edit(new_text: String) -> void:
-    title_text = new_text if new_text else "Note"
-    _title_button.text = title_text
-    _title_button.visible = true
-    _title_edit.visible = false
-    _is_editing_title = false
+## Updates the title icon texture
+func _update_title_icon() -> void:
+    if not _title_icon:
+        return
+    
+    # Try to load from res:// first (base game icons)
+    var icon_path = "res://textures/icons/" + note_icon + ".png"
+    if ResourceLoader.exists(icon_path):
+        _title_icon.texture = load(icon_path)
+        return
+    
+    # Try mod icons from filesystem
+    var mod_base_path = ModLoaderMod.get_unpacked_dir().path_join("TajemnikTV-TajsModded")
+    var mod_icon_path = mod_base_path.path_join("textures/icons").path_join(note_icon + ".png")
+    if FileAccess.file_exists(mod_icon_path):
+        var image = Image.new()
+        if image.load(mod_icon_path) == OK:
+            _title_icon.texture = ImageTexture.create_from_image(image)
+            return
+    
+    # Fallback to document icon
+    _title_icon.texture = load("res://textures/icons/document.png")
+
+## Opens the edit popup with current values
+func _open_edit_popup() -> void:
+    _set_selected(true)
+    if not _edit_popup_layer:
+        _setup_edit_popup()
+        # Wait for popup's _ready() to be called
+        await get_tree().process_frame
+    
+    _edit_popup_layer.visible = true
+    _edit_popup.open(title_text, note_icon)
+    Sound.play("click2")
+
+## Called when the edit popup is confirmed
+func _on_edit_confirmed(new_title: String, new_icon: String) -> void:
+    title_text = new_title
+    note_icon = new_icon
+    
+    if _title_label:
+        _title_label.text = title_text
+    _update_title_icon()
+    
+    _edit_popup_layer.visible = false
     _emit_changed()
 
-func _finish_title_edit_no_arg() -> void:
-    _finish_title_edit(_title_edit.text)
+## Called when the edit popup is cancelled
+func _on_edit_cancelled() -> void:
+    _edit_popup_layer.visible = false
 
 func _on_title_panel_input(event: InputEvent) -> void:
-    if _is_editing_title: return
-    
     if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
         if event.pressed:
             _is_dragging = true
@@ -644,11 +697,6 @@ func _on_title_panel_input(event: InputEvent) -> void:
         _update_handle_positions()
         accept_event()
 
-func _on_title_edit_gui_input(event: InputEvent) -> void:
-    if event is InputEventKey and event.pressed:
-        if event.keycode == KEY_A and event.ctrl_pressed:
-            _title_edit.select_all()
-            accept_event()
 
 func _on_duplicate_pressed() -> void:
     Sound.play("click2")
@@ -708,7 +756,11 @@ func set_note_color(color: Color) -> void:
 
 func set_title(text: String) -> void:
     title_text = text if text else "Note"
-    if _title_button: _title_button.text = title_text
+    if _title_label: _title_label.text = title_text
+
+func set_icon(icon_name: String) -> void:
+    note_icon = icon_name if icon_name else "document"
+    _update_title_icon()
 
 func set_body(text: String) -> void:
     body_text = text
@@ -726,6 +778,7 @@ func get_data() -> Dictionary:
         "position": [position.x, position.y],
         "size": [size.x, size.y],
         "title": title_text,
+        "icon": note_icon,
         "body": body_text, # BBCode text (backward compat for plain text)
         "color": note_color.to_html(true),
         "pattern_index": pattern_index,
@@ -741,6 +794,7 @@ func load_from_data(data: Dictionary) -> void:
     if data.has("position"): position = Vector2(data["position"][0], data["position"][1])
     if data.has("size"): size = Vector2(data["size"][0], data["size"][1])
     if data.has("title"): set_title(data["title"])
+    if data.has("icon"): set_icon(data["icon"])
     if data.has("body"): set_body(data["body"])
     if data.has("color"): set_note_color(Color.html(data["color"]))
     
