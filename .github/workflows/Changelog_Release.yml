@@ -20,7 +20,7 @@ jobs:
       steam_note: ${{ steps.notes.outputs.steam_note }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -210,7 +210,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Create/Update GitHub Release + upload asset (versioned name)
         env:
@@ -247,7 +247,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Stage Workshop payload (zip only)
         shell: bash
