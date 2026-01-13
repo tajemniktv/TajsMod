@@ -1,3 +1,17 @@
+## [0.6.1] - 2026-01-13
+
+### Added
+- N/A
+
+### Changed
+- Reworked the image import system.
+
+### Removed
+- N/A
+
+### Fixed
+- Fixed an issue where the palette would not open due to script compilation errors.
+
 ## [0.6.0] - 2026-01-07
 
 ### Added
