@@ -101,11 +101,11 @@ var _item_cache: Array = [] # {id, name, raw_name, description}
 var _item_cache_built: bool = false
 
 # Mode handler instances
-var _calculator_mode_handler: TajsModCalculatorMode
-var _help_mode_handler: TajsModHelpMode
-var _picker_mode_handler: TajsModPickerMode
-var _group_picker_mode_handler: TajsModGroupPickerMode
-var _note_picker_mode_handler: TajsModNotePickerMode
+var _calculator_mode_handler
+var _help_mode_handler
+var _picker_mode_handler
+var _group_picker_mode_handler
+var _note_picker_mode_handler
 
 # Styling
 const PANEL_WIDTH = 600
