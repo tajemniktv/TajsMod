@@ -1,6 +1,13 @@
 # Taj's Mod
 
-> **WIP** – A growing collection of **Utility / QoL + Visual Tweaks** for [Upload Labs](https://store.steampowered.com/app/2881650/Upload_Labs/), without overhauling the core gameplay loop.
+## wARNING! 
+
+> **EOL** - For new updates and mods check out: https://github.com/TajsMods
+
+
+
+
+---
 
 ![Mod Icon](TajsModHeader.png)
 
